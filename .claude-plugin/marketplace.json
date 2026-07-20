@@ -1,0 +1,36 @@
+{
+  "name": "lebensmittelwarnung-skills",
+  "owner": {
+    "name": "Sebastian Schürmann",
+    "email": "sebs@2xs.org"
+  },
+  "metadata": {
+    "description": "German product-recall skills powered by the lebensmittelwarnung-cli — current warnings (Rückrufe) for food, cosmetics and consumer products, by state, product type and reason"
+  },
+  "plugins": [
+    {
+      "name": "lebensmittelwarnung",
+      "source": "./",
+      "description": "Check Germany's official product-recall portal: current warnings (Rückrufe) by product, federal state, product type and recall reason — via the lebensmittel CLI over the official RSS feeds.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Sebastian Schürmann",
+        "email": "sebs@2xs.org"
+      },
+      "license": "AGPL-3.0-or-later",
+      "repository": "https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli",
+      "homepage": "https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli#readme",
+      "category": "government",
+      "keywords": [
+        "lebensmittelwarnung",
+        "rueckruf",
+        "recall",
+        "lebensmittel",
+        "verbraucherschutz",
+        "bvl",
+        "germany",
+        "rss"
+      ]
+    }
+  ]
+}
