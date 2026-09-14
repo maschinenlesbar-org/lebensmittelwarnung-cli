@@ -40,14 +40,17 @@ for the authoritative, current status (warnings get withdrawn). See
 
 ### Plugin marketplace (recommended)
 
-This repo is a Claude Code **plugin marketplace**, so installation is two commands inside
-Claude Code:
+The skills are published as the `lebensmittelwarnung` plugin in the
+[maschinenlesbar.org plugin marketplace](https://github.com/maschinenlesbar-org/plugins),
+which lists the plugins for all maschinenlesbar.org CLIs. Installation is two
+commands inside Claude Code:
 
 ```
-/plugin marketplace add maschinenlesbar-org/lebensmittelwarnung-cli
-/plugin install lebensmittelwarnung@lebensmittelwarnung-skills
+/plugin marketplace add maschinenlesbar-org/plugins
+/plugin install lebensmittelwarnung@maschinenlesbar
 ```
 
-The first command registers the marketplace; the second installs the
-`lebensmittelwarnung` plugin, which bundles all three skills. Update later with
-`/plugin marketplace update`.
+The first command registers the marketplace (once, for all maschinenlesbar.org
+plugins); the second installs the `lebensmittelwarnung` plugin, which bundles
+all three skills. Update later with
+`/plugin marketplace update maschinenlesbar`.
