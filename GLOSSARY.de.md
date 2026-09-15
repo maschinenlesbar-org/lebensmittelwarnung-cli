@@ -23,10 +23,12 @@ Hinweis, dass ein bestimmtes Produkt (nach Name, Charge und Mindesthaltbarkeit) 
 darstellen kann und nicht verzehrt bzw. verwendet werden sollte. In dieser CLI ist jede Warnung
 ein Eintrag des RSS-Feeds.
 
-**Grund der Meldung (`reason`).** Der Grund, aus dem die Warnung herausgegeben wurde – z. B.
-*Fremdkörper*, *Krankheitserreger* (etwa Listerien/Salmonellen), *Norovirus*,
-*mikrobiologische Verunreinigung*, ein nicht deklariertes Allergen oder eine chemische
-Kontamination. Das nützlichste Feld für eine erste Einordnung.
+**Grund der Meldung (`reason`).** Der Grund, aus dem die Warnung herausgegeben wurde, als
+Kategorie. Am 15.09.2026 verwendete der Live-Feed sieben: *Allergene*, *Fremdkörper*,
+*Gesundheitsschädliche Substanz*, *Irreführung und Täuschung*, *Krankheitserreger* (etwa
+Listerien oder Salmonellen, die der Feed nicht nennt), *Rückstände und Kontaminanten* und
+*Sonstige Gründe*. Eine Warnung kann mehrere tragen, verbunden mit `, `. Das nützlichste Feld
+für eine erste Einordnung.
 
 **Hersteller / Inverkehrbringer (`manufacturer`).** Der Hersteller oder derjenige, der das Produkt
 in Verkehr gebracht hat. Der Feed enthält die vollständige Postanschrift; diese CLI fasst sie in

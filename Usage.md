@@ -159,8 +159,8 @@ Offline (no request).
 ## Recipes
 
 ```bash
-# Reasons across all current recalls, counted
-lebensmittel warnings | jq -r 'group_by(.reason)[] | "\(.[0].reason // "?"): \(length)"'
+# Reasons across all listed warnings, counted (a warning can carry several, joined with ", ")
+lebensmittel warnings | jq -r '[.[] | (.reason // "?") | split(", ")[]] | group_by(.)[] | "\(.[0]): \(length)"'
 
 # A daily "anything new in Bavaria?" check (exit 0 with rows, or empty)
 lebensmittel warnings --state bayern --since "$(date -v-1d +%F 2>/dev/null || date -d yesterday +%F)" \

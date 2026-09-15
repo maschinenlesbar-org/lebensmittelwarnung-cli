@@ -112,8 +112,8 @@ Every command prints **JSON to stdout**; diagnostics go to stderr, so piping int
 `jq` stays clean.
 
 ```bash
-# Reasons, grouped and counted
-lebensmittel warnings | jq -r 'group_by(.reason)[] | "\(.[0].reason // "?"): \(length)"'
+# Reasons, grouped and counted (a warning can carry several, joined with ", ")
+lebensmittel warnings | jq -r '[.[] | (.reason // "?") | split(", ")[]] | group_by(.)[] | "\(.[0]): \(length)"'
 
 # Recalls affecting a given Land (the same set --state hamburg returns)
 lebensmittel warnings | jq -r '.[] | select(.affectedStates | index("Hamburg")) | .title'

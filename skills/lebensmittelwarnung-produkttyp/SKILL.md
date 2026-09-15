@@ -48,50 +48,67 @@ lebensmittel warnings --type kosmetischemittel --compact \
 ## Step 2 — filter by reason (Grund der Meldung), client-side
 
 The recall **reason** lives in the `reason` field; there is no server-side reason
-filter, so match it with `jq`. Reasons are free German text — use a case-insensitive
-substring and be generous with synonyms:
+filter, so match it with `jq`. `reason` is a **category label**, not free text. On
+2026-09-15 all 269 warnings used these seven: `Allergene`, `Fremdkörper`,
+`Gesundheitsschädliche Substanz`, `Irreführung und Täuschung`, `Krankheitserreger`,
+`Rückstände und Kontaminanten`, `Sonstige Gründe` — sometimes several joined with
+`, ` (`Allergene, Sonstige Gründe`). The feed never names the pathogen or allergen:
+"Salmonellen" or "Listerien" appear nowhere in it. So map the user's word to its
+category and match that:
 
 ```bash
-# Recalls due to pathogens (Salmonella/Listeria/E. coli/Noro…)
+# Pathogens (Salmonellen, Listerien, E. coli, Noroviren … are all "Krankheitserreger")
 lebensmittel warnings --compact \
-  | jq -r '.[] | select((.reason // "") | ascii_downcase | test("salmonell|listeri|coli|noro|krankheitserreger")) | "\(.title) — \(.reason)"'
+  | jq -r '.[] | select((.reason // "") | test("Krankheitserreger")) | "\(.title) — \(.reason)"'
 
-# Foreign bodies
+# Foreign bodies (metal, glass, plastic …)
 lebensmittel warnings --compact \
-  | jq -r '.[] | select((.reason // "") | test("Fremdkörper|Metall|Glas|Kunststoff")) | .title'
+  | jq -r '.[] | select((.reason // "") | test("Fremdkörper")) | .title'
 
-# Undeclared allergen
+# Undeclared allergens (milk, gluten, nuts …)
 lebensmittel warnings --compact \
-  | jq -r '.[] | select((.reason // "") | ascii_downcase | test("allergen|milch|gluten|nuss|soja|senf|sulfit")) | "\(.title) — \(.reason)"'
+  | jq -r '.[] | select((.reason // "") | test("Allergene")) | "\(.title) — \(.reason)"'
 ```
+
+When the user asks for a specific pathogen or allergen, say the feed only gives the
+category and point to the official notice (`.link`) for the detail.
 
 Combine type + reason + date:
 
 ```bash
 lebensmittel warnings --type lebensmittel --since 2026-07-01 --compact \
-  | jq -r '.[] | select((.reason // "") | test("Listeri")) | "\(.pubDate | split(" ")[1:4] | join(" "))  \(.title)"'
+  | jq -r '.[] | select((.reason // "") | test("Krankheitserreger")) | "\(.pubDate | split(" ")[1:4] | join(" "))  \(.title)"'
 ```
 
 ## Step 3 — group / count when they ask "what's most common?"
 
 ```bash
-# All current recalls grouped by reason
+# Warnings per reason, splitting joined reasons ("Allergene, Sonstige Gründe")
 lebensmittel warnings --compact \
-  | jq -r 'group_by(.reason)[] | "\(.[0].reason // "?"): \(length)"' | sort -t: -k2 -rn
+  | jq -r '[.[] | (.reason // "?") | split(", ")[]] | group_by(.) | map({reason: .[0], n: length}) | sort_by(-.n)[] | "\(.reason): \(.n)"'
 
 # How many per product type (loop the slugs)
 for t in lebensmittel kosmetischemittel bedarfsgegenstaende mittelzumtaetowieren babyundkinderprodukte; do
   printf '%s\t%s\n' "$t" "$(lebensmittel warnings --type "$t" --compact | jq length)"
 done
+
+# The total: count the unfiltered feed, don't add up the loop
+lebensmittel warnings --compact | jq length
 ```
+
+**Neither breakdown adds up to the total.** A warning with two reasons counts under
+both. Types overlap too: on 2026-09-15 the loop gave 231 + 7 + 30 + 0 + 21 = 289
+against 269 warnings, because 20 of the 21 `babyundkinderprodukte` items are also
+listed under `lebensmittel` (5) or `bedarfsgegenstaende` (15). Report each count on its
+own, and take the total from the unfiltered feed.
 
 ## Traps
 
 - **Type is server-side (`--type`), reason is client-side (`jq` on `.reason`).**
   There is no `--reason` flag; don't invent one — filter the JSON.
-- **Reasons are free text, in German.** Match loosely (`ascii_downcase | test(...)`)
-  and include synonyms, or you'll miss items (e.g. "Salmonellen" vs "Salmonella" vs
-  "Krankheitserreger"). Show the actual `.reason` string in your answer.
+- **Reasons are categories, not free text.** Match the category (`Krankheitserreger`,
+  not "Salmonellen", which never matches), expect comma-joined combinations, and show
+  the actual `.reason` string in your answer.
 - **`mittelzumtaetowieren` is often empty** — an empty `[]` for that type is a normal,
   valid result, not a failure.
 - **`--search` is title-only** — it will not find recalls "because of X"; use the

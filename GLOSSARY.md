@@ -22,10 +22,13 @@ as covering "Deutschland" (nationwide).
 a notice that a specific product (by name, batch and best-before) may pose a risk and
 should not be consumed/used. In this CLI each warning is one item of the RSS feed.
 
-**Grund der Meldung (`reason`).** The reason the warning was issued — e.g.
-*Fremdkörper* (foreign body), *Krankheitserreger* (pathogens, e.g. Listeria/Salmonella),
-*Norovirus*, *mikrobiologische Verunreinigung*, an undeclared allergen, or a chemical
-contaminant. The single most useful field for triage.
+**Grund der Meldung (`reason`).** The reason the warning was issued, as a category
+label. On 2026-09-15 the live feed used seven: *Allergene* (allergens), *Fremdkörper*
+(foreign body), *Gesundheitsschädliche Substanz* (harmful substance), *Irreführung und
+Täuschung* (misleading labelling), *Krankheitserreger* (pathogens such as Listeria or
+Salmonella, which the feed doesn't name), *Rückstände und Kontaminanten* (residues and
+contaminants) and *Sonstige Gründe* (other). A warning can carry several, joined with
+`, `. The single most useful field for triage.
 
 **Hersteller / Inverkehrbringer (`manufacturer`).** The manufacturer or the party
 that placed the product on the market. The feed embeds the full postal address; this
