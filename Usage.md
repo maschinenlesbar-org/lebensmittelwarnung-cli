@@ -55,7 +55,7 @@ lebensmittel warnings
 # One line per recall: date (German time, from pubDate), product, reason
 lebensmittel warnings | jq -r '.[] | "\(.pubDate | split(" ")[1:4] | join(" "))\t\(.title)\t\(.reason // "?")"'
 
-# How many active warnings right now?
+# How many warnings does the portal list? (not only recent ones: the feed goes back years)
 lebensmittel warnings | jq length
 
 # Every product-photo URL

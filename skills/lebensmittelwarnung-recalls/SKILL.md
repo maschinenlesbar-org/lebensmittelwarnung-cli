@@ -16,8 +16,8 @@ userInvocable: true
 # Lebensmittelwarnung — current recalls
 
 Answer "is there a recall right now, and does it affect this product?" from the
-official portal (BVL + the sixteen Länder). The tool returns the current warnings as
-JSON — this skill turns them into a clear, cited answer.
+official portal (BVL + the sixteen Länder). The tool returns every warning the portal
+still lists, newest first, as JSON — this skill turns them into a clear, cited answer.
 
 ## Tooling
 
@@ -28,7 +28,7 @@ This skill drives the `lebensmittel` command. **Before anything else, validate i
 ## Commands
 
 ```bash
-lebensmittel warnings --compact                 # all current recalls
+lebensmittel warnings --compact                 # every listed warning (goes back years)
 lebensmittel warnings --search "<term>"         # product-title substring (case-insensitive)
 lebensmittel warnings --since 2026-07-01         # only on/after a date (YYYY-MM-DD)
 lebensmittel warnings --limit 10                 # first N (feed order = most recent first)
@@ -48,8 +48,16 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
    all warnings and grep the reason/manufacturer/`fields` too before concluding
    "no recall".
 
-2. **"Anything current?"** — `lebensmittel warnings --limit 10` and summarise the
-   most recent, each as *product — reason — affected states*.
+2. **"Anything current?" / "diese Woche?"** — use a date window, and name it in the
+   answer:
+
+   ```bash
+   # published in the last 14 days (BSD date, then GNU date)
+   lebensmittel warnings --since "$(date -v-14d +%F 2>/dev/null || date -d '14 days ago' +%F)" --compact
+   ```
+
+   Or `--limit 10` for "the latest ten" (the feed is newest-first). Summarise each as
+   *product — reason — affected states*.
 
 3. **Always report the batch (`lotNumbers`), best-before (`bestBefore`) and
    packaging (`packaging`)** when telling someone whether *their* item is affected —
@@ -73,6 +81,11 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 
 ## Traps
 
+- **The feed is not just current recalls.** On 2026-09-15 it listed 269 warnings going
+  back to 2018-06-21 (162 of them from 2026), including products whose best-before date
+  had already passed. Don't call the unfiltered feed "all current recalls"; for
+  „aktuell" use `--since` or `--limit`, and check `bestBefore` before telling someone
+  a product is still a risk.
 - **A recall is batch-specific.** "Product X is recalled" is not enough — match the
   user's `lotNumbers` / `bestBefore`. Say so explicitly when you can't confirm the
   batch.
