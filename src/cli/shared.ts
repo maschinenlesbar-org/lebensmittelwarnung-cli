@@ -81,10 +81,11 @@ export function parseHeaderValue(value: string): string {
 /**
  * commander value-parser for a `--since <YYYY-MM-DD>` calendar date. Rejects a
  * malformed or impossible date (e.g. `2026-13-40`) at parse time (exit 2) rather
- * than silently comparing against an Invalid Date. Returns the day's UTC-midnight
- * epoch millis, the lower bound for a "published on or after this date" filter.
+ * than silently comparing against an Invalid Date. Returns the date as a
+ * `YYYY-MM-DD` string, the lower bound for a "published on or after this day"
+ * filter that compares it with {@link berlinDay} of each warning.
  */
-export function parseDate(value: string): number {
+export function parseDate(value: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
   if (!m) {
     throw new InvalidArgumentError("Expected a date in YYYY-MM-DD format.");
@@ -99,7 +100,32 @@ export function parseDate(value: string): number {
   if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
     throw new InvalidArgumentError("Not a valid calendar date.");
   }
-  return ms;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+const BERLIN_DAY = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Europe/Berlin",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/**
+ * The calendar day (`YYYY-MM-DD`) of a timestamp in German time (Europe/Berlin), or
+ * `undefined` when it doesn't parse. The feed stamps notices in local time
+ * (`Fri, 4 Sep 2026 00:00:00 +0200`), so the UTC day of a notice published between
+ * midnight and 02:00 would be the day before.
+ */
+export function berlinDay(timestamp: string): string | undefined {
+  const ms = Date.parse(timestamp);
+  if (Number.isNaN(ms)) return undefined;
+  const parts = BERLIN_DAY.formatToParts(ms);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
+  if (year === undefined || month === undefined || day === undefined) return undefined;
+  return `${year.padStart(4, "0")}-${month}-${day}`;
 }
 
 export interface GlobalOptions {

@@ -86,6 +86,29 @@ test("warnings --since filters by publication date (client-side)", async () => {
   assert.ok(rows.every((r) => !/Gesichtscreme/.test(r.title)));
 });
 
+test("warnings --since compares German calendar days, not UTC days", async () => {
+  const cli = makeCli(() => rssResponse(fx.midnightFeedXml));
+  assert.equal(await run(["warnings", "--since", "2026-09-04"], cli.deps), 0);
+  const rows = JSON.parse(cli.out.join("\n")) as Array<{ title: string; published: string }>;
+  // Midnight +0200 is 22:00 UTC the day before, but it is still 4 Sep in Germany.
+  assert.deepEqual(
+    rows.map((r) => r.title),
+    ["Knackwürste im Ring", "UTC-stamped item"],
+  );
+  assert.equal(rows[0]!.published, "2026-09-03T22:00:00.000Z");
+});
+
+test("warnings --since in winter time (+0100) keeps a notice from German midnight", async () => {
+  const feed = fx.midnightFeedXml.replace("Fri, 4 Sep 2026 00:00:00 +0200", "Mon, 5 Jan 2026 00:00:00 +0100");
+  const cli = makeCli(() => rssResponse(feed));
+  assert.equal(await run(["warnings", "--since", "2026-01-05"], cli.deps), 0);
+  const rows = JSON.parse(cli.out.join("\n")) as Array<{ title: string }>;
+  assert.deepEqual(
+    rows.map((r) => r.title),
+    ["Knackwürste im Ring", "Late evening item", "UTC-stamped item"],
+  );
+});
+
 test("warnings --since rejects a malformed date (exit 2)", async () => {
   const cli = makeCli(() => rssResponse(fx.feedXml));
   assert.equal(await run(["warnings", "--since", "2026-13-40"], cli.deps), 2);

@@ -54,6 +54,35 @@ export const bayernFeedXml = `<?xml version="1.0" encoding="UTF-8"?>
 </item>
 </channel></rss>`;
 
+/**
+ * Notices around German midnight (live: 26 of 269 pubDates are `00:00:00`). By
+ * German calendar day: 4 Sep, 3 Sep, and 4 Sep again for the UTC-stamped item
+ * (22:30 UTC on 3 Sep is 00:30 on 4 Sep in Berlin).
+ */
+export const midnightFeedXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>Lebensmittelwarnung.de - Thüringen - Alle Produkttypen</title>
+<ttl>60</ttl>
+<item>
+<title>Knackwürste im Ring</title>
+<link>https://www.lebensmittelwarnung.de/knack.html</link>
+<pubDate>Fri, 4 Sep 2026 00:00:00 +0200</pubDate>
+<description><![CDATA[<b>Grund der Meldung:</b> Test<br/>]]></description>
+</item>
+<item>
+<title>Late evening item</title>
+<link>https://www.lebensmittelwarnung.de/late.html</link>
+<pubDate>Thu, 3 Sep 2026 23:59:00 +0200</pubDate>
+<description><![CDATA[<b>Grund der Meldung:</b> Test<br/>]]></description>
+</item>
+<item>
+<title>UTC-stamped item</title>
+<link>https://www.lebensmittelwarnung.de/utc.html</link>
+<pubDate>Thu, 3 Sep 2026 22:30:00 +0000</pubDate>
+<description><![CDATA[<b>Grund der Meldung:</b> Test<br/>]]></description>
+</item>
+</channel></rss>`;
+
 /** A single-item feed with an empty <item> and a self-closed pubDate (edge cases). */
 export const sparseFeedXml = `<?xml version="1.0"?>
 <rss version="2.0"><channel>

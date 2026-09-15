@@ -18,7 +18,7 @@ import {
   TYPE_SLUGS,
   TYPE_NAMES,
 } from "../../client/enums.js";
-import { action, parseBoundedInt, parseDate, parseNonEmpty, renderJson } from "../shared.js";
+import { action, berlinDay, parseBoundedInt, parseDate, parseNonEmpty, renderJson } from "../shared.js";
 
 export function registerCommands(program: Command, deps: CliDeps): void {
   program
@@ -38,7 +38,11 @@ export function registerCommands(program: Command, deps: CliDeps): void {
       "return at most this many warnings (in feed order — most recent first)",
       parseBoundedInt(1, 100000),
     )
-    .option("--since <YYYY-MM-DD>", "only warnings published on or after this date", parseDate)
+    .option(
+      "--since <YYYY-MM-DD>",
+      "only warnings published on or after this date (German time, Europe/Berlin)",
+      parseDate,
+    )
     .option("--search <term>", "only warnings whose product title contains this text (case-insensitive)", parseNonEmpty)
     .action(
       action(deps, async ({ client, global, opts }) => {
@@ -52,12 +56,14 @@ export function registerCommands(program: Command, deps: CliDeps): void {
 
         // Client-side filters. Guard field types so a filter never silently matches
         // nothing due to an unexpectedly-shaped field.
-        const since = opts["since"] as number | undefined;
+        // --since compares calendar days in German time, not UTC: a notice stamped
+        // `00:00:00 +0200` belongs to that day, although its UTC instant is the day before.
+        const since = opts["since"] as string | undefined;
         if (since !== undefined) {
           warnings = warnings.filter((w: Warning) => {
             if (typeof w.published !== "string") return false;
-            const ms = Date.parse(w.published);
-            return !Number.isNaN(ms) && ms >= since;
+            const day = berlinDay(w.published);
+            return day !== undefined && day >= since;
           });
         }
 
