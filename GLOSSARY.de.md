@@ -102,9 +102,11 @@ lautet:
 mit `<title>`, `<link>`, `<pubDate>` und einer HTML-`<description>` (in einem
 CDATA-Abschnitt). Diese CLI liest es mit einem selbst geschriebenen Parser ohne Abhängigkeiten.
 
-**pubDate / published.** `pubDate` ist der RFC-822-Zeitstempel, wie er geliefert wird
-(„Wed, 8 Jul 2026 16:00:00 +0200“); `published` ist derselbe Wert, normalisiert zu einem
-ISO-8601-String in UTC, auf den `--since` filtert.
+**pubDate / published.** `pubDate` ist der RFC-822-Zeitstempel, wie er geliefert wird, in
+deutscher Zeit („Wed, 8 Jul 2026 16:00:00 +0200“); `published` ist derselbe Wert, normalisiert
+zu einem ISO-8601-String in UTC. `--since` filtert darauf, vergleicht aber Kalendertage in
+deutscher Zeit (Europe/Berlin): Eine Meldung mit dem Zeitstempel `00:00:00 +0200` zählt für
+ihren eigenen Tag, obwohl der Datumsteil von `published` der Vortag ist.
 
 **fields (Map Bezeichnung→Wert).** Die vollständige Menge der Paare `<b>Label:</b> value`, die
 aus der Beschreibung gelesen werden, mit der deutschen Bezeichnung als Schlüssel (abschließender

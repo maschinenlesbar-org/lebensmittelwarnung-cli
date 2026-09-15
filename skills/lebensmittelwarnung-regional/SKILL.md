@@ -56,7 +56,7 @@ the full feed, so a typo is caught, not hidden.
 
 ```bash
 lebensmittel warnings --state bayern --compact \
-  | jq -r '.[] | "\(.published[:10])  \(.title) — \(.reason // "?")"'
+  | jq -r '.[] | "\(.pubDate | split(" ")[1:4] | join(" "))  \(.title) — \(.reason // "?")"'
 
 # recent only
 lebensmittel warnings --state nordrheinwestfalen --since 2026-07-01 --compact

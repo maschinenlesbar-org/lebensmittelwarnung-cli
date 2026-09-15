@@ -69,7 +69,7 @@ Combine type + reason + date:
 
 ```bash
 lebensmittel warnings --type lebensmittel --since 2026-07-01 --compact \
-  | jq -r '.[] | select((.reason // "") | test("Listeri")) | "\(.published[:10])  \(.title)"'
+  | jq -r '.[] | select((.reason // "") | test("Listeri")) | "\(.pubDate | split(" ")[1:4] | join(" "))  \(.title)"'
 ```
 
 ## Step 3 — group / count when they ask "what's most common?"

@@ -50,7 +50,7 @@ lebensmittel warnings --state bayern | jq length
 
 # Only food recalls since the start of the month
 lebensmittel warnings --type lebensmittel --since 2026-07-01 \
-  | jq -r '.[] | "\(.published[:10])\t\(.title)"'
+  | jq -r '.[] | "\(.pubDate | split(" ")[1:4] | join(" "))\t\(.title)"'
 
 # Search current recalls by product name
 lebensmittel warnings --search schokolade | jq -r '.[].title'
@@ -73,7 +73,7 @@ New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
 | --- | --- |
 | `--state <slug>` | Only warnings for one Bundesland — server-side filter. One of the 16 slugs from `lebensmittel states` (e.g. `bayern`, `nordrheinwestfalen`). An unknown slug is a usage error. |
 | `--type <slug>` | Only warnings for one product type — server-side filter. One of `lebensmittel`, `kosmetischemittel`, `bedarfsgegenstaende`, `mittelzumtaetowieren`, `babyundkinderprodukte`. |
-| `--since <YYYY-MM-DD>` | Only warnings published on or after this date (client-side, on `published`). |
+| `--since <YYYY-MM-DD>` | Only warnings published on or after this date, counted in German time (Europe/Berlin), client-side. |
 | `--search <term>` | Only warnings whose **product title** contains this text, case-insensitive (client-side). |
 | `--limit <n>` | Return at most `n` warnings, in feed order (most recent first). |
 

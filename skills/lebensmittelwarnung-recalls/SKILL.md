@@ -66,7 +66,8 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 | `lotNumbers` | *Chargennummer / Los-Kennzeichnung* — the codes to match on the pack |
 | `bestBefore` | *Haltbarkeit* — best-before / use-by |
 | `packaging` | *Verpackungseinheit* |
-| `published` | ISO timestamp (`--since` filters on this) |
+| `pubDate` | Publication time as served, in German time (`Fri, 4 Sep 2026 00:00:00 +0200`) — show dates from this (see Traps) |
+| `published` | The same instant as an ISO timestamp in **UTC**. `--since` compares German calendar days |
 | `link` | Official detail page |
 | `fields` | Full label→value map (superset of the above) |
 
@@ -81,6 +82,9 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 - **`--state` follows `affectedStates`, not the issuer.** `--state` returns the
   warnings distributed in that Land (its name is in `affectedStates`), whoever issued
   them. For a Bundesland question use **lebensmittelwarnung-regional**.
+- **Don't take the date from `published[:10]`.** `published` is UTC, so a notice
+  stamped `Fri, 4 Sep 2026 00:00:00 +0200` shows as 2026-09-03. Take the German date
+  from `pubDate` instead: `.pubDate | split(" ")[1:4] | join(" ")` gives `4 Sep 2026`.
 - **Empty `[]` is a valid answer** ("nothing matches right now"), not an error. A
   non-RSS/empty body exits 1 with a message — surface it, don't retry blindly.
 - **Cite and don't alter.** These are copyright-protected safety notices; quote them

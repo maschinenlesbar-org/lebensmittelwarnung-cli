@@ -99,9 +99,11 @@ umlauts). Run `lebensmittel states` for the authoritative list; the mapping is:
 with `<title>`, `<link>`, `<pubDate>` and an HTML `<description>` (in a CDATA
 section). This CLI parses it with a hand-rolled, dependency-free parser.
 
-**pubDate / published.** `pubDate` is the RFC-822 timestamp as served
-("Wed, 8 Jul 2026 16:00:00 +0200"); `published` is that value normalised to an
-ISO-8601 UTC string, which `--since` filters on.
+**pubDate / published.** `pubDate` is the RFC-822 timestamp as served, in German
+time ("Wed, 8 Jul 2026 16:00:00 +0200"); `published` is that value normalised to an
+ISO-8601 UTC string. `--since` filters on it but compares calendar days in German
+time (Europe/Berlin): a notice stamped `00:00:00 +0200` counts for its own day,
+although the date part of `published` is the day before.
 
 **fields (label→value map).** The complete set of `<b>Label:</b> value` pairs parsed
 from the description, keyed by the German label (trailing colon stripped). A superset

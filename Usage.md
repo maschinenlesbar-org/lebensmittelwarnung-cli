@@ -52,8 +52,8 @@ lebensmittel warnings
 ```
 
 ```bash
-# One line per recall: date, product, reason
-lebensmittel warnings | jq -r '.[] | "\(.published[:10])\t\(.title)\t\(.reason // "?")"'
+# One line per recall: date (German time, from pubDate), product, reason
+lebensmittel warnings | jq -r '.[] | "\(.pubDate | split(" ")[1:4] | join(" "))\t\(.title)\t\(.reason // "?")"'
 
 # How many active warnings right now?
 lebensmittel warnings | jq length
@@ -112,8 +112,14 @@ lebensmittel warnings --limit 5
 lebensmittel warnings --type lebensmittel --since 2026-07-01 --search bio --limit 10
 ```
 
-`--since` takes a `YYYY-MM-DD` date and filters on the ISO `published` field. A
-malformed date (`2026-13-40`, `10.07.2026`) is a usage error (exit `2`).
+`--since` takes a `YYYY-MM-DD` date and keeps warnings whose publication day, in
+German time (Europe/Berlin), is that day or later. A malformed date (`2026-13-40`,
+`10.07.2026`) is a usage error (exit `2`).
+
+`published` is the same instant in UTC, so its first ten characters give the day
+before for notices published in the first one or two hours after midnight German
+time (many are stamped `00:00:00 +0200`). For a date to show, take it from `pubDate`, which is in
+German time: `.pubDate | split(" ")[1:4] | join(" ")` gives `4 Sep 2026`.
 `--search`/`--since` that match nothing return `[]` (not the full feed).
 
 ## `states` — the valid Bundesland slugs
