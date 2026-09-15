@@ -78,9 +78,9 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 - **`--search` matches the title only**, not the reason or manufacturer. For "recalls
   because of Salmonella" or "cosmetics recalls" use the **lebensmittelwarnung-produkttyp**
   skill (filters by reason/type), not `--search`.
-- **`affectedStates` ≠ `--state`.** `affectedStates` is where the product was
-  distributed; `--state` selects the *publishing* Land's feed. For a Bundesland
-  question use **lebensmittelwarnung-regional**.
+- **`--state` follows `affectedStates`, not the issuer.** `--state` returns the
+  warnings distributed in that Land (its name is in `affectedStates`), whoever issued
+  them. For a Bundesland question use **lebensmittelwarnung-regional**.
 - **Empty `[]` is a valid answer** ("nothing matches right now"), not an error. A
   non-RSS/empty body exits 1 with a message — surface it, don't retry blindly.
 - **Cite and don't alter.** These are copyright-protected safety notices; quote them

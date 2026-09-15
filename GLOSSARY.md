@@ -34,8 +34,8 @@ CLI collapses it to one line.
 **Betroffene Bundesländer nach derzeitigem Stand (`affectedStates`).** The list of
 Länder where the product was distributed **as currently known** — it is updated over
 time, and a Land can add or remove itself after publication. Surfaced as a
-`string[]`. Note this is the *distribution* list, distinct from the `--state` feed
-filter (which selects by the **publishing** Land's feed).
+`string[]`. The `--state` feed filter selects by this list: a state feed holds the
+warnings whose `affectedStates` name that Land, whoever issued them.
 
 **Chargennummer / Los-Kennzeichnung (`lotNumbers`).** The batch / lot identifiers of
 the affected units — the codes on the packaging that tell you whether *your* item is
@@ -87,10 +87,11 @@ umlauts). Run `lebensmittel states` for the authoritative list; the mapping is:
 | `schleswigholstein` | Schleswig-Holstein |
 | `thueringen` | Thüringen |
 
-> **`--state` filters by the publishing Land's feed**, not by the `affectedStates`
-> distribution list. A recall issued by another Land but affecting yours may not
-> appear under your `--state` filter — to catch those, fetch unfiltered and check
-> `affectedStates` client-side (see [Usage.md](Usage.md)).
+> **`--state` filters by the `affectedStates` distribution list**, not by the Land
+> that issued the warning. On 2026-09-15 `--state thueringen` returned exactly the
+> warnings listing „Thüringen" in `affectedStates`, and only 4 of those 179 were
+> issued by Thüringen. The feed has no issuer field; the notice URL carries the
+> issuing Land as a code in its folder name (see [Usage.md](Usage.md)).
 
 ## Technical terms
 

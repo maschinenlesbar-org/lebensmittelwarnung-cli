@@ -35,8 +35,9 @@ einer Zeile zusammen.
 **Betroffene Bundesländer nach derzeitigem Stand (`affectedStates`).** Die Liste der Länder, in
 denen das Produkt **nach derzeitigem Kenntnisstand** vertrieben wurde – sie wird im Lauf der Zeit
 aktualisiert, und ein Land kann sich nach der Veröffentlichung selbst hinzufügen oder austragen.
-Bereitgestellt als `string[]`. Beachten Sie: Das ist die *Vertriebsliste*, nicht zu verwechseln
-mit dem Feed-Filter `--state` (der nach dem Feed des **veröffentlichenden** Landes auswählt).
+Bereitgestellt als `string[]`. Der Feed-Filter `--state` wählt nach dieser Liste aus: Der Feed
+eines Landes enthält die Warnungen, deren `affectedStates` dieses Land nennen – gleich, wer sie
+herausgegeben hat.
 
 **Chargennummer / Los-Kennzeichnung (`lotNumbers`).** Die Chargen- bzw. Loskennungen der
 betroffenen Einheiten – die Codes auf der Verpackung, an denen Sie erkennen, ob *Ihr* Exemplar
@@ -89,10 +90,11 @@ lautet:
 | `schleswigholstein` | Schleswig-Holstein |
 | `thueringen` | Thüringen |
 
-> **`--state` filtert nach dem Feed des veröffentlichenden Landes**, nicht nach der Vertriebsliste
-> `affectedStates`. Ein Rückruf, den ein anderes Land herausgegeben hat, der aber Ihr Land betrifft,
-> erscheint unter Ihrem `--state`-Filter möglicherweise nicht – um solche Fälle zu erfassen, rufen
-> Sie ungefiltert ab und prüfen `affectedStates` clientseitig (siehe [Usage.md](Usage.md)).
+> **`--state` filtert nach der Vertriebsliste `affectedStates`**, nicht nach dem Land, das die
+> Warnung herausgegeben hat. Am 15.09.2026 lieferte `--state thueringen` genau die Warnungen, die
+> „Thüringen“ in `affectedStates` nennen, und nur 4 dieser 179 stammten aus Thüringen. Ein Feld für
+> die herausgebende Stelle hat der Feed nicht; die URL der Meldung enthält das herausgebende Land als
+> Kürzel im Ordnernamen (siehe [Usage.md](Usage.md)).
 
 ## Technische Begriffe
 

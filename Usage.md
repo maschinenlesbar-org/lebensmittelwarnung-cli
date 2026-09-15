@@ -69,15 +69,17 @@ lebensmittel warnings --state bayern
 lebensmittel warnings --state nordrheinwestfalen | jq length
 ```
 
-`--state` selects the **publishing** Land's feed (server-side). Run
+`--state` selects the warnings **distributed** in that Land (server-side): the ones
+whose `affectedStates` list names it, whoever issued them. Run
 `lebensmittel states` for the sixteen valid slugs; an unknown slug is a usage error
 (exit `2`), never a silent full-feed fallback.
 
-> To find recalls that **affect** a Land regardless of who published them, fetch
-> unfiltered and check the `affectedStates` distribution list client-side:
+> The feed has no field for the **issuing** Land. The notice URL carries it as a Land
+> code in the folder name (`…/260904_03_BW_diverse_Kaesesorten/…`, `BVL` for the
+> federal office), a naming convention rather than data:
 >
 > ```bash
-> lebensmittel warnings | jq -r '.[] | select(.affectedStates | index("Hamburg")) | .title'
+> lebensmittel warnings | jq -r '.[] | select(.link | test("/\\d{6,8}(_\\d+)?_BY_")) | .title'
 > ```
 
 ### Narrow by product type

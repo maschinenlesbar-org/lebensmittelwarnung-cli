@@ -115,7 +115,7 @@ Every command prints **JSON to stdout**; diagnostics go to stderr, so piping int
 # Reasons, grouped and counted
 lebensmittel warnings | jq -r 'group_by(.reason)[] | "\(.[0].reason // "?"): \(length)"'
 
-# Recalls affecting a given Land (client-side, checking the affectedStates list)
+# Recalls affecting a given Land (the same set --state hamburg returns)
 lebensmittel warnings | jq -r '.[] | select(.affectedStates | index("Hamburg")) | .title'
 
 # All image URLs in the current recalls

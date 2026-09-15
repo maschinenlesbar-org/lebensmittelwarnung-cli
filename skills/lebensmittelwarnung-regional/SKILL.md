@@ -5,9 +5,9 @@ description: >
   using the lebensmittel CLI. Trigger when the user asks "aktuelle
   Lebensmittelwarnungen in Bayern?", "Rückrufe in NRW?", "warnings in Hamburg?",
   "gibt es in Sachsen einen Rückruf?", or names any Bundesland. Resolves the state
-  name to the feed's slug, queries the state-narrowed feed, and also explains the
-  difference between the publishing-state feed filter and the affected-states
-  distribution list so the answer is complete.
+  name to the feed's slug, queries the state-narrowed feed (every recall
+  distributed in that Land, whoever issued it), and shows how to tell which Land
+  issued a warning when the user asks for that.
 version: 1.0.0
 userInvocable: true
 ---
@@ -64,33 +64,38 @@ lebensmittel warnings --state nordrheinwestfalen --since 2026-07-01 --compact
 
 Combine with `--type` (food only, cosmetics only, …) or `--limit` as needed.
 
-## The one thing to get right: two different "states"
+## The one thing to get right: the state feed is the distribution list
 
-There are **two** notions of state, and the honest answer usually needs both:
+**`--state <slug>`** returns the warnings whose **`affectedStates`** (*Betroffene
+Bundesländer nach derzeitigem Stand*, where the product was sold) include that Land —
+**whoever issued them**. On 2026-09-15, `--state thueringen` returned exactly the
+warnings of the unfiltered feed that list „Thüringen" in `affectedStates` (the same
+held for Hamburg and Bremen), and only 4 of those 179 were issued by Thüringen. Many
+recalls list all 16 Länder, so a state feed is mostly nationwide recalls.
 
-- **`--state <slug>`** filters by the **publishing** Land's feed — the authority that
-  *issued* the warning.
-- **`affectedStates`** (a field on each warning) is the **distribution** list — where
-  the product was actually sold, "nach derzeitigem Stand".
-
-A recall issued by another Land can still affect the user's Land. So for "is my Land
-affected?", **also** scan the unfiltered feed's `affectedStates`:
+- **"Rückrufe in Sachsen?" / "betrifft das Hamburg?"** → `--state` answers it
+  directly. There's no need to scan `affectedStates` on top.
+- **"What did Thüringen itself warn about?"** → no filter or field gives the issuing
+  authority. It shows only in the notice URL, as a Land code in the folder name
+  (`…/260904_03_BW_diverse_Kaesesorten/…`, `BVL` for the federal office). That's a
+  naming convention, not data, so say you derived it from the URL:
 
 ```bash
-# Everything currently affecting Hamburg, whoever published it
+# Warnings issued by Thüringen (TH), judged by the Land code in the notice URL
 lebensmittel warnings --compact \
-  | jq -r '.[] | select(.affectedStates | index("Hamburg")) | "\(.title) — \(.reason)"'
+  | jq -r '.[] | select(.link | test("/\\d{6,8}(_\\d+)?_TH_")) | "\(.title) — \(.reason // "?")"'
 ```
 
-Prefer this `affectedStates` scan when the user asks "does it affect <Land>?"; use
-`--state` when they ask "what did <Land> warn about?".
+Codes are the usual Land abbreviations (`BW BY BE BB HB HH HE MV NI NW RP SL SN ST SH
+TH`) plus `BVL`.
 
 ## Traps
 
 - **Slug, not name.** `--state Bayern` or `--state bavaria` fails (exit 2). Use
   `bayern`. Confirm with `lebensmittel states` if unsure.
-- **`--state` = publisher, `affectedStates` = distribution.** Don't conflate them;
-  when in doubt, run the `affectedStates` scan so you don't miss a cross-Land recall.
+- **`--state` = distribution, not publisher.** Don't present a state feed as "what
+  <Land> warned about". Most items were issued by other Länder; use the URL code
+  above for the issuer.
 - **Empty `[]` is valid** — "no current recalls for that state feed", not an error.
 - **Batch-specific.** Report `lotNumbers` / `bestBefore` so the user can check their
   own item, and link `.link` for the official notice.
