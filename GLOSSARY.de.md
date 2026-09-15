@@ -1,0 +1,115 @@
+# Glossar
+
+Fach- und technische Begriffe, denen Sie bei der Arbeit mit `lebensmittel` begegnen. Die
+Optionsreferenz finden Sie in der **[README](README.md)**, das vollständige Kochbuch in
+**[Usage.md](Usage.md)**.
+
+## Das Portal
+
+**lebensmittelwarnung.de.** Das amtliche Portal Deutschlands für öffentliche Produktwarnungen,
+betrieben vom **Bundesamt für Verbraucherschutz und Lebensmittelsicherheit (BVL)** gemeinsam mit
+den sechzehn **Ländern**. Die zuständige Behörde jedes Landes veröffentlicht ihre eigenen
+Warnungen; das BVL betreibt Portal und App. Es ist die zentrale bundesweite Stelle, an der Rückrufe
+von Lebensmitteln und Verbraucherprodukten öffentlich bekannt gemacht werden.
+
+**BVL – Bundesamt für Verbraucherschutz und Lebensmittelsicherheit.** Die Bundesbehörde, die das
+Portal betreibt und als Herausgeber für Warnungen mit dem Geltungsbereich „Deutschland“
+(bundesweit) verantwortlich ist.
+
+## Warnungen
+
+**Warnung / Rückruf (`warnings`).** Eine öffentliche Produktwarnung – meist ein **Rückruf**: der
+Hinweis, dass ein bestimmtes Produkt (nach Name, Charge und Mindesthaltbarkeit) ein Risiko
+darstellen kann und nicht verzehrt bzw. verwendet werden sollte. In dieser CLI ist jede Warnung
+ein Eintrag des RSS-Feeds.
+
+**Grund der Meldung (`reason`).** Der Grund, aus dem die Warnung herausgegeben wurde – z. B.
+*Fremdkörper*, *Krankheitserreger* (etwa Listerien/Salmonellen), *Norovirus*,
+*mikrobiologische Verunreinigung*, ein nicht deklariertes Allergen oder eine chemische
+Kontamination. Das nützlichste Feld für eine erste Einordnung.
+
+**Hersteller / Inverkehrbringer (`manufacturer`).** Der Hersteller oder derjenige, der das Produkt
+in Verkehr gebracht hat. Der Feed enthält die vollständige Postanschrift; diese CLI fasst sie in
+einer Zeile zusammen.
+
+**Betroffene Bundesländer nach derzeitigem Stand (`affectedStates`).** Die Liste der Länder, in
+denen das Produkt **nach derzeitigem Kenntnisstand** vertrieben wurde – sie wird im Lauf der Zeit
+aktualisiert, und ein Land kann sich nach der Veröffentlichung selbst hinzufügen oder austragen.
+Bereitgestellt als `string[]`. Beachten Sie: Das ist die *Vertriebsliste*, nicht zu verwechseln
+mit dem Feed-Filter `--state` (der nach dem Feed des **veröffentlichenden** Landes auswählt).
+
+**Chargennummer / Los-Kennzeichnung (`lotNumbers`).** Die Chargen- bzw. Loskennungen der
+betroffenen Einheiten – die Codes auf der Verpackung, an denen Sie erkennen, ob *Ihr* Exemplar
+betroffen ist.
+
+**Haltbarkeit (`bestBefore`).** Angaben zur Haltbarkeit – ein *Mindesthaltbarkeitsdatum* (MHD)
+oder ein Verbrauchsdatum, ebenfalls zum Abgleich mit Ihrem Exemplar.
+
+**Verpackungseinheit (`packaging`).** Die Verpackungseinheit bzw. -größe, z. B.
+„175 Gramm-Packung“.
+
+**Bildquelle.** Der Bildnachweis für das Produktfoto (© beim Hersteller oder einer Agentur). Er
+steht in der allgemeinen Map `fields`. Die **Bilder selbst** (`imageUrls`) sind
+urheberrechtlich geschützt – siehe [DATA_LICENSE.md](DATA_LICENSE.md).
+
+## Produkttypen (`--type` / `types`)
+
+Der Feed-Filter `type=` akzeptiert fünf Slugs für Produktkategorien:
+
+| Slug | Bezeichnung | Umfang |
+|---|---|---|
+| `lebensmittel` | Lebensmittel | Lebensmittel und Getränke (der Großteil der Warnungen) |
+| `kosmetischemittel` | Kosmetische Mittel | Kosmetik |
+| `bedarfsgegenstaende` | Bedarfsgegenstände | Gegenstände mit Lebensmittelkontakt oder für den täglichen Gebrauch (Verpackungen, Küchenutensilien, Textilien, …) |
+| `mittelzumtaetowieren` | Mittel zum Tätowieren | Tätowierfarben / -mittel |
+| `babyundkinderprodukte` | Baby- und Kinderprodukte | Produkte für Babys und Kinder |
+
+## Bundesländer (`--state` / `states`)
+
+Der Feed-Filter `state=` akzeptiert sechzehn Slugs für die Bundesländer (kleingeschrieben, ohne
+Leerzeichen und Umlaute). Die maßgebliche Liste liefert `lebensmittel states`; die Zuordnung
+lautet:
+
+| Slug | Bundesland |
+|---|---|
+| `badenwuerttemberg` | Baden-Württemberg |
+| `bayern` | Bayern |
+| `berlin` | Berlin |
+| `brandenburg` | Brandenburg |
+| `bremen` | Bremen |
+| `hamburg` | Hamburg |
+| `hessen` | Hessen |
+| `mecklenburgvorpommern` | Mecklenburg-Vorpommern |
+| `niedersachsen` | Niedersachsen |
+| `nordrheinwestfalen` | Nordrhein-Westfalen |
+| `rheinlandpfalz` | Rheinland-Pfalz |
+| `saarland` | Saarland |
+| `sachsen` | Sachsen |
+| `sachsenanhalt` | Sachsen-Anhalt |
+| `schleswigholstein` | Schleswig-Holstein |
+| `thueringen` | Thüringen |
+
+> **`--state` filtert nach dem Feed des veröffentlichenden Landes**, nicht nach der Vertriebsliste
+> `affectedStates`. Ein Rückruf, den ein anderes Land herausgegeben hat, der aber Ihr Land betrifft,
+> erscheint unter Ihrem `--state`-Filter möglicherweise nicht – um solche Fälle zu erfassen, rufen
+> Sie ungefiltert ab und prüfen `affectedStates` clientseitig (siehe [Usage.md](Usage.md)).
+
+## Technische Begriffe
+
+**RSS 2.0.** Das XML-Feedformat, das das Portal veröffentlicht. Jede Warnung ist ein `<item>`
+mit `<title>`, `<link>`, `<pubDate>` und einer HTML-`<description>` (in einem
+CDATA-Abschnitt). Diese CLI liest es mit einem selbst geschriebenen Parser ohne Abhängigkeiten.
+
+**pubDate / published.** `pubDate` ist der RFC-822-Zeitstempel, wie er geliefert wird
+(„Wed, 8 Jul 2026 16:00:00 +0200“); `published` ist derselbe Wert, normalisiert zu einem
+ISO-8601-String in UTC, auf den `--since` filtert.
+
+**fields (Map Bezeichnung→Wert).** Die vollständige Menge der Paare `<b>Label:</b> value`, die
+aus der Beschreibung gelesen werden, mit der deutschen Bezeichnung als Schlüssel (abschließender
+Doppelpunkt entfernt). Eine Obermenge der typisierten Accessoren – alles, was die CLI nicht eigens
+modelliert, steht trotzdem hier.
+
+**Alte JSON-API (außer Betrieb).** Die frühere JSON-API unter `megov.bayern.de` (dokumentiert im
+Projekt bundesAPI / bund.dev), die diese Daten früher lieferte. Seit dem Relaunch des Portals
+liefert sie einen leeren Body und wird **nicht** verwendet – diese CLI bindet die RSS-Feeds ein.
+Siehe [DEVELOPING.md](DEVELOPING.md).
