@@ -156,6 +156,28 @@ test("--compact prints single-line JSON", async () => {
   assert.equal(cli.out.length, 1);
 });
 
+test("DEL and C1 control characters in server data are escaped in the JSON output", async () => {
+  const controls = String.fromCharCode(0x7f, 0x85, 0x9b) + "2J";
+  const title = `Käse${controls}`;
+  const reason = String.fromCharCode(0x1b) + "[31m";
+  const xml =
+    `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title><item>` +
+    `<title>${title}</title>` +
+    `<description><![CDATA[<b>Grund der Meldung:</b> ${reason}<br/>]]></description>` +
+    `</item></channel></rss>`;
+  for (const format of [[], ["--compact"]]) {
+    const cli = makeCli(() => rssResponse(xml));
+    assert.equal(await run(["warnings", ...format], cli.deps), 0);
+    const text = cli.out.join("\n");
+    const raw = [...text].filter((c) => c.charCodeAt(0) < 0x20 ? c !== "\n" : c.charCodeAt(0) >= 0x7f && c.charCodeAt(0) <= 0x9f);
+    assert.deepEqual(raw, [], format.join(" "));
+    assert.match(text, /Käse\\u007f\\u0085\\u009b2J/);
+    const rows = JSON.parse(text) as Array<{ title?: string; reason?: string }>;
+    assert.equal(rows[0]?.title, title);
+    assert.equal(rows[0]?.reason, reason);
+  }
+});
+
 test("--output writes to a file and keeps stdout clean", async () => {
   const cli = makeCli(() => rssResponse(fx.feedXml));
   await run(["--output", "/tmp/lmw.json", "warnings"], cli.deps);
