@@ -1,6 +1,6 @@
 {
   "name": "lebensmittelwarnung",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "German product-recall skills powered by the lebensmittelwarnung-cli — current warnings (Rückrufe) for food, cosmetics and consumer products, by state, product type and reason.",
   "author": {
     "name": "Sebastian Schürmann",
