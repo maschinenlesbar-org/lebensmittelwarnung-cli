@@ -1,6 +1,6 @@
 {
   "name": "@maschinenlesbar.org/lebensmittelwarnung-cli",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "TypeScript API client and CLI for the official lebensmittelwarnung.de product-warning feeds — food, cosmetics and consumer-product recalls (Rückrufe), filterable by federal state and product type",
   "type": "module",
   "bin": {
