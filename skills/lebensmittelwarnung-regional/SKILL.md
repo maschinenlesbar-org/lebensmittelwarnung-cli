@@ -8,8 +8,11 @@ description: >
   name to the feed's slug, queries the state-narrowed feed (every recall
   distributed in that Land, whoever issued it), and shows how to tell which Land
   issued a warning when the user asks for that.
-version: 1.0.0
-userInvocable: true
+compatibility: >
+  Requires the `lebensmittel` CLI (npm package
+  @maschinenlesbar.org/lebensmittelwarnung-cli) on PATH, installed by the user;
+  the skill never installs it. Uses jq for JSON filtering. Network access to
+  www.lebensmittelwarnung.de.
 ---
 
 # Lebensmittelwarnung — regional recalls
@@ -21,6 +24,8 @@ recalls clearly.
 ## Tooling
 
 This skill drives the `lebensmittel` command. **Before anything else, validate it is available** — run `command -v lebensmittel` (or `lebensmittel --version`). If it is not on your PATH, STOP and inform the user that the `lebensmittel` CLI (`@maschinenlesbar.org/lebensmittelwarnung-cli`) is not installed — installing it is their responsibility; never install it yourself, and do not fall back to `npx` or a local `node dist/...` build.
+
+This skill also filters JSON with `jq`. **Validate it too** — run `command -v jq`. If it is missing, inform the user that `jq` is not installed — installing it is their responsibility; never install it yourself — and carry on without it: filter the CLI output with `node -e` instead (Node is already on your PATH, since the CLI runs on it).
 
 **No API key is required** — the feeds are public. The data comes from the RSS feeds; the legacy JSON API is defunct. The warnings are **copyright-protected**: when you quote one, cite it in the prescribed form — `Portal www.lebensmittelwarnung.de, [Jahr]: [Produkttitel], [URL], Stand: [Datum]` — reproduce it unaltered, and never present it mixed with other sources. See DATA_LICENSE.md. Use `--compact` when piping to `jq`.
 
