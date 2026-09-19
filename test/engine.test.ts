@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { RequestEngine } from "../src/client/engine.js";
-import { LebensmittelwarnungApiError, LebensmittelwarnungParseError } from "../src/client/errors.js";
+import {
+  LebensmittelwarnungApiError,
+  LebensmittelwarnungNetworkError,
+  LebensmittelwarnungParseError,
+} from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, rawResponse } from "./helpers.js";
 import * as fx from "./fixtures.js";
 
@@ -106,4 +110,24 @@ test("error detail is stripped of terminal control characters", async () => {
       return true;
     },
   );
+});
+
+test("the engine rejects a non-http(s) base URL before any request, even with a custom transport", () => {
+  for (const baseUrl of ["file:///etc/passwd", "ftp://example.org"]) {
+    const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+    assert.throws(
+      () => new RequestEngine({ baseUrl, transport: mt.transport }),
+      (err) => err instanceof LebensmittelwarnungNetworkError && /Unsupported protocol/.test(err.message),
+    );
+    assert.equal(mt.calls.length, 0);
+  }
+});
+
+test("the engine rejects an unparsable base URL", () => {
+  const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+  assert.throws(
+    () => new RequestEngine({ baseUrl: "not a url", transport: mt.transport }),
+    (err) => err instanceof LebensmittelwarnungNetworkError && /Invalid base URL/.test(err.message),
+  );
+  assert.equal(mt.calls.length, 0);
 });

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LebensmittelwarnungClient, FEED_PATH } from "../src/client/client.js";
+import { LebensmittelwarnungNetworkError } from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, queryOf } from "./helpers.js";
 import * as fx from "./fixtures.js";
 
@@ -83,4 +84,15 @@ test("warnings() tolerates an item that carries only a reason (non-food shape)",
   assert.equal(cream.reason, "mikrobiologische Verunreinigung");
   assert.equal(cream.imageUrls, undefined); // no image in that item
   assert.equal(cream.packaging, undefined); // no packaging label
+});
+
+test("the client rejects a non-http(s) base URL before any request, even with a custom transport", () => {
+  for (const baseUrl of ["file:///etc/passwd", "ftp://example.org"]) {
+    const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+    assert.throws(
+      () => new LebensmittelwarnungClient({ baseUrl, transport: mt.transport }),
+      (err) => err instanceof LebensmittelwarnungNetworkError && /Unsupported protocol/.test(err.message),
+    );
+    assert.equal(mt.calls.length, 0);
+  }
 });
