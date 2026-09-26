@@ -47,3 +47,36 @@ test("a directory as --output names the problem, with and without --force", () =
     }
   });
 });
+
+import { EventEmitter } from "node:events";
+import { handleOutputErrors, type OutputStreams } from "../src/cli/io.js";
+
+function fakeStreams() {
+  const stdout = new EventEmitter();
+  const stderr = new EventEmitter();
+  const exits: number[] = [];
+  handleOutputErrors({ stdout, stderr } as unknown as OutputStreams, (code) => void exits.push(code));
+  return { stdout, stderr, exits };
+}
+
+test("EPIPE on stdout (reader closed early, e.g. | head) exits 0 quietly", () => {
+  const s = fakeStreams();
+  s.stdout.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+  assert.deepEqual(s.exits, [0]);
+});
+
+test("another stdout error exits 1; stderr EPIPE exits 0, other stderr errors 1", () => {
+  const s = fakeStreams();
+  const written: string[] = [];
+  const original = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((chunk: string) => (written.push(chunk), true)) as typeof process.stderr.write;
+  try {
+    s.stdout.emit("error", Object.assign(new Error("write ENOSPC"), { code: "ENOSPC" }));
+  } finally {
+    process.stderr.write = original;
+  }
+  assert.deepEqual(written, ["Output error: write ENOSPC\n"]);
+  s.stderr.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
+  s.stderr.emit("error", Object.assign(new Error("write EIO"), { code: "EIO" }));
+  assert.deepEqual(s.exits, [1, 0, 1]);
+});
