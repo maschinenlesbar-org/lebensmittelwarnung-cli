@@ -77,19 +77,20 @@ import {
 
 const client = new LebensmittelwarnungClient();
 
-const all = await client.warnings();                       // Warning[]
-console.log(all.length, all[0]?.title, all[0]?.reason);
-
-const bavarianFood = await client.warnings({
-  state: "bayern",
-  type: "lebensmittel",
-});
-
 try {
+  const all = await client.warnings();                     // Warning[]
+  console.log(all.length, all[0]?.title, all[0]?.reason);
+
+  const bavarianFood = await client.warnings({
+    state: "bayern",
+    type: "lebensmittel",
+  });
   const w = bavarianFood[0];
   console.log(w?.affectedStates, w?.manufacturer);
 } catch (err) {
+  // warnings() rejects: the feed returned the HTML shell or an empty body.
   if (err instanceof LebensmittelwarnungParseError) console.error(err.message);
+  else throw err;
 }
 ```
 
