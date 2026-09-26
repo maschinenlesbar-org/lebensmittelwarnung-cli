@@ -192,3 +192,9 @@ test("parseDescription decodes HTML entities in labels and values", () => {
   const { fields } = parseDescription("<b>Grund der Meldung:</b> K&auml;se &ndash; Fremdk&ouml;rper");
   assert.equal(fields["Grund der Meldung"], "Käse – Fremdkörper");
 });
+
+test("a feed with more than 100000 items is an error, not silently cut", () => {
+  const items = (n: number) => "<rss><channel>" + "<item><title>a</title></item>".repeat(n) + "</channel></rss>";
+  assert.equal(parseRss(items(100_000)).items.length, 100_000);
+  assert.throws(() => parseRss(items(100_001)), /more than 100000 items/);
+});

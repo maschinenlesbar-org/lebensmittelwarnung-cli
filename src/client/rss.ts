@@ -19,7 +19,10 @@
 
 import { HTML_ENTITIES } from "./entities.js";
 
-/** Maximum number of `<item>` elements accepted from a single feed (DoS guard). */
+/**
+ * Maximum number of `<item>` elements accepted from a single feed (DoS guard). A
+ * feed with more is an error, not silently cut (the live feed has a few hundred).
+ */
 const MAX_ITEMS = 100_000;
 
 /** Raw, un-projected RSS item: the leaf elements exactly as the feed serves them. */
@@ -174,7 +177,6 @@ export function parseRss(xml: string): RssFeed {
   let i = 0;
   const n = xml.length;
   while (i < n) {
-    if (items.length >= MAX_ITEMS) break;
     if (xml[i] !== "<") {
       const next = xml.indexOf("<", i);
       const end = next === -1 ? n : next;
@@ -253,6 +255,9 @@ export function parseRss(xml: string): RssFeed {
         channelAt = depth;
       } else if (channelAt !== -1 && depth === channelAt + 1 && channel !== undefined) {
         if (name === "item") {
+          if (items.length >= MAX_ITEMS) {
+            throw new Error(`The feed has more than ${MAX_ITEMS} items, the most this parser accepts`);
+          }
           item = {};
           itemAt = depth;
           if (selfClosing) {
@@ -279,11 +284,9 @@ export function parseRss(xml: string): RssFeed {
     }
   }
 
-  if (items.length < MAX_ITEMS) {
-    if (leaf) throw new Error(`Unterminated element <${leaf.name}>`);
-    const open = stack[stack.length - 1];
-    if (open !== undefined) throw new Error(`Unterminated element <${open}>`);
-  }
+  if (leaf) throw new Error(`Unterminated element <${leaf.name}>`);
+  const open = stack[stack.length - 1];
+  if (open !== undefined) throw new Error(`Unterminated element <${open}>`);
   if (channel === undefined) {
     throw new Error("No <channel> element found in RSS document");
   }

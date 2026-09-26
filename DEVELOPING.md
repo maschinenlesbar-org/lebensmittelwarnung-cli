@@ -149,7 +149,9 @@ new LebensmittelwarnungClient({
   result is trimmed. Comments, processing instructions and declarations are skipped;
 - an **unterminated** element, comment, CDATA section, tag or attribute value throws
   (the engine reports it as `Failed to parse RSS response from <path>: <reason>`,
-  exit 1), so a truncated or hostile body is an error rather than a partial feed.
+  exit 1), so a truncated or hostile body is an error rather than a partial feed;
+  so is a feed with more than 100 000 items (a DoS guard; the live feed has a few
+  hundred).
 
 [`parseDescription`](src/client/rss.ts) then turns one item's HTML `<description>`
 into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
