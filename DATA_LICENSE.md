@@ -51,7 +51,8 @@ Weiterverwendung* on **2026-07-13**:
   nicht anders vermerkt, beim [BVL]. Einzelne Bilder stammen von Adobe Stock." Further
   use/publication of the images by third parties is **only** possible under the
   rights-holder's licence terms. The product images this CLI exposes as `imageUrls`
-  are therefore **not** freely reusable — treat them as all-rights-reserved.
+  (and as `images`, each with its own *Bildquelle* credit) are therefore **not** freely
+  reusable — treat them as all-rights-reserved.
 
 - **Marken.** Product names, trademarks and logos in the warnings belong to their
   respective owners and appear only for the purpose of the reporting.
@@ -72,7 +73,7 @@ for them. There is **no warranty** for accuracy, completeness or availability, a
   you can act on, but the portal's terms treat the published *content* as
   copyright-protected: for any republication, use the prescribed citation and follow
   the unaltered/complete rule.
-- **Images** (`imageUrls`) — copyright-protected (BVL / manufacturers / Adobe Stock);
+- **Images** (`imageUrls`, `images`) — copyright-protected (BVL / manufacturers / Adobe Stock);
   personal use only, no republication without the rights-holder's permission.
 
 ## Notes & caveats

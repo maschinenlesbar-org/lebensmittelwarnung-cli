@@ -56,9 +56,11 @@ in scope.
 **Verpackungseinheit (`packaging`).** The packaging unit / size, e.g.
 "175 Gramm-Packung".
 
-**Bildquelle.** The image credit for the product photo (© the manufacturer or an
-agency). It appears in the generic `fields` map. The **images themselves**
-(`imageUrls`) are copyright-protected — see [DATA_LICENSE.md](DATA_LICENSE.md).
+**Bildquelle.** The image credit for a product photo (© the manufacturer or an
+agency). The notice gives one per photo, and they can differ (on 2026-09-26, 6 of 265
+warnings had photos from different sources). `images` pairs each photo URL with its own
+credit; the generic `fields` map holds only the last one. The **images themselves**
+(`imageUrls`, `images`) are copyright-protected — see [DATA_LICENSE.md](DATA_LICENSE.md).
 
 ## Product types (`--type` / `types`)
 

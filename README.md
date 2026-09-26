@@ -98,6 +98,7 @@ Each item carries typed accessors plus a generic `fields` map and the raw HTML:
   "bestBefore": "Mindesthaltbarkeitsdatum: 15.03.2028",
   "packaging": "750 Gramm",
   "imageUrls": ["https://www.lebensmittelwarnung.de/.../Bild.jpg?__blob=normal&v=1"],
+  "images": [{ "url": "https://www.lebensmittelwarnung.de/.../Bild.jpg?__blob=normal&v=1", "credit": "© Firma …" }],
   "fields": { "Bildquelle": "© Firma …", "Grund der Meldung": "Krankheitserreger", "…": "…" },
   "rawDescription": "<img …/><br/><b>Grund der Meldung:</b> …"
 }
@@ -123,8 +124,8 @@ lebensmittel warnings | jq -r '[.[] | (.reason // "?") | split(", ")[]] | group_
 # Recalls affecting a given Land (the same set --state hamburg returns)
 lebensmittel warnings | jq -r '.[] | select(.affectedStates | index("Hamburg")) | .title'
 
-# All image URLs in the current recalls
-lebensmittel warnings | jq -r '.[].imageUrls[]?'
+# All image URLs in the current recalls, each with its own credit (Bildquelle)
+lebensmittel warnings | jq -r '.[].images[]? | "\(.url)\t\(.credit // "")"'
 ```
 
 Use `--compact` for single-line JSON and `-o <file>` to write to a file — both are

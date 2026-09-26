@@ -127,3 +127,12 @@ test("isUnrenderedTitle spots a Velocity method reference, not a dollar price", 
   assert.equal(isUnrenderedTitle("Sauce $5.99 Edition"), false);
   assert.equal(isUnrenderedTitle("Käse, 200 g"), false);
 });
+
+test("warnings() exposes images with their credits", async () => {
+  const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+  const [first, , cream] = await new LebensmittelwarnungClient({ transport: mt.transport }).warnings();
+  assert.deepEqual(first!.images, [
+    { url: "https://www.lebensmittelwarnung.de/bild.png?__blob=normal&v=1", credit: "© Firma Sales & Service Aktuell GmbH" },
+  ]);
+  assert.equal(cream!.images, undefined);
+});

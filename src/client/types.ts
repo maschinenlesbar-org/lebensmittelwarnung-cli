@@ -46,6 +46,12 @@ export interface Warning {
   packaging?: string;
   /** Every `<img src=…>` image URL in the description, in order. */
   imageUrls?: string[];
+  /**
+   * The same images, each with its own credit ("Bildquelle", e.g. "© Netto Marken
+   * Discount") — the credit to show with that image. `fields.Bildquelle` holds only
+   * the last one, which is wrong for every other image of a multi-image notice.
+   */
+  images?: WarningImage[];
 
   /**
    * The full label→value map parsed from the HTML description — a superset of the
@@ -57,6 +63,13 @@ export interface Warning {
 
   /** The raw HTML `<description>` body, kept verbatim for callers who need more. */
   rawDescription?: string;
+}
+
+/** One product image with its credit, as the notice gives it. */
+export interface WarningImage {
+  url: string;
+  /** The "Bildquelle" caption after the image; absent when the notice has none. */
+  credit?: string;
 }
 
 /** Options accepted by {@link LebensmittelwarnungClient.warnings}. */

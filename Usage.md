@@ -46,6 +46,7 @@ lebensmittel warnings
     "bestBefore": "Mindesthaltbarkeitsdatum: 15.03.2028",
     "packaging": "750 Gramm",
     "imageUrls": ["https://www.lebensmittelwarnung.de/.../Bild.jpg?__blob=normal&v=1"],
+    "images": [{ "url": "https://www.lebensmittelwarnung.de/.../Bild.jpg?__blob=normal&v=1", "credit": "© Firma …" }],
     "fields": { "…": "…" },
     "rawDescription": "<img …/><br/><b>Grund der Meldung:</b> …"
   }
@@ -61,6 +62,10 @@ lebensmittel warnings | jq length
 
 # Every product-photo URL
 lebensmittel warnings | jq -r '.[].imageUrls[]?'
+
+# … with the credit of each photo (a notice can have several photos with different credits;
+# fields.Bildquelle holds only the last one)
+lebensmittel warnings | jq -r '.[].images[]? | "\(.url)\t\(.credit // "")"'
 ```
 
 ### Narrow by federal state

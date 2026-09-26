@@ -117,3 +117,19 @@ test("parseDescription is linear on hostile input", () => {
   assert.deepEqual(parseDescription("<img ".repeat(100_000)).imageUrls, []);
   assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);
 });
+
+test("parseDescription pairs each image with the Bildquelle credit that follows it", () => {
+  // Live shape of 260725_27_BY_Beeren (2026-09-26): two images, two different credits.
+  const html =
+    '<img src="https://x/a.jpg?__blob=normal&amp;v=1" width="100" /><br/><b>Bildquelle</b> © Netto Marken Discount<br/>' +
+    '<img src="https://x/b.jpg?__blob=normal&amp;v=2" width="100" /><br/><b>Bildquelle</b> © Jütro Tiefkühlkost GmbH &amp; Co. KG<br/>' +
+    '<img src="https://x/c.jpg" /><br/><b>Grund der Meldung:</b> Krankheitserreger<br/>';
+  const { images, imageUrls, fields } = parseDescription(html);
+  assert.deepEqual(images, [
+    { url: "https://x/a.jpg?__blob=normal&v=1", credit: "© Netto Marken Discount" },
+    { url: "https://x/b.jpg?__blob=normal&v=2", credit: "© Jütro Tiefkühlkost GmbH & Co. KG" },
+    { url: "https://x/c.jpg" },
+  ]);
+  assert.deepEqual(imageUrls, images.map((i) => i.url));
+  assert.equal(fields["Bildquelle"], "© Jütro Tiefkühlkost GmbH & Co. KG"); // last one, as before
+});

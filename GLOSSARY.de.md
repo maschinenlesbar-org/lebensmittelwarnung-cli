@@ -57,9 +57,11 @@ oder ein Verbrauchsdatum, ebenfalls zum Abgleich mit Ihrem Exemplar.
 **Verpackungseinheit (`packaging`).** Die Verpackungseinheit bzw. -größe, z. B.
 „175 Gramm-Packung“.
 
-**Bildquelle.** Der Bildnachweis für das Produktfoto (© beim Hersteller oder einer Agentur). Er
-steht in der allgemeinen Map `fields`. Die **Bilder selbst** (`imageUrls`) sind
-urheberrechtlich geschützt – siehe [DATA_LICENSE.md](DATA_LICENSE.md).
+**Bildquelle.** Der Bildnachweis für ein Produktfoto (© beim Hersteller oder einer Agentur). Die
+Meldung nennt ihn je Foto, und die Nachweise können sich unterscheiden (am 26.09.2026 hatten 6 von
+265 Warnungen Fotos aus verschiedenen Quellen). `images` ordnet jeder Foto-URL ihren eigenen
+Nachweis zu; die allgemeine Map `fields` enthält nur den letzten. Die **Bilder selbst**
+(`imageUrls`, `images`) sind urheberrechtlich geschützt – siehe [DATA_LICENSE.md](DATA_LICENSE.md).
 
 ## Produkttypen (`--type` / `types`)
 

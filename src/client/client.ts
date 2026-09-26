@@ -76,7 +76,7 @@ export class LebensmittelwarnungClient {
 
     const feed = await this.engine.getFeed(FEED_PATH, params);
     return feed.items.map((item) => {
-      const { fields, imageUrls } = parseDescription(item.description ?? "");
+      const { fields, imageUrls, images } = parseDescription(item.description ?? "");
       const warning: Warning = { fields };
       // The product name. The feed's `<title>` is used as served unless it is an
       // unrendered template (see isUnrenderedTitle); then the description's
@@ -109,6 +109,7 @@ export class LebensmittelwarnungClient {
       const pack = fields[LABEL.packaging];
       if (pack) warning.packaging = pack;
       if (imageUrls.length > 0) warning.imageUrls = imageUrls;
+      if (images.length > 0) warning.images = images;
       if (item.description !== undefined) warning.rawDescription = item.description;
 
       return warning;

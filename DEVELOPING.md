@@ -124,6 +124,7 @@ new LebensmittelwarnungClient({
 | `bestBefore` | "Haltbarkeit" | |
 | `packaging` | "Verpackungseinheit" | |
 | `imageUrls` | `<img src>` | Every image in the description, in order |
+| `images` | `<img src>` + "Bildquelle" | The same images as `{ url, credit? }`, each with the credit caption that follows it (`fields.Bildquelle` keeps only the last) |
 | `fields` | all `<b>Label:</b> value` pairs | The complete label→value map (superset) |
 | `rawDescription` | `<description>` | The original HTML, verbatim |
 
@@ -151,7 +152,7 @@ new LebensmittelwarnungClient({
   exit 1), so a truncated or hostile body is an error rather than a partial feed.
 
 [`parseDescription`](src/client/rss.ts) then turns one item's HTML `<description>`
-into `{ fields, imageUrls }`, again in one linear scan: it collects every `<img src>`
+into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
 and lets each `<b>…</b>` label own the text up to the next label, dropping residual
 tags and collapsing whitespace. [`decodeEntities`](src/client/rss.ts) handles
 the five predefined XML entities, `&nbsp;`, and numeric (`&#228;` / `&#xE4;`) refs,

@@ -288,7 +288,21 @@ export interface ParsedDescription {
   fields: Record<string, string>;
   /** Every image URL from an `<img src=…>` in the description, in order. */
   imageUrls: string[];
+  /**
+   * The same images, each with its own credit: the "Bildquelle" caption that follows
+   * it (before the next image). `credit` is absent for an image without one.
+   */
+  images: DescriptionImage[];
 }
+
+/** One image of a description with its credit ("Bildquelle"), as served. */
+export interface DescriptionImage {
+  url: string;
+  credit?: string;
+}
+
+/** The caption label that credits the image before it. */
+const IMAGE_CREDIT_LABEL = "Bildquelle";
 
 /** One token of an HTML fragment: a run of text or a tag. */
 type HtmlToken =
@@ -394,21 +408,30 @@ function attribute(raw: string, wanted: string): string | undefined {
  * Labels repeat across item types but not always (a "Bildquelle" caption has no
  * colon and its own following text); we keep the LAST value for a repeated label
  * rather than concatenating, which matches how the portal renders single-valued
- * fields. The raw description stays available on the item for anyone who needs more.
+ * fields. The one label that does repeat with different values is the image credit
+ * ("Bildquelle", one per image), so `images` pairs each image with the credit that
+ * follows it. The raw description stays available on the item for anyone who needs more.
  *
  * One forward scan over the fragment, so the cost is linear in its length.
  */
 export function parseDescription(html: string): ParsedDescription {
   const imageUrls: string[] = [];
+  const images: DescriptionImage[] = [];
   const fields: Record<string, string> = {};
   let label: string[] | undefined; // collecting a label's text (inside <b>)
-  let value: { label: string; parts: string[] } | undefined;
+  // `image`: for a credit caption, the index of the image it follows (the value is
+  // only complete at the next label, after the next <img> may have been seen).
+  let value: { label: string; parts: string[]; image: number } | undefined;
 
   const finishValue = (): void => {
     if (value === undefined) return;
     // Collapse all whitespace (incl. the manufacturer's embedded newlines) to a
     // single space and trim; keep the last non-empty value for a repeated label.
     const text = value.parts.join("").replace(/\s+/g, " ").trim();
+    if (value.label === IMAGE_CREDIT_LABEL) {
+      const image = images[value.image];
+      if (image !== undefined && image.credit === undefined && text !== "") image.credit = text;
+    }
     if (text !== "") fields[value.label] = text;
     else if (!Object.hasOwn(fields, value.label)) fields[value.label] = "";
     value = undefined;
@@ -423,7 +446,10 @@ export function parseDescription(html: string): ParsedDescription {
     }
     if (token.name === "img" && !token.close) {
       const src = attribute(token.attrs, "src");
-      if (src) imageUrls.push(src);
+      if (src) {
+        imageUrls.push(src);
+        images.push({ url: src });
+      }
     }
     if (token.name === "b" && token.attrs.trim() === "") {
       if (!token.close) {
@@ -434,7 +460,7 @@ export function parseDescription(html: string): ParsedDescription {
       if (label) {
         const name = label.join("").trim().replace(/:\s*$/, "");
         label = undefined;
-        if (name !== "") value = { label: name, parts: [] };
+        if (name !== "") value = { label: name, parts: [], image: images.length - 1 };
         continue;
       }
     }
@@ -443,5 +469,5 @@ export function parseDescription(html: string): ParsedDescription {
     else if (value) value.parts.push(" ");
   }
   finishValue();
-  return { fields, imageUrls };
+  return { fields, imageUrls, images };
 }
