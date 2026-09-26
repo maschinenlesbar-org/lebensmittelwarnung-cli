@@ -173,6 +173,28 @@ function assertHttpScheme(baseUrl: string): void {
   }
 }
 
+/**
+ * Decode an XML body by the encoding its XML declaration names
+ * (`<?xml version="1.0" encoding="ISO-8859-1"?>`), UTF-8 when it names none — the
+ * XML default. The Content-Type is ignored, as for the rest of the body sniffing
+ * (see getFeed); the declaration travels with the document. A leading UTF-8
+ * byte-order mark is dropped (TextDecoder does that by default). An encoding
+ * TextDecoder doesn't know is a LebensmittelwarnungParseError rather than mojibake.
+ */
+function decodeXml(body: Buffer, path: string): string {
+  const start = body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf ? 3 : 0;
+  const head = body.subarray(start, start + 256).toString("latin1");
+  const declared = /^\s*<\?xml\s[^>]*?\bencoding\s*=\s*["']([^"']*)["']/.exec(head)?.[1];
+  const charset = declared ?? "utf-8";
+  let decoder: TextDecoder;
+  try {
+    decoder = new TextDecoder(charset);
+  } catch {
+    throw new LebensmittelwarnungParseError(`Unsupported response charset "${sanitizeServerText(charset)}" from ${path}.`);
+  }
+  return decoder.decode(body);
+}
+
 const realSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -271,7 +293,7 @@ export class RequestEngine {
    */
   async getFeed(path: string, query?: QueryParams): Promise<RssFeed> {
     const res = await this.request(path, query);
-    const text = res.data.toString("utf8");
+    const text = decodeXml(res.data, path);
     const head = text.trimStart().slice(0, 200).toLowerCase();
     if (head.startsWith("<!doctype html") || head.startsWith("<html")) {
       throw new LebensmittelwarnungParseError(

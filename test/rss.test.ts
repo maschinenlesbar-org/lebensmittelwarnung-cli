@@ -10,7 +10,13 @@ test("decodeEntities decodes named, decimal and hex refs", () => {
 });
 
 test("decodeEntities leaves an unknown named entity untouched", () => {
-  assert.equal(decodeEntities("100&euro;"), "100&euro;");
+  assert.equal(decodeEntities("100&bogus; &Euro;"), "100&bogus; &Euro;");
+});
+
+test("decodeEntities decodes HTML named references (the description is HTML)", () => {
+  assert.equal(decodeEntities("K&auml;se &ndash; 5&euro; &#8211; &shy;x"), "Käse – 5€ – \u00adx");
+  assert.equal(decodeEntities("&Auml;&szlig;&bdquo;a&ldquo;&hellip;&copy;"), "Äß„a“…©");
+  assert.equal(decodeEntities("&frac12; kg, 20&deg;C, m&sup2;"), "½ kg, 20°C, m²");
 });
 
 test("decodeEntities does not decode a surrogate-range code point", () => {
@@ -180,4 +186,9 @@ test("parseDescription resolves a relative image URL against the given base", ()
     "https://cdn.test/x.jpg",
   ]);
   assert.deepEqual(parseDescription(html).imageUrls, ["rel/pic.jpg", "/abs.jpg", "https://cdn.test/x.jpg"]);
+});
+
+test("parseDescription decodes HTML entities in labels and values", () => {
+  const { fields } = parseDescription("<b>Grund der Meldung:</b> K&auml;se &ndash; Fremdk&ouml;rper");
+  assert.equal(fields["Grund der Meldung"], "Käse – Fremdkörper");
 });

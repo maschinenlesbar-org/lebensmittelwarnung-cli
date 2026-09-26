@@ -241,3 +241,26 @@ test("the engine rejects out-of-range or non-integer numeric options", () => {
   // The documented edges stay valid.
   new RequestEngine({ timeoutMs: 0, maxRetries: 10, retryDelayMs: 0, maxResponseBytes: 0 });
 });
+
+test("getFeed decodes the body by the XML declaration's encoding (Latin-1)", async () => {
+  const xml = '<?xml version="1.0" encoding="ISO-8859-1"?><rss><channel><item><title>K\u00e4se</title></item></channel></rss>';
+  const mt = makeMockTransport(() => rawResponse(Buffer.from(xml, "latin1"), "text/xml"));
+  const feed = await new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml");
+  assert.equal(feed.items[0]!.title, "Käse");
+});
+
+test("getFeed defaults to UTF-8 and drops a byte-order mark", async () => {
+  const xml = "\ufeff<?xml version=\"1.0\"?><rss><channel><item><title>K\u00e4se</title></item></channel></rss>";
+  const mt = makeMockTransport(() => rawResponse(Buffer.from(xml, "utf8"), "text/xml"));
+  const feed = await new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml");
+  assert.equal(feed.items[0]!.title, "Käse");
+});
+
+test("an unknown declared encoding is a parse error, not mojibake", async () => {
+  const xml = '<?xml version="1.0" encoding="x-bogus"?><rss><channel></channel></rss>';
+  const mt = makeMockTransport(() => rawResponse(xml, "text/xml"));
+  await assert.rejects(
+    () => new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml"),
+    (err) => err instanceof LebensmittelwarnungParseError && err.message === 'Unsupported response charset "x-bogus" from /feed.xml.',
+  );
+});

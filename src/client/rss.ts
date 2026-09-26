@@ -17,6 +17,8 @@
 // mixed-content reconstruction) — just enough for these feeds, and exercised hard
 // in rss.test.ts against real feed shapes.
 
+import { HTML_ENTITIES } from "./entities.js";
+
 /** Maximum number of `<item>` elements accepted from a single feed (DoS guard). */
 const MAX_ITEMS = 100_000;
 
@@ -44,12 +46,16 @@ export interface RssFeed {
   items: RawRssItem[];
 }
 
-/** Decode the five predefined XML entities plus numeric (`&#NN;` / `&#xNN;`) refs. */
+/**
+ * Decode the five predefined XML entities, numeric (`&#NN;` / `&#xNN;`) refs and the
+ * HTML 4 named references (`&auml;`, `&ndash;`, `&euro;`, … — the description is
+ * HTML).
+ */
 export function decodeEntities(text: string): string {
   // Hex (`#x…`) and decimal (`#…`) forms use separate character classes so a
   // malformed decimal ref that contains hex letters (`&#1F;`) does NOT match the
   // decimal branch and get truncated at the first non-digit by `parseInt(…, 10)`.
-  return text.replace(/&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);/g, (whole, body: string) => {
+  return text.replace(/&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g, (whole, body: string) => {
     switch (body) {
       case "amp":
         return "&";
@@ -64,6 +70,8 @@ export function decodeEntities(text: string): string {
       case "nbsp":
         return " ";
     }
+    const named = HTML_ENTITIES.get(body);
+    if (named !== undefined) return String.fromCodePoint(named);
     if (body[0] === "#") {
       const hex = body[1] === "x" || body[1] === "X";
       const code = hex ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);

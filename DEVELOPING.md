@@ -155,9 +155,13 @@ new LebensmittelwarnungClient({
 into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
 (a relative `src` resolved against the notice's `link`, or the feed URL) and lets each
 bold label (`<b>` or `<strong>`, attributes allowed) own the text up to the next label,
-dropping residual tags and HTML comments and collapsing whitespace. [`decodeEntities`](src/client/rss.ts) handles
-the five predefined XML entities, `&nbsp;`, and numeric (`&#228;` / `&#xE4;`) refs,
-rejecting surrogate-range code points.
+dropping residual tags and HTML comments and collapsing whitespace.
+[`decodeEntities`](src/client/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
+`&euro;`, … in [`entities.ts`](src/client/entities.ts); `&nbsp;` gives U+00A0), and
+numeric (`&#228;` / `&#xE4;`) refs, rejecting surrogate-range code points; an unknown
+name is left as written. The engine decodes the body by the XML declaration's
+`encoding` (UTF-8 without one; the Content-Type is ignored), and an encoding Node's
+`TextDecoder` doesn't know is a `LebensmittelwarnungParseError`.
 
 It is deliberately **not** a general-purpose parser (no namespaces, DTDs, or full
 mixed-content reconstruction) — just enough for these shallow feeds, and exercised
@@ -169,6 +173,7 @@ hard in [`test/rss.test.ts`](test/rss.test.ts).
 src/
   client/
     rss.ts       # dependency-free RSS parser + description/field extractor + entity decoder
+    entities.ts  # the HTML 4 named character references
     enums.ts     # the state/type slug vocabularies + display names + guards
     types.ts     # Warning / WarningsQuery
     query.ts     # dependency-free query-string builder
