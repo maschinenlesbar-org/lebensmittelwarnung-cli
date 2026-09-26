@@ -95,3 +95,15 @@ test("enforces maxResponseBytes", async () => {
     },
   );
 });
+
+test("a header value Node cannot send is a typed NetworkError, not a raw TypeError", async () => {
+  await withServer(
+    (_req, res) => res.end("<rss/>"),
+    async (baseUrl) => {
+      await assert.rejects(
+        () => nodeHttpTransport({ method: "GET", url: baseUrl, headers: { "User-Agent": "bot €" } }),
+        (err) => err instanceof LebensmittelwarnungNetworkError && /^Invalid request: /.test(err.message),
+      );
+    },
+  );
+});

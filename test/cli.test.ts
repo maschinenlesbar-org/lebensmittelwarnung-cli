@@ -278,3 +278,14 @@ test("a truncated or hostile feed body exits 1 with the parser's reason", async 
   assert.match(cli.err.join("\n"), /Failed to parse RSS response from .*: Unterminated element <description>/);
   assert.equal(cli.out.length, 0);
 });
+
+test("a --user-agent with characters above U+00FF is a usage error (exit 2), no request", async () => {
+  const cli = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["--user-agent", "bot €", "warnings"], cli.deps), 2);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /outside Latin-1/);
+
+  const ok = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["--user-agent", "Prüfbot\t1.0", "warnings"], ok.deps), 0);
+  assert.equal(ok.mt.last().headers?.["User-Agent"], "Prüfbot\t1.0");
+});
