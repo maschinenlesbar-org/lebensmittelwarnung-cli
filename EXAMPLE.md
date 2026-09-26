@@ -3,7 +3,8 @@
 Real examples for the Claude Code skills of the `lebensmittelwarnung` plugin, one per skill: a request,
 the `lebensmittel` commands the skill ran, and the answer Claude gave.
 
-Every example ran against the live API on 15 September 2026 with `lebensmittel` 0.0.3.
+Every example ran against the live API on 15 September 2026 with `lebensmittel` 0.0.3, except
+lebensmittelwarnung-recalls, re-run on 26 September 2026 with 0.1.0.
 The data changes, so your results will differ; the ids and keys shown work for trying the
 requests yourself. Long lists are shortened.
 
@@ -56,21 +57,25 @@ https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/07_J
 > I bought organic cheese at a cheese counter last week. Is there a cheese recall right now?
 
 ```bash
-lebensmittel warnings --search "käse" --compact    # 4 hits, title only
-lebensmittel warnings --compact                    # 269 warnings; reason/manufacturer/fields scanned for käse|cheese
+lebensmittel warnings --search "käse" --compact    # 5 hits (title and product)
+lebensmittel warnings --compact                    # 265 warnings; reason/manufacturer/fields scanned for käse|cheese: 6
 ```
 
-`--search` matches product titles only, so the skill also scanned every field. That found two
-more warnings where cheese appears only in the product description. The feed is not limited
-to fresh notices (269 entries going back to 2018), so the answer leads with the recent one and
-dates the rest.
+The feed's own `<title>` is now an unrendered template, so the CLI fills `title` from the
+product name (`product`), and `--search` matches both. The product name lists every variant,
+so the Yopokki cups („Käse / Cheese" is one of seven) are found by `--search` too. The wider
+scan added one warning where cheese appears only in English (Chio „Dip! Hot Cheese“). The feed
+is not limited to fresh notices (265 entries going back to 2018), so the answer leads with the
+recent one and dates the rest. The cheese recall's `pubDate` (10.09.) is later than the date in
+its notice URL (`260904_…`), so the skill reports it as updated.
 
 ```
 Yes: one recent recall matches cheese bought at a counter.
 
-Diverse Käsesorten — Krankheitserreger                              published 10.09.2026
+Dorfkäserei Geifertshofen, 15 organic cheeses — Krankheitserreger
+                                        notice of 04.09.2026, updated 10.09.2026
   Hersteller: Dorfkäserei Geifertshofen AG
-  Products:   15 Bioland/Demeter cheeses, e.g. Weinbauernkäse, Wengert, St. Barbara,
+  Products:   13 Bioland and 2 Demeter cheeses, e.g. Weinbauernkäse, Wengert, St. Barbara,
               Schwäbischer Rahmkäse, Geifertshofener Pfefferkäse, Bio-Reibekäsemischung
   Packung:    verpackte Selbstbedienungs-Stücke in allen Grammaturen und lose an der Käsetheke verkaufte Ware
   Charge:     none given; the recall covers best-before dates
@@ -80,15 +85,15 @@ Diverse Käsesorten — Krankheitserreger                              published
   → Compare the cheese name and best-before date with your purchase. Loose cheese from a
     counter often has no label, so ask the shop which cheese it was.
 
-Older cheese-related warnings
-  • 05.08.2026  verschiedene Yopokki Rice-Cake-Becher (incl. „Käse / Cheese") — Krankheitserreger · TJX Deutschland
-  • 24.06.2026  frischer Käse, 800 Gramm — Krankheitserreger · Käse King, Apolda · Charge F22042026 · Thüringen, Sachsen
-  • 23.06.2026  Chio „Dip! Hot Cheese“ mit der Etikettierung "Dip! Hot Salsa" — Allergene · Intersnack Deutschland SE
-  • 28.05.2026  Pizza Ziegenkäse, 315 Gramm — Fremdkörper · Freiberger Lebensmittel GmbH · Charge L60471F, L60472F
-  • 27.03.2026  Schafskäse Mediterran, Ziegenkäse mit Rotwein, je 150 Gramm — Allergene · Alimentias, SL
+Older cheese-related warnings (all still within their best-before date)
+  • 05.08.2026  Yopokki Rice-Cake-Becher, 7 variants incl. „Käse / Cheese" — Krankheitserreger · TJX Deutschland · MHD 18.12.2026 (Käse)
+  • 24.06.2026  frischer Käse aus Kuhmilch, 800 Gramm — Krankheitserreger · Käse King, Apolda · Charge F22042026 · MHD 30.11.2026 · Thüringen, Sachsen (notice of 19.06.)
+  • 23.06.2026  Chio „Dip! Hot Cheese“ — Allergene · Intersnack Deutschland SE · L: 06.12.2026, Uhrzeit 07:15 bis 10:27 (notice of 19.06.)
+  • 28.05.2026  Rewe Beste Wahl, Pizza Ziegenkäse, 315 Gramm — Fremdkörper · Freiberger Lebensmittel GmbH · Charge L60471F, L60472F
+  • 27.03.2026  Santa Marta Schafskäse Mediterran und Don Juan Ziegenkäse mit Rotwein — Allergene · Alimentias, SL · Baden-Württemberg, Bayern
 
-Portal www.lebensmittelwarnung.de, 2026: Diverse Käsesorten,
-https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/09_September/260904_03_BW_diverse_Kaesesorten/260904_03_BW_diverse_Kaesesorten.html, Stand: 15.09.2026
+Portal www.lebensmittelwarnung.de, 2026: Weinbauernkäse (Bioland) Weinbauernkäse mittelalt (Bioland) Wengert (Demeter) Alter Wengert (Demeter) Geifertshofener Classico (Bioland) Schwäbischer Trollingerkäse (Bioland) Bühlertaler Dorfkäse (Bioland) St. Barbara mittelalt (Bioland) St. Barbara (Bioland) Schwäbischer Rahmkäse (Bioland) Geifertshofener Pfefferkäse (Bioland) Geifertshofener Schabzigerkleekäse (Bioland) Geifertshofener Blütenfee (Bioland) Geifertshofener Classico gerieben (Bioland) Bio-Reibekäsemischung (Bioland),
+https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/09_September/260904_03_BW_diverse_Kaesesorten/260904_03_BW_diverse_Kaesesorten.html, Stand: 26.09.2026
 ```
 
 ## lebensmittelwarnung-regional
