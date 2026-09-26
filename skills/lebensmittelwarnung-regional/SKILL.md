@@ -101,6 +101,9 @@ TH`) plus `BVL`.
 - **`--state` = distribution, not publisher.** Don't present a state feed as "what
   <Land> warned about". Most items were issued by other Länder; use the URL code
   above for the issuer.
+- **`--since` means "published or updated".** `pubDate` moves when a notice is
+  updated, so an old recall can show up as recent; check the `YYMMDD_` date in the
+  `.link` folder name before calling it new.
 - **Empty `[]` is valid** — "no current recalls for that state feed", not an error.
 - **Batch-specific.** Report `lotNumbers` / `bestBefore` so the user can check their
   own item, and link `.link` for the official notice.

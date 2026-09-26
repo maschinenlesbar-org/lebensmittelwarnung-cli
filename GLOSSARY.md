@@ -114,7 +114,10 @@ section). This CLI parses it with a hand-rolled, dependency-free parser.
 time ("Wed, 8 Jul 2026 16:00:00 +0200"); `published` is that value normalised to an
 ISO-8601 UTC string. `--since` filters on it but compares calendar days in German
 time (Europe/Berlin): a notice stamped `00:00:00 +0200` counts for its own day,
-although the date part of `published` is the day before.
+although the date part of `published` is the day before. `pubDate` is often the time
+of the **last update** rather than of first publication (on 2026-09-26, 45 of 265 were
+more than three days after the notice date in the URL's `YYMMDD_` folder name), so
+`--since` means "published or updated since".
 
 **fields (label→value map).** The complete set of `<b>Label:</b> value` pairs parsed
 from the description, keyed by the German label (trailing colon stripped). A superset

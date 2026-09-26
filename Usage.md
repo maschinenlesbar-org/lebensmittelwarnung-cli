@@ -123,8 +123,21 @@ lebensmittel warnings --limit 5
 lebensmittel warnings --type lebensmittel --since 2026-07-01 --search bio --limit 10
 ```
 
-`--since` takes a `YYYY-MM-DD` date and keeps warnings whose publication day, in
-German time (Europe/Berlin), is that day or later. A malformed date (`2026-13-40`,
+`--since` takes a `YYYY-MM-DD` date and keeps warnings whose `pubDate` day, in
+German time (Europe/Berlin), is that day or later.
+
+> **`pubDate` is not always the first publication.** The portal re-stamps a notice when
+> it is updated: on 2026-09-26, 45 of 265 `pubDate`s were more than three days after the
+> notice date in the URL's folder name (`…/260616_11_BE_Austern_Meldung.html` = filed
+> 16 June 2026, `pubDate` 18 Sep), one of them years later. So `--since` also returns old
+> notices that were updated in the window ("new or updated"), and can leave out a notice
+> whose `pubDate` is earlier than its folder date. When "first published" matters, take
+> the date from the folder name (`YYMMDD_`, a naming convention rather than data):
+>
+> ```bash
+> lebensmittel warnings --since 2026-09-15 --compact \
+>   | jq -r '.[] | (.link | capture("/(?<d>\\d{6})_").d) as $d | select($d >= "260915") | .title'
+> ``` A malformed date (`2026-13-40`,
 `10.07.2026`) is a usage error (exit `2`).
 
 `published` is the same instant in UTC, so its first ten characters give the day
@@ -173,7 +186,8 @@ Offline (no request).
 # Reasons across all listed warnings, counted (a warning can carry several, joined with ", ")
 lebensmittel warnings | jq -r '[.[] | (.reason // "?") | split(", ")[]] | group_by(.)[] | "\(.[0]): \(length)"'
 
-# A daily "anything new in Bavaria?" check (exit 0 with rows, or empty)
+# A daily "anything new or updated in Bavaria?" check (exit 0 with rows, or empty;
+# pubDate also moves when a notice is updated, see --since above)
 lebensmittel warnings --state bayern --since "$(date -v-1d +%F 2>/dev/null || date -d yesterday +%F)" \
   | jq -r '.[] | "\(.title) — \(.reason)"'
 

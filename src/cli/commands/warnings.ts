@@ -40,7 +40,7 @@ export function registerCommands(program: Command, deps: CliDeps): void {
     )
     .option(
       "--since <YYYY-MM-DD>",
-      "only warnings published on or after this date (German time, Europe/Berlin)",
+      "only warnings whose pubDate (publication or last update) is on or after this date (German time, Europe/Berlin)",
       parseDate,
     )
     .option(

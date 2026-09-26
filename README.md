@@ -73,7 +73,7 @@ New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
 | --- | --- |
 | `--state <slug>` | Only warnings for one Bundesland — server-side filter. One of the 16 slugs from `lebensmittel states` (e.g. `bayern`, `nordrheinwestfalen`). An unknown slug is a usage error. |
 | `--type <slug>` | Only warnings for one product type — server-side filter. One of `lebensmittel`, `kosmetischemittel`, `bedarfsgegenstaende`, `mittelzumtaetowieren`, `babyundkinderprodukte`. |
-| `--since <YYYY-MM-DD>` | Only warnings published on or after this date, counted in German time (Europe/Berlin), client-side. |
+| `--since <YYYY-MM-DD>` | Only warnings whose `pubDate` is on or after this date, counted in German time (Europe/Berlin), client-side. `pubDate` is often the time of the **last update**, not of first publication: an old notice that was updated comes back as new (see [Usage.md](Usage.md#narrow-by-date-product-name-and-count-client-side)). |
 | `--search <term>` | Only warnings whose **product name** (`title` or `product`) contains this text, case-insensitive (client-side). |
 | `--limit <n>` | Return at most `n` warnings, in feed order (most recent first). |
 
