@@ -271,3 +271,10 @@ test("warnings --search also matches the Produktbezeichnung when the title words
   const rows = JSON.parse(cli.out.join("\n")) as Array<{ title: string }>;
   assert.deepEqual(rows.map((r) => r.title), ["ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel"]);
 });
+
+test("a truncated or hostile feed body exits 1 with the parser's reason", async () => {
+  const cli = makeCli(() => rssResponse("<rss><channel>" + "<item><description>".repeat(1000)));
+  assert.equal(await run(["warnings"], cli.deps), 1);
+  assert.match(cli.err.join("\n"), /Failed to parse RSS response from .*: Unterminated element <description>/);
+  assert.equal(cli.out.length, 0);
+});

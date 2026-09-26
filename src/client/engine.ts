@@ -244,7 +244,9 @@ export class RequestEngine {
     try {
       return parseRss(text);
     } catch (cause) {
-      throw new LebensmittelwarnungParseError(`Failed to parse RSS response from ${path}`, { cause });
+      // Name the parser's reason (run.ts prints only the message, never `cause`).
+      const reason = cause instanceof Error ? `: ${sanitizeServerText(cause.message)}` : "";
+      throw new LebensmittelwarnungParseError(`Failed to parse RSS response from ${path}${reason}`, { cause });
     }
   }
 

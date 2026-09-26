@@ -136,17 +136,24 @@ new LebensmittelwarnungClient({
 
 [`parseRss`](src/client/rss.ts) turns a feed document into `{ channel, items }`:
 
+- it is a single forward scan that finds every terminator with `indexOf`, so parsing
+  time is **linear** in the body size whatever it contains (the earlier lazy-regex
+  parser was quadratic on unclosed tags: 742 KiB took 14 s, and `--timeout` covers
+  only the transport, not the parse);
 - channel metadata (`title`/`link`/`description`/`language`/`ttl`) is read from the
-  channel scope **with its `<item>` blocks removed**, so an item's own `<title>` can
-  never be mistaken for the channel's;
+  **direct children** of the first `<channel>`, so an item's own `<title>` can never
+  be mistaken for the channel's;
 - each `<item>`'s leaves (`title`/`link`/`pubDate`/`guid`/`description`) are
-  extracted; a **CDATA** description body is kept verbatim, plain text is
-  entity-decoded and trimmed.
+  extracted: text is entity-decoded, **CDATA** sections are kept verbatim, and the
+  result is trimmed. Comments, processing instructions and declarations are skipped;
+- an **unterminated** element, comment, CDATA section, tag or attribute value throws
+  (the engine reports it as `Failed to parse RSS response from <path>: <reason>`,
+  exit 1), so a truncated or hostile body is an error rather than a partial feed.
 
 [`parseDescription`](src/client/rss.ts) then turns one item's HTML `<description>`
-into `{ fields, imageUrls }`: it collects every `<img src>` and splits the markup on
-`<b>…</b>` boundaries so each bold label owns the text up to the next label, stripping
-residual tags and collapsing whitespace. [`decodeEntities`](src/client/rss.ts) handles
+into `{ fields, imageUrls }`, again in one linear scan: it collects every `<img src>`
+and lets each `<b>…</b>` label own the text up to the next label, dropping residual
+tags and collapsing whitespace. [`decodeEntities`](src/client/rss.ts) handles
 the five predefined XML entities, `&nbsp;`, and numeric (`&#228;` / `&#xE4;`) refs,
 rejecting surrogate-range code points.
 

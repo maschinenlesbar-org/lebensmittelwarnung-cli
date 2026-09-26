@@ -86,3 +86,34 @@ test("parseDescription handles an item with no images", () => {
   assert.equal(imageUrls.length, 0);
   assert.equal(fields["Grund der Meldung"], "mikrobiologische Verunreinigung");
 });
+
+test("parseRss rejects an unterminated element instead of returning a partial feed", () => {
+  assert.throws(() => parseRss("<rss><channel><title>t</title>" + "<item>".repeat(3)), /Unterminated element <item>/);
+  assert.throws(
+    () => parseRss("<rss><channel><item><description>x</channel></rss>"),
+    /Unterminated element <description>/,
+  );
+  assert.throws(() => parseRss("<rss><channel><item><title>a</title></item>"), /Unterminated element <channel>/);
+  assert.throws(() => parseRss("<rss><channel><!-- x"), /Unterminated comment/);
+  assert.throws(() => parseRss("<rss><channel><item><description><![CDATA[x"), /Unterminated CDATA/);
+  assert.throws(() => parseRss('<rss><channel><item a="x>'), /Unterminated attribute value/);
+});
+
+test("parseRss is linear on hostile input (no lazy-regex rescans)", () => {
+  // 742 KiB of unclosed <item><description> pairs took 14 s with the old regex parser.
+  const hostile = "<rss><channel>" + "<item><description>".repeat(40_000);
+  const started = Date.now();
+  assert.throws(() => parseRss(hostile), /Unterminated/);
+  const many = "<rss><channel>" + "<item><title>a</title></item>".repeat(40_000) + "</channel></rss>";
+  assert.equal(parseRss(many).items.length, 40_000);
+  assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);
+});
+
+test("parseDescription is linear on hostile input", () => {
+  // 292 KiB of unclosed <b> took 6 s with the old pair regex.
+  const started = Date.now();
+  assert.deepEqual(parseDescription("<b>".repeat(100_000)).fields, {});
+  assert.deepEqual(parseDescription('<img src="x'.repeat(100_000)).imageUrls, []);
+  assert.deepEqual(parseDescription("<img ".repeat(100_000)).imageUrls, []);
+  assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);
+});
