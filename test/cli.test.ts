@@ -339,3 +339,12 @@ test("--force without --output is a usage error", async () => {
   assert.equal(cli.mt.calls.length, 0);
   assert.match(cli.err.join("\n"), /--force needs --output/);
 });
+
+test("a blank --user-agent is a usage error (exit 2), not a silent fallback to the default", async () => {
+  for (const ua of ["", "   "]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(["--user-agent", ua, "warnings"], cli.deps), 2, JSON.stringify(ua));
+    assert.equal(cli.mt.calls.length, 0);
+    assert.match(cli.err.join("\n"), /Expected a non-empty value/);
+  }
+});

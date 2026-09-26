@@ -15,7 +15,7 @@ lebensmittel [global options] <command>
 |---|---|
 | `--base-url <url>` | API base URL (only `http:`/`https:` accepted) |
 | `--timeout <ms>` | time limit per request in ms, whole response included (0 = no timeout; at most 2147483647) |
-| `--user-agent <ua>` | User-Agent header value |
+| `--user-agent <ua>` | User-Agent header value (non-blank, Latin-1, no control characters; else exit `2`) |
 | `--max-retries <n>` | retries for transient 429/503 responses (0..10; each waits the server's `Retry-After`, up to 30 s — a longer one is not retried) |
 | `--max-response-bytes <n>` | cap the response body size in bytes (0 = unlimited; default 100 MiB) |
 | `--compact` | print JSON on a single line (for piping to `jq`) |
