@@ -25,6 +25,7 @@ export {
   LebensmittelwarnungNetworkError,
   LebensmittelwarnungValidationError,
   LebensmittelwarnungParseError,
+  redactUrl,
 } from "./errors.js";
 
 export * from "./types.js";

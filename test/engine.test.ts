@@ -5,6 +5,7 @@ import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungNetworkError,
   LebensmittelwarnungParseError,
+  redactUrl,
 } from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, rawResponse } from "./helpers.js";
 import * as fx from "./fixtures.js";
@@ -202,4 +203,15 @@ test("the engine rejects a base URL with a query or fragment (library users)", (
       (err) => err instanceof LebensmittelwarnungNetworkError && /must not contain a query or fragment/.test(err.message),
     );
   }
+});
+
+test("redactUrl hides userinfo and leaves other URLs unchanged", () => {
+  assert.equal(redactUrl("https://u:p@x.test/a?b=1"), "https://***@x.test/a?b=1");
+  assert.equal(redactUrl("https://u@x.test/"), "https://***@x.test/");
+  assert.equal(redactUrl("https://x.test/a"), "https://x.test/a");
+  assert.equal(redactUrl("not a url"), "not a url");
+  assert.throws(
+    () => new RequestEngine({ baseUrl: "https://u:p@x.test/#f" }),
+    (err) => err instanceof Error && !/u:p/.test(err.message) && /\*\*\*@x\.test/.test(err.message),
+  );
 });

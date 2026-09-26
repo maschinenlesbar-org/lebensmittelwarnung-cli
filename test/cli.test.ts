@@ -360,3 +360,12 @@ test("a --base-url with a query or fragment is a usage error (exit 2), no reques
   assert.equal(await run(["--base-url", "http://127.0.0.1:1/mirror/", "warnings"], prefixed.deps), 0);
   assert.match(prefixed.mt.last().url, /^http:\/\/127\.0\.0\.1:1\/mirror\/___LMW-Redaktion\//);
 });
+
+test("a password in --base-url never reaches the error message; the request keeps it", async () => {
+  const cli = makeCli(() => rawResponse("boom", "text/plain", 500));
+  assert.equal(await run(["--base-url", "http://user:s3cret@127.0.0.1:1/s500", "--max-retries", "0", "warnings"], cli.deps), 1);
+  const err = cli.err.join("\n");
+  assert.doesNotMatch(err, /s3cret|user:/);
+  assert.match(err, /HTTP 500 for GET http:\/\/\*\*\*@127\.0\.0\.1:1\/s500\/___LMW-Redaktion\/.*: boom/);
+  assert.match(cli.mt.last().url, /^http:\/\/user:s3cret@127\.0\.0\.1:1\//);
+});

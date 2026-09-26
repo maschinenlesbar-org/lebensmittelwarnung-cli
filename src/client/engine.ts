@@ -15,6 +15,7 @@ import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungNetworkError,
   LebensmittelwarnungParseError,
+  redactUrl,
 } from "./errors.js";
 
 export const DEFAULT_BASE_URL = "https://www.lebensmittelwarnung.de";
@@ -133,11 +134,11 @@ function assertHttpScheme(baseUrl: string): void {
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new LebensmittelwarnungNetworkError(
-      `Unsupported protocol "${url.protocol}" in base URL: ${baseUrl}`,
+      `Unsupported protocol "${url.protocol}" in base URL: ${redactUrl(baseUrl)}`,
     );
   }
   if (/[?#]/.test(baseUrl)) {
-    throw new LebensmittelwarnungNetworkError(`Base URL must not contain a query or fragment: ${baseUrl}`);
+    throw new LebensmittelwarnungNetworkError(`Base URL must not contain a query or fragment: ${redactUrl(baseUrl)}`);
   }
 }
 
