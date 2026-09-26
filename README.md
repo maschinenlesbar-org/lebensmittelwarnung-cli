@@ -165,7 +165,7 @@ Given **before or after** the command, e.g. `lebensmittel --compact warnings`:
 | `--compact` | Print JSON on a single line instead of pretty-printed |
 | `-o, --output <file>` | Write output to this file instead of stdout (`-` = stdout). An existing file is not overwritten (exit `2`, checked before any request) unless `--force` is given |
 | `--force` | Overwrite the `--output` file if it already exists (only with `-o`) |
-| `--base-url <url>` | API base URL (default `https://www.lebensmittelwarnung.de`) |
+| `--base-url <url>` | API base URL (default `https://www.lebensmittelwarnung.de`; `http:`/`https:` only, no query `?` or fragment `#`) |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` = none; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header value (non-blank, Latin-1, no control characters; else exit `2`) |
 | `--max-retries <n>` | Retries for transient `429`/`503` responses (0..10, default `2`). Each waits the server's `Retry-After` (seconds or HTTP-date), else 200 ms × attempt; a `Retry-After` above 30 s is not retried, the error is reported at once |

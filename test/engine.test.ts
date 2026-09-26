@@ -194,3 +194,12 @@ test("parseRetryAfter reads delay-seconds and IMF-fixdates only", () => {
   assert.equal(parseRetryAfter(undefined), undefined);
   assert.equal(parseRetryAfter(""), undefined);
 });
+
+test("the engine rejects a base URL with a query or fragment (library users)", () => {
+  for (const baseUrl of ["https://x.test/?a=1", "https://x.test/p#f"]) {
+    assert.throws(
+      () => new RequestEngine({ baseUrl }),
+      (err) => err instanceof LebensmittelwarnungNetworkError && /must not contain a query or fragment/.test(err.message),
+    );
+  }
+});

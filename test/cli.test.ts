@@ -348,3 +348,15 @@ test("a blank --user-agent is a usage error (exit 2), not a silent fallback to t
     assert.match(cli.err.join("\n"), /Expected a non-empty value/);
   }
 });
+
+test("a --base-url with a query or fragment is a usage error (exit 2), no request", async () => {
+  for (const url of ["http://127.0.0.1:1/ok?x=1", "http://127.0.0.1:1/ok#frag", "http://127.0.0.1:1/?"]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(["--base-url", url, "warnings"], cli.deps), 2, url);
+    assert.equal(cli.mt.calls.length, 0);
+    assert.match(cli.err.join("\n"), /cannot have a query \(\?\) or fragment \(#\)/);
+  }
+  const prefixed = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["--base-url", "http://127.0.0.1:1/mirror/", "warnings"], prefixed.deps), 0);
+  assert.match(prefixed.mt.last().url, /^http:\/\/127\.0\.0\.1:1\/mirror\/___LMW-Redaktion\//);
+});

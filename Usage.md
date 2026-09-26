@@ -13,7 +13,7 @@ lebensmittel [global options] <command>
 
 | Option | Description |
 |---|---|
-| `--base-url <url>` | API base URL (only `http:`/`https:` accepted) |
+| `--base-url <url>` | API base URL (only `http:`/`https:` accepted; no query `?` or fragment `#`) |
 | `--timeout <ms>` | time limit per request in ms, whole response included (0 = no timeout; at most 2147483647) |
 | `--user-agent <ua>` | User-Agent header value (non-blank, Latin-1, no control characters; else exit `2`) |
 | `--max-retries <n>` | retries for transient 429/503 responses (0..10; each waits the server's `Retry-After`, up to 30 s — a longer one is not retried) |
