@@ -23,6 +23,12 @@ Hinweis, dass ein bestimmtes Produkt (nach Name, Charge und Mindesthaltbarkeit) 
 darstellen kann und nicht verzehrt bzw. verwendet werden sollte. In dieser CLI ist jede Warnung
 ein Eintrag des RSS-Feeds.
 
+**Produktbezeichnung / -beschreibung (`product`, `title`).** Der Produktname, wie ihn die
+Meldung selbst angibt, z. B. „KIMCHI 300 Gramm“. `title` ist normalerweise der `<title>` des
+Feed-Eintrags; seit September 2026 liefert das Portal jeden `<title>` als nicht ausgewertete
+Vorlage `$esc.escapeXml($cms.oneLineText($m.title))`, und die CLI übernimmt `title` dann aus
+diesem Feld. `--search` durchsucht beide.
+
 **Grund der Meldung (`reason`).** Der Grund, aus dem die Warnung herausgegeben wurde, als
 Kategorie. Am 15.09.2026 verwendete der Live-Feed sieben: *Allergene*, *Fremdkörper*,
 *Gesundheitsschädliche Substanz*, *Irreführung und Täuschung*, *Krankheitserreger* (etwa

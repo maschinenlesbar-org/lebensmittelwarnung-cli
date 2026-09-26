@@ -1,6 +1,6 @@
 // Public entry point for the API client library.
 
-export { LebensmittelwarnungClient, FEED_PATH } from "./client.js";
+export { LebensmittelwarnungClient, FEED_PATH, isUnrenderedTitle } from "./client.js";
 export type { LebensmittelwarnungClientOptions } from "./client.js";
 export { RequestEngine, DEFAULT_BASE_URL } from "./engine.js";
 export type { EngineOptions, RawResponse } from "./engine.js";

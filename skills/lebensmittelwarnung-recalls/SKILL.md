@@ -34,7 +34,7 @@ This skill also filters JSON with `jq`. **Validate it too** — run `command -v 
 
 ```bash
 lebensmittel warnings --compact                 # every listed warning (goes back years)
-lebensmittel warnings --search "<term>"         # product-title substring (case-insensitive)
+lebensmittel warnings --search "<term>"         # product-name substring (title or product; case-insensitive)
 lebensmittel warnings --since 2026-07-01         # only on/after a date (YYYY-MM-DD)
 lebensmittel warnings --limit 10                 # first N (feed order = most recent first)
 ```
@@ -42,7 +42,7 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 ## How to answer
 
 1. **Product / keyword lookup** — start with `--search`, which matches the product
-   **title**:
+   **name** (`title` and `product`):
 
    ```bash
    lebensmittel warnings --search "beeren" --compact \
@@ -72,7 +72,8 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 
 | Field | Meaning |
 |---|---|
-| `title` | Product name |
+| `title` | Product name — the `[Produkttitel]` of the citation. The feed's own `<title>` has been an unrendered template (`$esc.escapeXml(…)`) since Sep 2026; the CLI then fills `title` from `product` |
+| `product` | *Produktbezeichnung / -beschreibung* — the product name from the notice body |
 | `reason` | *Grund der Meldung* — why (Fremdkörper, Krankheitserreger, Allergen, …) |
 | `manufacturer` | *Hersteller / Inverkehrbringer* |
 | `affectedStates` | *Betroffene Bundesländer* — distribution list (a `string[]`) |
@@ -94,9 +95,9 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 - **A recall is batch-specific.** "Product X is recalled" is not enough — match the
   user's `lotNumbers` / `bestBefore`. Say so explicitly when you can't confirm the
   batch.
-- **`--search` matches the title only**, not the reason or manufacturer. For "recalls
-  because of Salmonella" or "cosmetics recalls" use the **lebensmittelwarnung-produkttyp**
-  skill (filters by reason/type), not `--search`.
+- **`--search` matches the product name only** (`title` and `product`), not the reason
+  or manufacturer. For "recalls because of Salmonella" or "cosmetics recalls" use the
+  **lebensmittelwarnung-produkttyp** skill (filters by reason/type), not `--search`.
 - **`--state` follows `affectedStates`, not the issuer.** `--state` returns the
   warnings distributed in that Land (its name is in `affectedStates`), whoever issued
   them. For a Bundesland question use **lebensmittelwarnung-regional**.

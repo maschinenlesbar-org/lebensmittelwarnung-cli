@@ -248,3 +248,26 @@ test("an unknown command exits 2", async () => {
   const cli = makeCli(() => rssResponse(fx.feedXml));
   assert.equal(await run(["boguscmd"], cli.deps), 2);
 });
+
+test("warnings --search matches the product name when the feed title is an unrendered template", async () => {
+  for (const [term, expected] of [
+    ["kimchi", ["KIMCHI 300 Gramm"]],
+    ["schokolade", ["Deluxe Erdbeeren in weißer Schokolade, 120 Gramm"]],
+  ] as const) {
+    const cli = makeCli(() => rssResponse(fx.templateTitleFeedXml));
+    assert.equal(await run(["warnings", "--search", term], cli.deps), 0);
+    const rows = JSON.parse(cli.out.join("\n")) as Array<{ title: string }>;
+    assert.deepEqual(rows.map((r) => r.title), expected);
+  }
+});
+
+test("warnings --search also matches the Produktbezeichnung when the title words it differently", async () => {
+  const feed = fx.feedXml.replace(
+    "<b>Grund der Meldung:</b> Norovirus",
+    "<b>Produktbezeichnung/ -beschreibung:</b> Himbeeren und Brombeeren<br/><b>Grund der Meldung:</b> Norovirus",
+  );
+  const cli = makeCli(() => rssResponse(feed));
+  assert.equal(await run(["warnings", "--search", "brombeer"], cli.deps), 0);
+  const rows = JSON.parse(cli.out.join("\n")) as Array<{ title: string }>;
+  assert.deepEqual(rows.map((r) => r.title), ["ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel"]);
+});

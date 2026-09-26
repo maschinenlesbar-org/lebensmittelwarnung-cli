@@ -74,7 +74,7 @@ New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
 | `--state <slug>` | Only warnings for one Bundesland — server-side filter. One of the 16 slugs from `lebensmittel states` (e.g. `bayern`, `nordrheinwestfalen`). An unknown slug is a usage error. |
 | `--type <slug>` | Only warnings for one product type — server-side filter. One of `lebensmittel`, `kosmetischemittel`, `bedarfsgegenstaende`, `mittelzumtaetowieren`, `babyundkinderprodukte`. |
 | `--since <YYYY-MM-DD>` | Only warnings published on or after this date, counted in German time (Europe/Berlin), client-side. |
-| `--search <term>` | Only warnings whose **product title** contains this text, case-insensitive (client-side). |
+| `--search <term>` | Only warnings whose **product name** (`title` or `product`) contains this text, case-insensitive (client-side). |
 | `--limit <n>` | Return at most `n` warnings, in feed order (most recent first). |
 
 `--state` and `--type` are validated against the fixed slug lists, so a typo fails
@@ -87,6 +87,7 @@ Each item carries typed accessors plus a generic `fields` map and the raw HTML:
 ```jsonc
 {
   "title": "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel",
+  "product": "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel",
   "link": "https://www.lebensmittelwarnung.de/.../Meldung.html",
   "pubDate": "Wed, 8 Jul 2026 16:00:00 +0200",
   "published": "2026-07-08T14:00:00.000Z",
@@ -101,6 +102,10 @@ Each item carries typed accessors plus a generic `fields` map and the raw HTML:
   "rawDescription": "<img …/><br/><b>Grund der Meldung:</b> …"
 }
 ```
+
+`title` is the product name. The portal currently serves every item's `<title>` as an
+unrendered template (`$esc.escapeXml(…)`, since September 2026); the CLI then fills
+`title` from the notice's *Produktbezeichnung / -beschreibung*, which is also `product`.
 
 The typed fields are extracted from the feed's HTML `<description>`; `fields` is the
 complete label→value map (a superset, so a label this CLI does not model first-class

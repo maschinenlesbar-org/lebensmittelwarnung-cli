@@ -112,7 +112,8 @@ new LebensmittelwarnungClient({
 
 | Field | Source | Notes |
 |---|---|---|
-| `title` | `<title>` | Product name (entity-decoded) |
+| `title` | `<title>` | Product name (entity-decoded). If the feed serves an unrendered template there (`$esc.escapeXml(…)`, every item since September 2026; `isUnrenderedTitle`), `product` instead, absent without one |
+| `product` | "Produktbezeichnung/ -beschreibung" | Product name/description from the notice body |
 | `link` | `<link>` | Detail-page URL (a reference, not scraped) |
 | `pubDate` | `<pubDate>` | RFC-822 string, as served |
 | `published` | derived | `pubDate` normalised to ISO-8601 (absent if unparseable) |

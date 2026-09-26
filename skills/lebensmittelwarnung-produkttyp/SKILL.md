@@ -116,7 +116,7 @@ own, and take the total from the unfiltered feed.
   the actual `.reason` string in your answer.
 - **`mittelzumtaetowieren` is often empty** — an empty `[]` for that type is a normal,
   valid result, not a failure.
-- **`--search` is title-only** — it will not find recalls "because of X"; use the
-  `.reason` filter above for that.
+- **`--search` matches the product name only** — it will not find recalls "because of
+  X"; use the `.reason` filter above for that.
 - **Batch-specific & copyright-protected.** Report `lotNumbers`/`bestBefore`, cite the
   source unaltered, and link `.link` to the official, current notice.

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LebensmittelwarnungClient, FEED_PATH } from "../src/client/client.js";
+import { LebensmittelwarnungClient, FEED_PATH, isUnrenderedTitle } from "../src/client/client.js";
 import { LebensmittelwarnungNetworkError } from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, queryOf } from "./helpers.js";
 import * as fx from "./fixtures.js";
@@ -95,4 +95,35 @@ test("the client rejects a non-http(s) base URL before any request, even with a 
     );
     assert.equal(mt.calls.length, 0);
   }
+});
+
+test("an unrendered template <title> falls back to the Produktbezeichnung field", async () => {
+  const mt = makeMockTransport(() => rssResponse(fx.templateTitleFeedXml));
+  const client = new LebensmittelwarnungClient({ transport: mt.transport });
+  const [kimchi, erdbeeren, bare] = await client.warnings();
+  assert.equal(kimchi!.title, "KIMCHI 300 Gramm");
+  assert.equal(kimchi!.product, "KIMCHI 300 Gramm");
+  assert.equal(erdbeeren!.title, "Deluxe Erdbeeren in weißer Schokolade, 120 Gramm");
+  // No product field either: no title at all rather than the template source.
+  assert.equal(bare!.title, undefined);
+  assert.equal(bare!.product, undefined);
+});
+
+test("a real <title> is kept, and product is exposed next to it", async () => {
+  const feed = fx.feedXml.replace(
+    "<b>Grund der Meldung:</b> Norovirus",
+    "<b>Produktbezeichnung/ -beschreibung:</b> Beerenmischung 750 g<br/><b>Grund der Meldung:</b> Norovirus",
+  );
+  const mt = makeMockTransport(() => rssResponse(feed));
+  const [, beeren] = await new LebensmittelwarnungClient({ transport: mt.transport }).warnings();
+  assert.equal(beeren!.title, "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel");
+  assert.equal(beeren!.product, "Beerenmischung 750 g");
+});
+
+test("isUnrenderedTitle spots a Velocity method reference, not a dollar price", () => {
+  assert.equal(isUnrenderedTitle("$esc.escapeXml($cms.oneLineText($m.title))"), true);
+  assert.equal(isUnrenderedTitle("${m.title()}"), true);
+  assert.equal(isUnrenderedTitle("$!esc.escapeXml($m.title)"), true);
+  assert.equal(isUnrenderedTitle("Sauce $5.99 Edition"), false);
+  assert.equal(isUnrenderedTitle("Käse, 200 g"), false);
 });

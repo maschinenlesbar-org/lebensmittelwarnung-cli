@@ -24,6 +24,7 @@ export const FEED_PATH =
 // `fields` map still carries every label (incl. these), so nothing is lost if the
 // portal renames one — revisit this table when that happens.
 const LABEL = {
+  product: "Produktbezeichnung/ -beschreibung",
   reason: "Grund der Meldung",
   manufacturer: "Hersteller / Inverkehrbringer",
   affectedStates: "Betroffene Bundesländer nach derzeitigem Stand",
@@ -31,6 +32,17 @@ const LABEL = {
   bestBefore: "Haltbarkeit",
   packaging: "Verpackungseinheit",
 } as const;
+
+/**
+ * Is `title` an unrendered CMS template rather than a product name? Since September
+ * 2026 the portal serves every item's `<title>` as the literal Velocity expression
+ * `$esc.escapeXml($cms.oneLineText($m.title))`. Detected by a Velocity method
+ * reference (`$name.method(`) anywhere in the text — a real product name never has
+ * one (a price such as `$5.99` has a digit after the `$`).
+ */
+export function isUnrenderedTitle(title: string): boolean {
+  return /\$!?\{?[A-Za-z_]\w*\.[A-Za-z_]\w*\s*\(/.test(title);
+}
 
 /**
  * Parse an RFC-822 `pubDate` into an ISO-8601 string, or `undefined` when it is
@@ -66,7 +78,14 @@ export class LebensmittelwarnungClient {
     return feed.items.map((item) => {
       const { fields, imageUrls } = parseDescription(item.description ?? "");
       const warning: Warning = { fields };
-      if (item.title !== undefined) warning.title = item.title;
+      // The product name. The feed's `<title>` is used as served unless it is an
+      // unrendered template (see isUnrenderedTitle); then the description's
+      // "Produktbezeichnung/ -beschreibung" stands in, and without one `title` is
+      // left out rather than carrying template source.
+      const product = fields[LABEL.product];
+      if (item.title !== undefined && !isUnrenderedTitle(item.title)) warning.title = item.title;
+      else if (product) warning.title = product;
+      if (product) warning.product = product;
       if (item.link !== undefined) warning.link = item.link;
       if (item.pubDate !== undefined) warning.pubDate = item.pubDate;
       const iso = toIso(item.pubDate);

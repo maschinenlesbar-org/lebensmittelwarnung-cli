@@ -43,7 +43,11 @@ export function registerCommands(program: Command, deps: CliDeps): void {
       "only warnings published on or after this date (German time, Europe/Berlin)",
       parseDate,
     )
-    .option("--search <term>", "only warnings whose product title contains this text (case-insensitive)", parseNonEmpty)
+    .option(
+      "--search <term>",
+      "only warnings whose product name (title or Produktbezeichnung) contains this text (case-insensitive)",
+      parseNonEmpty,
+    )
     .action(
       action(deps, async ({ client, global, opts }) => {
         const state = opts["state"] as StateSlug | undefined;
@@ -70,8 +74,10 @@ export function registerCommands(program: Command, deps: CliDeps): void {
         const search = opts["search"] as string | undefined;
         if (search !== undefined) {
           const needle = search.trim().toLowerCase();
-          warnings = warnings.filter(
-            (w: Warning) => typeof w.title === "string" && w.title.toLowerCase().includes(needle),
+          // Both product-name fields: `title` (the feed's, or the fallback) and
+          // `product` (Produktbezeichnung), which can word the same product differently.
+          warnings = warnings.filter((w: Warning) =>
+            [w.title, w.product].some((v) => typeof v === "string" && v.toLowerCase().includes(needle)),
           );
         }
 

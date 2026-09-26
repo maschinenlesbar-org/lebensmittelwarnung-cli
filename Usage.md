@@ -35,6 +35,7 @@ lebensmittel warnings
 [
   {
     "title": "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel",
+    "product": "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel",
     "link": "https://www.lebensmittelwarnung.de/.../Meldung.html",
     "pubDate": "Wed, 8 Jul 2026 16:00:00 +0200",
     "published": "2026-07-08T14:00:00.000Z",
@@ -96,13 +97,18 @@ Run `lebensmittel types` for the five valid slugs. `--state` and `--type` compos
 lebensmittel warnings --state bayern --type lebensmittel | jq length
 ```
 
-### Narrow by date, title, and count (client-side)
+`title` is the product name. Since September 2026 the portal serves every item's
+`<title>` as an unrendered template (`$esc.escapeXml($cms.oneLineText($m.title))`); the
+CLI then takes `title` from the notice's *Produktbezeichnung / -beschreibung*, which is
+always in `product` too.
+
+### Narrow by date, product name, and count (client-side)
 
 ```bash
 # Only recalls published on or after a date
 lebensmittel warnings --since 2026-07-01
 
-# Only recalls whose product name contains a term (case-insensitive)
+# Only recalls whose product name (title or product) contains a term (case-insensitive)
 lebensmittel warnings --search schokolade | jq -r '.[].title'
 
 # The 5 most recent

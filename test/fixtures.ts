@@ -93,3 +93,34 @@ export const sparseFeedXml = `<?xml version="1.0"?>
 /** The website's HTML shell, returned when the feed URL is wrong / moved. */
 export const htmlShell = `<!doctype html>
 <html lang="de"><head><title>lebensmittelwarnung.de</title></head><body>nope</body></html>`;
+
+/**
+ * The live shape since September 2026 (checked 2026-09-26: 265 of 265 items): every
+ * item `<title>` is the unrendered CMS template, and the product name is only in the
+ * description's "Produktbezeichnung/ -beschreibung" field. Trimmed from the live feed.
+ */
+export const templateTitleFeedXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<rss version="2.0"><channel>
+<title>Lebensmittelwarnung.de - Alle Bundesländer - Alle Produkttypen</title>
+<ttl>60</ttl>
+<item>
+<title>$esc.escapeXml($cms.oneLineText($m.title))</title>
+<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/09_September/260925_10_NI_Kimchi/260925_10_NI_Kimchi.html</link>
+<pubDate>Fri, 25 Sep 2026 19:55:00 +0200</pubDate>
+<description><![CDATA[<b>Verpackungseinheit:</b> Glas zu 300 Gramm<br/><b>Grund der Meldung:</b>   Fremdkörper<br/><b>Hersteller / Inverkehrbringer:</b> Hersteller: Fung’s Handels GmbH
+Varrelheide 190
+30657 Hannover<br/><b>Produktbezeichnung/ -beschreibung:</b> KIMCHI 300 Gramm<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b>   Hamburg, Schleswig-Holstein<br/>]]></description>
+</item>
+<item>
+<title>$esc.escapeXml($cms.oneLineText($m.title))</title>
+<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/09_September/260918_01_BVL_Erdbeeren/260918_01_BVL_Erdbeeren.html</link>
+<pubDate>Fri, 18 Sep 2026 10:00:00 +0200</pubDate>
+<description><![CDATA[<b>Grund der Meldung:</b> Allergene<br/><b>Produktbezeichnung/ -beschreibung:</b> Deluxe Erdbeeren in weißer Schokolade, 120 Gramm<br/>]]></description>
+</item>
+<item>
+<title>$esc.escapeXml($cms.oneLineText($m.title))</title>
+<link>https://www.lebensmittelwarnung.de/x.html</link>
+<pubDate>Thu, 17 Sep 2026 10:00:00 +0200</pubDate>
+<description><![CDATA[<b>Grund der Meldung:</b> Test<br/>]]></description>
+</item>
+</channel></rss>`;

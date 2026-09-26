@@ -13,8 +13,18 @@ export type { StateSlug, TypeSlug } from "./enums.js";
  * feed carries beyond the first-class accessors.
  */
 export interface Warning {
-  /** The product name, e.g. "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel". */
+  /**
+   * The product name, e.g. "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel" —
+   * the feed's `<title>`. When the portal serves an unrendered template there
+   * instead (`$esc.escapeXml(…)`, every item since September 2026), this is
+   * {@link product}; absent when neither is usable.
+   */
   title?: string;
+  /**
+   * "Produktbezeichnung/ -beschreibung" — the product name/description from the
+   * notice body (e.g. "KIMCHI 300 Gramm"). Often the same as `title`.
+   */
+  product?: string;
   /** URL of the warning's detail page on lebensmittelwarnung.de (a reference). */
   link?: string;
   /** Publication timestamp as served (RFC 822), e.g. "Wed, 8 Jul 2026 16:00:00 +0200". */
