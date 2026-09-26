@@ -56,6 +56,16 @@ function toIso(pubDate: string | undefined): string | undefined {
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
 }
 
+/** The notice URL (resolved against the feed URL), else the feed URL. */
+function resolveBase(link: string | undefined, feedUrl: string): string {
+  if (link === undefined || link === "") return feedUrl;
+  try {
+    return new URL(link, feedUrl).href;
+  } catch {
+    return feedUrl;
+  }
+}
+
 function invalid(name: string, expected: string, got: unknown): LebensmittelwarnungValidationError {
   return new LebensmittelwarnungValidationError(`Invalid ${name}: expected ${expected}, got ${JSON.stringify(got)}.`);
 }
@@ -89,8 +99,11 @@ export class LebensmittelwarnungClient {
     if (query.type !== undefined) params["type"] = query.type;
 
     const feed = await this.engine.getFeed(FEED_PATH, params);
+    const feedUrl = this.engine.buildUrl(FEED_PATH);
     return feed.items.map((item) => {
-      const { fields, imageUrls, images } = parseDescription(item.description ?? "");
+      // Relative image URLs resolve against the notice page (or the feed itself).
+      const base = resolveBase(item.link, feedUrl);
+      const { fields, imageUrls, images } = parseDescription(item.description ?? "", base);
       const warning: Warning = { fields };
       // The product name. The feed's `<title>` is used as served unless it is an
       // unrendered template (see isUnrenderedTitle); then the description's

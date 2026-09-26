@@ -153,8 +153,9 @@ new LebensmittelwarnungClient({
 
 [`parseDescription`](src/client/rss.ts) then turns one item's HTML `<description>`
 into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
-and lets each `<b>…</b>` label own the text up to the next label, dropping residual
-tags and collapsing whitespace. [`decodeEntities`](src/client/rss.ts) handles
+(a relative `src` resolved against the notice's `link`, or the feed URL) and lets each
+bold label (`<b>` or `<strong>`, attributes allowed) own the text up to the next label,
+dropping residual tags and HTML comments and collapsing whitespace. [`decodeEntities`](src/client/rss.ts) handles
 the five predefined XML entities, `&nbsp;`, and numeric (`&#228;` / `&#xE4;`) refs,
 rejecting surrogate-range code points.
 

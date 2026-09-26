@@ -304,6 +304,16 @@ export interface DescriptionImage {
 /** The caption label that credits the image before it. */
 const IMAGE_CREDIT_LABEL = "Bildquelle";
 
+/** `url` resolved against `base`, or `url` unchanged without a base or when it fails. */
+function resolveUrl(url: string, base: string | undefined): string {
+  if (base === undefined) return url;
+  try {
+    return new URL(url, base).href;
+  } catch {
+    return url;
+  }
+}
+
 /** One token of an HTML fragment: a run of text or a tag. */
 type HtmlToken =
   | { kind: "text"; text: string }
@@ -401,9 +411,11 @@ function attribute(raw: string, wanted: string): string | undefined {
  *
  * The description is a flat run of `<img …/>` tags and `<b>Label:</b> value`
  * pairs joined by `<br/>`. We:
- *   - collect every `<img src="…">` URL;
- *   - let each bold label own the text up to the next bold label, dropping the
- *     residual tags from that value and collapsing its whitespace.
+ *   - collect every `<img src="…">` URL, resolved against `baseUrl` when given (a
+ *     relative `src` is otherwise useless outside the portal's page);
+ *   - let each bold label (`<b>` or `<strong>`, with or without attributes) own the
+ *     text up to the next bold label, dropping the residual tags from that value
+ *     and collapsing its whitespace.
  *
  * Labels repeat across item types but not always (a "Bildquelle" caption has no
  * colon and its own following text); we keep the LAST value for a repeated label
@@ -414,11 +426,12 @@ function attribute(raw: string, wanted: string): string | undefined {
  *
  * One forward scan over the fragment, so the cost is linear in its length.
  */
-export function parseDescription(html: string): ParsedDescription {
+export function parseDescription(html: string, baseUrl?: string): ParsedDescription {
   const imageUrls: string[] = [];
   const images: DescriptionImage[] = [];
   const fields: Record<string, string> = {};
-  let label: string[] | undefined; // collecting a label's text (inside <b>)
+  let label: string[] | undefined; // collecting a label's text (inside <b>/<strong>)
+  let labelTag = ""; // the tag that opened the label, whose close tag ends it
   // `image`: for a credit caption, the index of the image it follows (the value is
   // only complete at the next label, after the next <img> may have been seen).
   let value: { label: string; parts: string[]; image: number } | undefined;
@@ -445,19 +458,21 @@ export function parseDescription(html: string): ParsedDescription {
       continue;
     }
     if (token.name === "img" && !token.close) {
-      const src = attribute(token.attrs, "src");
+      const raw = attribute(token.attrs, "src");
+      const src = raw ? resolveUrl(raw, baseUrl) : raw;
       if (src) {
         imageUrls.push(src);
         images.push({ url: src });
       }
     }
-    if (token.name === "b" && token.attrs.trim() === "") {
-      if (!token.close) {
+    if (token.name === "b" || token.name === "strong") {
+      if (!token.close && label === undefined) {
         finishValue();
         label = [];
+        labelTag = token.name;
         continue;
       }
-      if (label) {
+      if (token.close && label && token.name === labelTag) {
         const name = label.join("").trim().replace(/:\s*$/, "");
         label = undefined;
         if (name !== "") value = { label: name, parts: [], image: images.length - 1 };

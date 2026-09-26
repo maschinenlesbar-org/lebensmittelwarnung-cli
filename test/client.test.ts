@@ -149,3 +149,15 @@ test("warnings() rejects an unknown state/type slug before any request", async (
     assert.equal(mt.calls.length, 0);
   }
 });
+
+test("warnings() resolves relative image URLs against the notice link", async () => {
+  const xml =
+    '<rss><channel><item><link>https://www.lebensmittelwarnung.de/Meldungen/a/a.html</link>' +
+    '<description><![CDATA[<img src="a_Bild.jpg"/>]]></description></item>' +
+    '<item><description><![CDATA[<img src="b.jpg"/>]]></description></item></channel></rss>';
+  const mt = makeMockTransport(() => rssResponse(xml));
+  const [a, b] = await new LebensmittelwarnungClient({ transport: mt.transport }).warnings();
+  assert.deepEqual(a!.imageUrls, ["https://www.lebensmittelwarnung.de/Meldungen/a/a_Bild.jpg"]);
+  // No link: relative to the feed URL.
+  assert.deepEqual(b!.imageUrls, ["https://www.lebensmittelwarnung.de/___LMW-Redaktion/RSSNewsfeed/Functions/RssFeeds/b.jpg"]);
+});

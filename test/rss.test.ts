@@ -133,3 +133,51 @@ test("parseDescription pairs each image with the Bildquelle credit that follows 
   assert.deepEqual(imageUrls, images.map((i) => i.url));
   assert.equal(fields["Bildquelle"], "© Jütro Tiefkühlkost GmbH & Co. KG"); // last one, as before
 });
+
+test("parseRss: a </item> inside a CDATA description does not end the item", () => {
+  const feed = parseRss(
+    "<rss><channel><title>t</title>" +
+      "<item><title>A</title><description><![CDATA[<b>Grund der Meldung:</b> x </item> y]]></description></item>" +
+      "<item><title>B</title></item></channel></rss>",
+  );
+  assert.deepEqual(feed.items.map((i) => i.title), ["A", "B"]);
+  assert.equal(feed.items[0]!.description, "<b>Grund der Meldung:</b> x </item> y");
+});
+
+test("parseRss joins several CDATA sections of one description", () => {
+  const feed = parseRss(
+    "<rss><channel><item><description><![CDATA[<b>Grund der Meldung:</b> a]]> <![CDATA[<br/><b>Haltbarkeit:</b> b]]></description></item></channel></rss>",
+  );
+  assert.deepEqual(parseDescription(feed.items[0]!.description!).fields, {
+    "Grund der Meldung": "a",
+    Haltbarkeit: "b",
+  });
+});
+
+test("parseRss skips a commented-out item", () => {
+  const feed = parseRss(
+    "<rss><channel><!-- <item><title>ghost</title></item> --><item><title>real</title></item></channel></rss>",
+  );
+  assert.deepEqual(feed.items.map((i) => i.title), ["real"]);
+});
+
+test("parseDescription reads labels in <b> with attributes and in <strong>", () => {
+  const { fields } = parseDescription(
+    '<b class="x">Grund der Meldung:</b> Fremdkörper<br/><strong>Haltbarkeit:</strong> 01.01.2027<br/><b>Verpackungseinheit:</b> 1kg',
+  );
+  assert.deepEqual(fields, {
+    "Grund der Meldung": "Fremdkörper",
+    Haltbarkeit: "01.01.2027",
+    Verpackungseinheit: "1kg",
+  });
+});
+
+test("parseDescription resolves a relative image URL against the given base", () => {
+  const html = '<img src="rel/pic.jpg"/><img src="/abs.jpg"/><img src="https://cdn.test/x.jpg"/>';
+  assert.deepEqual(parseDescription(html, "https://www.lebensmittelwarnung.de/Meldungen/2026/a.html").imageUrls, [
+    "https://www.lebensmittelwarnung.de/Meldungen/2026/rel/pic.jpg",
+    "https://www.lebensmittelwarnung.de/abs.jpg",
+    "https://cdn.test/x.jpg",
+  ]);
+  assert.deepEqual(parseDescription(html).imageUrls, ["rel/pic.jpg", "/abs.jpg", "https://cdn.test/x.jpg"]);
+});
