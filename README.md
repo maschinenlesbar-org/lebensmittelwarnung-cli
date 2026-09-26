@@ -166,7 +166,7 @@ Given **before or after** the command, e.g. `lebensmittel --compact warnings`:
 | `--base-url <url>` | API base URL (default `https://www.lebensmittelwarnung.de`) |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` = none; at most `2147483647`) |
 | `--user-agent <ua>` | `User-Agent` header value |
-| `--max-retries <n>` | Retries for transient `429`/`503` responses (0..10, default `2`) |
+| `--max-retries <n>` | Retries for transient `429`/`503` responses (0..10, default `2`). Each waits the server's `Retry-After` (seconds or HTTP-date), else 200 ms × attempt; a `Retry-After` above 30 s is not retried, the error is reported at once |
 | `--max-response-bytes <n>` | Cap response body size in bytes (`0` = unlimited; default 100 MiB) |
 
 ## Learn more

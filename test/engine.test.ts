@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RequestEngine } from "../src/client/engine.js";
+import { RequestEngine, parseRetryAfter } from "../src/client/engine.js";
 import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungNetworkError,
@@ -130,4 +130,67 @@ test("the engine rejects an unparsable base URL", () => {
     (err) => err instanceof LebensmittelwarnungNetworkError && /Invalid base URL/.test(err.message),
   );
   assert.equal(mt.calls.length, 0);
+});
+
+function retryEngine(retryAfter: string | undefined, statuses = [429, 429, 200]) {
+  const delays: number[] = [];
+  let i = 0;
+  const mt = makeMockTransport(() => {
+    const status = statuses[Math.min(i++, statuses.length - 1)]!;
+    if (status === 200) return rssResponse(fx.feedXml);
+    const res = rawResponse("slow down", "text/plain", status);
+    if (retryAfter !== undefined) res.headers["retry-after"] = retryAfter;
+    return res;
+  });
+  const e = new RequestEngine({
+    transport: mt.transport,
+    maxRetries: 2,
+    sleep: async (ms) => void delays.push(ms),
+  });
+  return { e, mt, delays };
+}
+
+test("a 429 with Retry-After (seconds) waits that long before each retry", async () => {
+  const { e, delays } = retryEngine("1");
+  await e.getFeed("/feed.xml");
+  assert.deepEqual(delays, [1000, 1000]);
+});
+
+test("a Retry-After HTTP-date is honoured", async () => {
+  const when = new Date(Date.now() + 5000).toUTCString();
+  const { e, delays } = retryEngine(when, [503, 200]);
+  await e.getFeed("/feed.xml");
+  assert.equal(delays.length, 1);
+  assert.ok(delays[0]! > 3000 && delays[0]! <= 5000, String(delays[0]));
+});
+
+test("a malformed Retry-After falls back to the linear backoff", async () => {
+  for (const bad of ["-1", "1.5", "+5", "1e3", "soon", "2026-09-26T10:00:00Z"]) {
+    const { e, delays } = retryEngine(bad);
+    await e.getFeed("/feed.xml");
+    assert.deepEqual(delays, [200, 400], bad);
+  }
+});
+
+test("a Retry-After above the cap is not retried: the error surfaces at once", async () => {
+  for (const big of ["31", "99999", new Date(Date.now() + 3_600_000).toUTCString()]) {
+    const { e, mt, delays } = retryEngine(big);
+    await assert.rejects(
+      () => e.getFeed("/feed.xml"),
+      (err) => err instanceof LebensmittelwarnungApiError && err.status === 429,
+    );
+    assert.equal(mt.calls.length, 1, big);
+    assert.deepEqual(delays, [], big);
+  }
+});
+
+test("parseRetryAfter reads delay-seconds and IMF-fixdates only", () => {
+  const now = Date.parse("Sat, 26 Sep 2026 10:00:00 GMT");
+  assert.equal(parseRetryAfter("120"), 120_000);
+  assert.equal(parseRetryAfter([" 3 "]), 3000);
+  assert.equal(parseRetryAfter("Sat, 26 Sep 2026 10:00:10 GMT", now), 10_000);
+  assert.equal(parseRetryAfter("Sat, 26 Sep 2026 09:00:00 GMT", now), 0);
+  assert.equal(parseRetryAfter("Saturday, 26-Sep-26 10:00:10 GMT", now), undefined);
+  assert.equal(parseRetryAfter(undefined), undefined);
+  assert.equal(parseRetryAfter(""), undefined);
 });

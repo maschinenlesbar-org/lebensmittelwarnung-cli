@@ -99,7 +99,7 @@ try {
 new LebensmittelwarnungClient({
   baseUrl: "https://www.lebensmittelwarnung.de",
   timeoutMs: 15_000,
-  maxRetries: 3,
+  maxRetries: 3, // 429/503; waits Retry-After (<= MAX_RETRY_AFTER_MS, 30 s; longer: no retry)
   maxResponseBytes: 100 << 20, // the default (100 MiB); set to 0 for no limit
   userAgent: "my-app/1.0",
   transport: customTransport,
