@@ -138,8 +138,10 @@ export function parseDate(value: string): string {
   const year = Number(m[1]);
   const month = Number(m[2]);
   const day = Number(m[3]);
-  const ms = Date.UTC(year, month - 1, day);
-  const d = new Date(ms);
+  // setUTCFullYear, not Date.UTC: Date.UTC maps years 0–99 to 1900–1999, so a
+  // valid "0050-01-01" would fail the round trip below as "not a valid date".
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
   // Round-trip check: rejects impossible dates that Date.UTC would otherwise roll
   // over (e.g. month 13 -> next year, day 40 -> next month).
   if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {

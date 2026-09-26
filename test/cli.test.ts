@@ -393,3 +393,15 @@ test("--state/--type still list their choices in --help and reject unknown slugs
   assert.equal(await run(["warnings", "--type", "food"], bad.deps), 2);
   assert.match(bad.err.join("\n"), /Allowed choices are lebensmittel/);
 });
+
+test("--since accepts years 0000-0099 (no Date.UTC 19xx mapping) and still rejects impossible dates", async () => {
+  for (const date of ["0000-01-01", "0099-12-31", "0004-02-29"]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(["warnings", "--since", date], cli.deps), 0, date);
+    assert.equal((JSON.parse(cli.out.join("\n")) as unknown[]).length, 3);
+  }
+  for (const date of ["0001-02-29", "0050-13-01"]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(["warnings", "--since", date], cli.deps), 2, date);
+  }
+});
