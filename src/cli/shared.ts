@@ -5,7 +5,7 @@ import type { Command } from "commander";
 import { InvalidArgumentError } from "commander";
 import type { CliDeps } from "./io.js";
 import type { LebensmittelwarnungClientOptions } from "../client/client.js";
-import { LebensmittelwarnungError } from "../client/errors.js";
+import { LebensmittelwarnungError, LebensmittelwarnungValidationError } from "../client/errors.js";
 
 /**
  * commander value-parser: a plain base-10 non-negative integer.
@@ -41,6 +41,16 @@ export function parseNonEmpty(value: string): string {
     throw new InvalidArgumentError("Expected a non-empty value.");
   }
   return value;
+}
+
+/**
+ * commander value-parser for `-o, --output <file>`. A blank or whitespace-only path
+ * is a usage error: `-o ""` used to print to stdout silently and `-o " "` created a
+ * file named " ". `-` is kept as is and means stdout (see {@link action}), the
+ * usual convention, rather than a file named "-".
+ */
+export function parseOutputPath(value: string): string {
+  return parseNonEmpty(value);
 }
 
 /**
@@ -141,6 +151,7 @@ export interface GlobalOptions {
   maxResponseBytes?: number;
   compact?: boolean;
   output?: string;
+  force?: boolean;
 }
 
 /** Translate resolved global CLI options into client options. */
@@ -176,25 +187,47 @@ export function escapeControlChars(json: string): string {
   return from === 0 ? json : result + json.slice(from);
 }
 
+function refuseOverwrite(path: string): LebensmittelwarnungValidationError {
+  return new LebensmittelwarnungValidationError(
+    `Refusing to overwrite existing file "${path}". Pass --force to overwrite, or choose a different --output path.`,
+  );
+}
+
+/**
+ * Write bytes to the --output file, refusing to clobber an existing file — or to
+ * write through a symlink, dangling or not — unless --force is set (no silent data
+ * loss), and wrapping raw filesystem errors in a typed error instead of an untyped
+ * "Unexpected error: ENOENT: …". The overwrite refusal is a usage condition (pass
+ * --force or pick another path), so it exits 2 via LebensmittelwarnungValidationError.
+ */
+function writeOutputFile(deps: CliDeps, global: GlobalOptions, path: string, data: Buffer): void {
+  const force = global.force === true;
+  if (!force && deps.io.fileExists(path)) throw refuseOverwrite(path);
+  try {
+    // Without --force the write is an exclusive create, so a symlink (even a
+    // dangling one) or a file that appeared since the check is refused too.
+    deps.io.writeFile(path, data, force);
+  } catch (err) {
+    if (err instanceof LebensmittelwarnungError) throw err;
+    if (!force && (err as NodeJS.ErrnoException | undefined)?.code === "EEXIST") throw refuseOverwrite(path);
+    // A bad --output path (missing directory, no permission) is a user error, not
+    // an internal fault — surface it cleanly. Drop the `, open '<path>'` tail since
+    // we already name the path ourselves.
+    const reason = err instanceof Error ? err.message.replace(/,\s*open\s+'.*'$/, "") : String(err);
+    throw new LebensmittelwarnungError(`Could not write to ${path}: ${reason}`);
+  }
+}
+
 /**
  * Render a JSON value, pretty by default and compact with --compact. Writes to the
  * file given by --output (with a short stderr confirmation so stdout stays clean
- * for piping), or to stdout otherwise.
+ * for piping), or to stdout otherwise (also for `-o -`).
  */
 export function renderJson(deps: CliDeps, global: GlobalOptions, value: unknown): void {
   const text = escapeControlChars(global.compact ? JSON.stringify(value) : JSON.stringify(value, null, 2));
-  if (global.output) {
+  if (global.output !== undefined && global.output !== "-") {
     const data = Buffer.from(text + "\n", "utf8");
-    try {
-      deps.io.writeFile(global.output, data);
-    } catch (err) {
-      // A bad --output path (missing directory, a directory, no permission) is a
-      // user error, not an internal fault — surface it as a clean LebensmittelwarnungError
-      // instead of letting the raw fs exception hit the "Unexpected error" path.
-      // Drop the `, open '<path>'` tail since we already name the path ourselves.
-      const reason = err instanceof Error ? err.message.replace(/,\s*open\s+'.*'$/, "") : String(err);
-      throw new LebensmittelwarnungError(`Could not write to ${global.output}: ${reason}`);
-    }
+    writeOutputFile(deps, global, global.output, data);
     deps.io.err(`Wrote ${data.length} bytes to ${global.output}`);
   } else {
     deps.io.out(text);
@@ -224,6 +257,17 @@ export function action(
     const command = args[args.length - 1] as Command;
     const positionals = args.slice(0, Math.max(0, args.length - 2)) as string[];
     const global = command.optsWithGlobals() as GlobalOptions;
+    // --force only lets -o overwrite a file; on its own it would be ignored.
+    if (global.force === true && global.output === undefined) {
+      throw new LebensmittelwarnungValidationError("--force needs --output (it only allows overwriting the -o file).");
+    }
+    // `-o -` means stdout: from here on it is the same as no -o.
+    if (global.output === "-") delete global.output;
+    // Refuse an existing --output file before any request, so nothing is fetched (or
+    // waited for) in vain. writeOutputFile checks again with an exclusive create.
+    if (global.output !== undefined && global.force !== true && deps.io.fileExists(global.output)) {
+      throw refuseOverwrite(global.output);
+    }
     const client = deps.createClient(toEngineOptions(global));
     await fn({ client, global, opts: command.opts() }, positionals);
   };

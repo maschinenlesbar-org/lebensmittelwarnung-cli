@@ -19,7 +19,8 @@ lebensmittel [global options] <command>
 | `--max-retries <n>` | retries for transient 429/503 responses (0..10; each waits the server's `Retry-After`, up to 30 s — a longer one is not retried) |
 | `--max-response-bytes <n>` | cap the response body size in bytes (0 = unlimited; default 100 MiB) |
 | `--compact` | print JSON on a single line (for piping to `jq`) |
-| `-o, --output <file>` | write output to a file instead of stdout |
+| `-o, --output <file>` | write output to a file instead of stdout (`-` = stdout); refuses an existing file (exit `2`, before any request) |
+| `--force` | overwrite the `--output` file if it already exists (only with `-o`) |
 | `-V, --version` / `-h, --help` | version / help |
 
 ## `warnings` — current product recalls
@@ -195,8 +196,8 @@ lebensmittel warnings --state bayern --since "$(date -v-1d +%F 2>/dev/null || da
 lebensmittel warnings | jq -r --arg lot "L-26085" \
   '.[] | select(.lotNumbers // "" | test($lot)) | .title'
 
-# Save today's full snapshot to a file
-lebensmittel warnings -o warnings-$(date +%F).json
+# Save today's full snapshot to a file (--force replaces an earlier run's file)
+lebensmittel warnings -o warnings-$(date +%F).json --force
 ```
 
 ## Exit codes
@@ -204,7 +205,7 @@ lebensmittel warnings -o warnings-$(date +%F).json
 | Code | Meaning |
 |---|---|
 | `0` | Success (also `--help` / `--version`) |
-| `2` | Bad usage / invalid argument (unknown `--state`/`--type`, bad `--since`/`--limit`) |
+| `2` | Bad usage / invalid argument (unknown `--state`/`--type`, bad `--since`/`--limit`, an existing `-o` file without `--force`) |
 | `4` | Not found (`404`) |
 | `6` | Network / transport failure (DNS, connection, timeout, size cap) |
 | `1` | Any other error — non-RSS HTML shell, empty body, or a `3xx` redirect |

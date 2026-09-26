@@ -16,9 +16,13 @@ function makeCli(responder: (req: HttpRequest) => HttpResponse) {
     io: {
       out: (s) => out.push(s),
       err: (s) => err.push(s),
-      writeFile: (p, d) => {
+      writeFile: (p, d, overwrite) => {
+        if (!overwrite && p in files) {
+          throw Object.assign(new Error(`EEXIST: file already exists, open '${p}'`), { code: "EEXIST" });
+        }
         files[p] = d;
       },
+      fileExists: (p) => p in files,
     },
     createClient: (opts) => new LebensmittelwarnungClient({ ...opts, transport: mt.transport }),
   };
@@ -288,4 +292,50 @@ test("a --user-agent with characters above U+00FF is a usage error (exit 2), no 
   const ok = makeCli(() => rssResponse(fx.feedXml));
   assert.equal(await run(["--user-agent", "Prüfbot\t1.0", "warnings"], ok.deps), 0);
   assert.equal(ok.mt.last().headers?.["User-Agent"], "Prüfbot\t1.0");
+});
+
+test("-o with a blank or whitespace path is a usage error (exit 2), no request, no file", async () => {
+  for (const path of ["", " "]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(["-o", path, "warnings"], cli.deps), 2, JSON.stringify(path));
+    assert.equal(cli.mt.calls.length, 0);
+    assert.deepEqual(Object.keys(cli.files), []);
+    assert.match(cli.err.join("\n"), /Expected a non-empty value/);
+  }
+});
+
+test("-o - prints to stdout like no -o (no file, no Wrote note)", async () => {
+  const cli = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["--compact", "--output=-", "warnings"], cli.deps), 0);
+  assert.deepEqual(Object.keys(cli.files), []);
+  assert.equal((JSON.parse(cli.out.join("\n")) as unknown[]).length, 3);
+  assert.doesNotMatch(cli.err.join("\n"), /Wrote/);
+});
+
+test("-o refuses an existing file before any request; --force overwrites", async () => {
+  const cli = makeCli(() => rssResponse(fx.feedXml));
+  cli.files["exists.json"] = Buffer.from("keep me");
+  assert.equal(await run(["-o", "exists.json", "warnings"], cli.deps), 2);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.equal(cli.files["exists.json"]!.toString(), "keep me");
+  assert.match(cli.err.join("\n"), /Refusing to overwrite existing file "exists.json"\. Pass --force/);
+
+  assert.equal(await run(["-o", "exists.json", "--force", "states"], cli.deps), 0);
+  assert.match(cli.files["exists.json"]!.toString(), /bayern/);
+});
+
+test("a file that appears during the request is still not overwritten (exclusive create)", async () => {
+  const cli = makeCli(() => {
+    cli.files["race.json"] = Buffer.from("theirs");
+    return rssResponse(fx.feedXml);
+  });
+  assert.equal(await run(["-o", "race.json", "warnings"], cli.deps), 2);
+  assert.equal(cli.files["race.json"]!.toString(), "theirs");
+});
+
+test("--force without --output is a usage error", async () => {
+  const cli = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["--force", "warnings"], cli.deps), 2);
+  assert.equal(cli.mt.calls.length, 0);
+  assert.match(cli.err.join("\n"), /--force needs --output/);
 });
