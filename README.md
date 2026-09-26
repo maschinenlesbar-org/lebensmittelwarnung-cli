@@ -79,6 +79,8 @@ New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
 
 `--state` and `--type` are validated against the fixed slug lists, so a typo fails
 at parse time (exit `2`) rather than silently returning the full, unfiltered feed.
+Each option takes one value: the feed has no "several states" query, so a repeated
+option (`--state bayern --state hessen`) is a usage error (exit `2`) too.
 
 ## What a warning looks like
 

@@ -369,3 +369,27 @@ test("a password in --base-url never reaches the error message; the request keep
   assert.match(err, /HTTP 500 for GET http:\/\/\*\*\*@127\.0\.0\.1:1\/s500\/___LMW-Redaktion\/.*: boom/);
   assert.match(cli.mt.last().url, /^http:\/\/user:s3cret@127\.0\.0\.1:1\//);
 });
+
+test("a repeated warnings option is a usage error (exit 2), not last-one-wins", async () => {
+  for (const args of [
+    ["--state", "bayern", "--state", "hessen"],
+    ["--type", "lebensmittel", "--type", "kosmetischemittel"],
+    ["--limit", "1", "--limit", "2"],
+    ["--since", "2026-01-01", "--since", "2026-02-01"],
+    ["--search", "a", "--search", "b"],
+  ]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(["warnings", ...args], cli.deps), 2, args.join(" "));
+    assert.equal(cli.mt.calls.length, 0);
+    assert.match(cli.err.join("\n"), /Given more than once; this option takes a single value\./);
+  }
+});
+
+test("--state/--type still list their choices in --help and reject unknown slugs", async () => {
+  const cli = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["warnings", "--help"], cli.deps), 0);
+  assert.match(cli.out.join("\n"), /\(choices:\s+"badenwuerttemberg"/);
+  const bad = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["warnings", "--type", "food"], bad.deps), 2);
+  assert.match(bad.err.join("\n"), /Allowed choices are lebensmittel/);
+});

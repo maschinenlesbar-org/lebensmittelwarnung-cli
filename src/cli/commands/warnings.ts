@@ -9,7 +9,6 @@
 // positive-int parser; --since is a YYYY-MM-DD date parser; --search is non-empty.
 
 import type { Command } from "commander";
-import { Option } from "commander";
 import type { CliDeps } from "../io.js";
 import type { Warning, StateSlug, TypeSlug } from "../../client/types.js";
 import {
@@ -18,7 +17,16 @@ import {
   TYPE_SLUGS,
   TYPE_NAMES,
 } from "../../client/enums.js";
-import { action, berlinDay, parseBoundedInt, parseDate, parseNonEmpty, renderJson } from "../shared.js";
+import {
+  action,
+  berlinDay,
+  choiceOption,
+  once,
+  parseBoundedInt,
+  parseDate,
+  parseNonEmpty,
+  renderJson,
+} from "../shared.js";
 
 export function registerCommands(program: Command, deps: CliDeps): void {
   program
@@ -27,26 +35,24 @@ export function registerCommands(program: Command, deps: CliDeps): void {
       "List current product warnings (Rückrufe), optionally narrowed by federal " +
         "state and/or product type",
     )
-    .addOption(
-      new Option("--state <state>", "only warnings for this Bundesland").choices([...STATE_SLUGS]),
-    )
-    .addOption(
-      new Option("--type <type>", "only warnings for this product type").choices([...TYPE_SLUGS]),
-    )
+    // Every option takes one value: a repeat is a usage error rather than "last one
+    // wins" (the feed takes one state and one type; there is no union).
+    .addOption(choiceOption("--state <state>", "only warnings for this Bundesland", STATE_SLUGS))
+    .addOption(choiceOption("--type <type>", "only warnings for this product type", TYPE_SLUGS))
     .option(
       "--limit <n>",
       "return at most this many warnings (in feed order — most recent first)",
-      parseBoundedInt(1, 100000),
+      once(parseBoundedInt(1, 100000)),
     )
     .option(
       "--since <YYYY-MM-DD>",
       "only warnings whose pubDate (publication or last update) is on or after this date (German time, Europe/Berlin)",
-      parseDate,
+      once(parseDate),
     )
     .option(
       "--search <term>",
       "only warnings whose product name (title or Produktbezeichnung) contains this text (case-insensitive)",
-      parseNonEmpty,
+      once(parseNonEmpty),
     )
     .action(
       action(deps, async ({ client, global, opts }) => {

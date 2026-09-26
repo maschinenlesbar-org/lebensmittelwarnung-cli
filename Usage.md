@@ -97,7 +97,9 @@ lebensmittel warnings --type kosmetischemittel     # cosmetics
 lebensmittel warnings --type babyundkinderprodukte # baby & kids products
 ```
 
-Run `lebensmittel types` for the five valid slugs. `--state` and `--type` compose:
+Run `lebensmittel types` for the five valid slugs. Each takes one value (a repeated
+`--state`/`--type` is a usage error; for several states, run once per state and merge).
+`--state` and `--type` compose:
 
 ```bash
 lebensmittel warnings --state bayern --type lebensmittel | jq length
