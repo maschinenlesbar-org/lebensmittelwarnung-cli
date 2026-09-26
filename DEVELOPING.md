@@ -203,8 +203,12 @@ pointed hint to check `--base-url`. Credential headers are never sent cross-host
 `status`/`detail`, with `isRetryable`/`isNotFound`), `LebensmittelwarnungNetworkError`
 (transport failure/timeout), `LebensmittelwarnungParseError` (the body was not RSS —
 usually the HTML shell or the empty-body legacy-API failure), and
-`LebensmittelwarnungValidationError` (a client-side usage error), all extending
-`LebensmittelwarnungError`.
+`LebensmittelwarnungValidationError` (a client-side usage error, no request made:
+an unknown `state`/`type` slug in `warnings()`, `Invalid state: expected one of …,
+got "bogus".`, or an engine option outside its range, `Invalid option timeoutMs:
+expected an integer from 0 to 2147483647, got NaN.` — `maxRetries` 0..`MAX_RETRIES`
+(10), `retryDelayMs` 0..`MAX_RETRY_AFTER_MS`, `maxResponseBytes` 0..2^53−1), all
+extending `LebensmittelwarnungError`.
 
 ## Testing
 

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LebensmittelwarnungClient, FEED_PATH, isUnrenderedTitle } from "../src/client/client.js";
-import { LebensmittelwarnungNetworkError } from "../src/client/errors.js";
+import { LebensmittelwarnungNetworkError, LebensmittelwarnungValidationError } from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, queryOf } from "./helpers.js";
 import * as fx from "./fixtures.js";
 
@@ -135,4 +135,17 @@ test("warnings() exposes images with their credits", async () => {
     { url: "https://www.lebensmittelwarnung.de/bild.png?__blob=normal&v=1", credit: "© Firma Sales & Service Aktuell GmbH" },
   ]);
   assert.equal(cream!.images, undefined);
+});
+
+test("warnings() rejects an unknown state/type slug before any request", async () => {
+  for (const query of [{ state: "bogus" }, { state: "bayern&type=x" }, { type: "food" }, { state: "" }]) {
+    const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+    const client = new LebensmittelwarnungClient({ transport: mt.transport });
+    await assert.rejects(
+      () => client.warnings(query as never),
+      (err) => err instanceof LebensmittelwarnungValidationError && /^Invalid (state|type): expected one of /.test(err.message),
+      JSON.stringify(query),
+    );
+    assert.equal(mt.calls.length, 0);
+  }
 });

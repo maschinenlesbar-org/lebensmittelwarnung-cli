@@ -5,6 +5,7 @@ import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungNetworkError,
   LebensmittelwarnungParseError,
+  LebensmittelwarnungValidationError,
   redactUrl,
 } from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, rawResponse } from "./helpers.js";
@@ -214,4 +215,29 @@ test("redactUrl hides userinfo and leaves other URLs unchanged", () => {
     () => new RequestEngine({ baseUrl: "https://u:p@x.test/#f" }),
     (err) => err instanceof Error && !/u:p/.test(err.message) && /\*\*\*@x\.test/.test(err.message),
   );
+});
+
+test("the engine rejects out-of-range or non-integer numeric options", () => {
+  const bad: Array<[string, number]> = [
+    ["timeoutMs", Number.NaN],
+    ["timeoutMs", -5],
+    ["timeoutMs", 2_147_483_648],
+    ["maxRetries", Number.POSITIVE_INFINITY],
+    ["maxRetries", 11],
+    ["maxRetries", 1.5],
+    ["retryDelayMs", -1],
+    ["retryDelayMs", 30_001],
+    ["maxResponseBytes", -1],
+  ];
+  for (const [name, value] of bad) {
+    assert.throws(
+      () => new RequestEngine({ [name]: value }),
+      (err) =>
+        err instanceof LebensmittelwarnungValidationError &&
+        err.message.startsWith(`Invalid option ${name}: expected an integer from 0 to `),
+      `${name}=${value}`,
+    );
+  }
+  // The documented edges stay valid.
+  new RequestEngine({ timeoutMs: 0, maxRetries: 10, retryDelayMs: 0, maxResponseBytes: 0 });
 });

@@ -14,6 +14,8 @@
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { parseDescription } from "./rss.js";
+import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
+import { LebensmittelwarnungValidationError } from "./errors.js";
 import type { Warning, WarningsQuery } from "./types.js";
 
 /** The single feed path (relative to the base URL). GET, optionally `?state=&type=`. */
@@ -54,6 +56,10 @@ function toIso(pubDate: string | undefined): string | undefined {
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
 }
 
+function invalid(name: string, expected: string, got: unknown): LebensmittelwarnungValidationError {
+  return new LebensmittelwarnungValidationError(`Invalid ${name}: expected ${expected}, got ${JSON.stringify(got)}.`);
+}
+
 /** Options for the client (engine options only — the feed needs no auth). */
 export type LebensmittelwarnungClientOptions = EngineOptions;
 
@@ -70,6 +76,14 @@ export class LebensmittelwarnungClient {
    * HTML description is parsed into typed fields plus the generic `fields` map.
    */
   async warnings(query: WarningsQuery = {}): Promise<Warning[]> {
+    // Checked before any request: the feed answers an unknown slug with HTTP 400,
+    // and a value such as "bayern&type=x" would be sent (encoded) as one slug.
+    if (query.state !== undefined && !isStateSlug(query.state)) {
+      throw invalid("state", `one of ${STATE_SLUGS.join(", ")}`, query.state);
+    }
+    if (query.type !== undefined && !isTypeSlug(query.type)) {
+      throw invalid("type", `one of ${TYPE_SLUGS.join(", ")}`, query.type);
+    }
     const params: Record<string, string> = {};
     if (query.state !== undefined) params["state"] = query.state;
     if (query.type !== undefined) params["type"] = query.type;
