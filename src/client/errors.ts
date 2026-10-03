@@ -64,7 +64,11 @@ export class LebensmittelwarnungApiError extends LebensmittelwarnungError {
 /** A transport-level failure (DNS, connection reset, timeout, ...). */
 export class LebensmittelwarnungNetworkError extends LebensmittelwarnungError {}
 
-/** A client-side validation error (e.g. an unknown state/type slug) — no request made. */
+/**
+ * A rejected input — a client option or a method argument that breaks one of the
+ * library's rules (see validate.ts), e.g. an unknown state/type slug. Thrown before
+ * any request is made; the CLI maps it to its usage exit code (2).
+ */
 export class LebensmittelwarnungValidationError extends LebensmittelwarnungError {}
 
 /**

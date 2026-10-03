@@ -183,6 +183,7 @@ src/
     http.ts      # the Transport interface + default node:http/https transport
     engine.ts    # URL building, retry/backoff, RSS decode + HTML-shell/empty guard, errors
     errors.ts    # LebensmittelwarnungError / …ApiError / …NetworkError / …ValidationError / …ParseError
+    validate.ts  # the Problem type + assertValid: input rules shared by library and CLI
     client.ts    # LebensmittelwarnungClient — warnings() + field projection
   cli/
     io.ts        # injectable I/O seam (stdout/stderr/file)
@@ -212,12 +213,24 @@ pointed hint to check `--base-url`. Credential headers are never sent cross-host
 `status`/`detail`, with `isRetryable`/`isNotFound`), `LebensmittelwarnungNetworkError`
 (transport failure/timeout), `LebensmittelwarnungParseError` (the body was not RSS —
 usually the HTML shell or the empty-body legacy-API failure), and
-`LebensmittelwarnungValidationError` (a client-side usage error, no request made:
+`LebensmittelwarnungValidationError` (a rejected input, thrown before any request:
 an unknown `state`/`type` slug in `warnings()`, `Invalid state: expected one of …,
 got "bogus".`, or an engine option outside its range, `Invalid option timeoutMs:
 expected an integer from 0 to 2147483647, got NaN.` — `maxRetries` 0..`MAX_RETRIES`
 (10), `retryDelayMs` 0..`MAX_RETRY_AFTER_MS`, `maxResponseBytes` 0..2^53−1), all
 extending `LebensmittelwarnungError`.
+
+### Input validation
+
+The library owns every rule about what a request may contain; the CLI calls the same
+functions instead of keeping its own copy. A rule is a pure, exported `Problem`
+([`validate.ts`](src/client/validate.ts)): it returns the reason a value is invalid, or
+`undefined`. The library enforces it with `assertValid(name, value, problem)`, which
+throws `LebensmittelwarnungValidationError` with the message `Invalid <name>: <reason>`
+before any request (a constructor throws; a method returning a promise rejects). The
+CLI's commander parsers turn the same reason into a usage error (exit 2), and `run.ts`
+maps a `LebensmittelwarnungValidationError` raised during an action to exit 2 too,
+printed as `Error: <message>`.
 
 ## Testing
 
@@ -235,6 +248,10 @@ npm test          # builds, then runs `node --test` over dist/test
   derivation, and the `state`/`type` query parameters — mocked transport.
 - **`cli.test.ts`** — command parsing, the `--state`/`--type` choice validation, the
   `--limit`/`--since`/`--search` filters, `--output`, and exit codes — mocked client.
+- **`validate.test.ts`** — `assertValid`, the `run.ts` mapping of
+  `LebensmittelwarnungValidationError`, and the `parity()` helper (`test/helpers.ts`),
+  which sends one input through `run()` and through the library on one recording mock
+  transport so a test can assert both give the same outcome.
 
 ## Continuous integration
 
