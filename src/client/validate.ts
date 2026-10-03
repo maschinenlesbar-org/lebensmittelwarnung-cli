@@ -25,3 +25,52 @@ export function assertValid<T>(name: string, value: T, problem: Problem<T>): T {
   if (reason !== undefined) throw new LebensmittelwarnungValidationError(`Invalid ${name}: ${reason}`);
   return value;
 }
+
+/**
+ * A free-text value (the `search` needle) must be a string with something besides
+ * whitespace in it. A blank needle would match every warning, so it is rejected
+ * rather than silently returning the whole feed.
+ */
+export const nonBlankProblem: Problem<unknown> = (value) => {
+  if (typeof value !== "string") return "Expected a string.";
+  if (value.trim() === "") return "Expected a non-empty value.";
+  return undefined;
+};
+
+/**
+ * A calendar date `YYYY-MM-DD` (surrounding whitespace allowed) that exists: an
+ * impossible date such as `2026-02-30` or `2026-13-40` is rejected rather than
+ * rolled over or compared as an Invalid Date. Years 0000-9999 are accepted.
+ */
+export const calendarDateProblem: Problem<unknown> = (value) => {
+  if (typeof value !== "string") return "Expected a string.";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!m) return "Expected a date in YYYY-MM-DD format.";
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  // setUTCFullYear, not Date.UTC: Date.UTC maps years 0–99 to 1900–1999, so a
+  // valid "0050-01-01" would fail the round trip below as "not a valid date".
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
+  // Round-trip check: rejects impossible dates that would otherwise roll over
+  // (month 13 -> next year, day 40 -> next month).
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
+    return "Not a valid calendar date.";
+  }
+  return undefined;
+};
+
+/**
+ * The most warnings a `limit` may ask for — the RSS parser's own item cap, so a
+ * larger limit could never apply.
+ */
+export const MAX_WARNINGS_LIMIT = 100_000;
+
+/** A `limit` must be an integer from 1 to {@link MAX_WARNINGS_LIMIT}. */
+export const limitProblem: Problem<unknown> = (value) => {
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) return "Expected an integer.";
+  if (value < 1) return "Must be >= 1.";
+  if (value > MAX_WARNINGS_LIMIT) return `Must be <= ${MAX_WARNINGS_LIMIT}.`;
+  return undefined;
+};

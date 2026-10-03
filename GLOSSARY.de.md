@@ -27,7 +27,7 @@ ein Eintrag des RSS-Feeds.
 Meldung selbst angibt, z. B. „KIMCHI 300 Gramm“. `title` ist normalerweise der `<title>` des
 Feed-Eintrags; seit September 2026 liefert das Portal jeden `<title>` als nicht ausgewertete
 Vorlage `$esc.escapeXml($cms.oneLineText($m.title))`, und die CLI übernimmt `title` dann aus
-diesem Feld. `--search` durchsucht beide.
+diesem Feld. `--search` (in der Bibliothek die Option `search`) durchsucht beide.
 
 **Grund der Meldung (`reason`).** Der Grund, aus dem die Warnung herausgegeben wurde, als
 Kategorie. Am 15.09.2026 verwendete der Live-Feed sieben: *Allergene*, *Fremdkörper*,
@@ -114,9 +114,9 @@ CDATA-Abschnitt). Diese CLI liest es mit einem selbst geschriebenen Parser ohne 
 
 **pubDate / published.** `pubDate` ist der RFC-822-Zeitstempel, wie er geliefert wird, in
 deutscher Zeit („Wed, 8 Jul 2026 16:00:00 +0200“); `published` ist derselbe Wert, normalisiert
-zu einem ISO-8601-String in UTC. `--since` filtert darauf, vergleicht aber Kalendertage in
-deutscher Zeit (Europe/Berlin): Eine Meldung mit dem Zeitstempel `00:00:00 +0200` zählt für
-ihren eigenen Tag, obwohl der Datumsteil von `published` der Vortag ist. `pubDate` ist oft der
+zu einem ISO-8601-String in UTC. `--since` (in der Bibliothek die Option `since`) filtert
+darauf, vergleicht aber Kalendertage in deutscher Zeit (Europe/Berlin): Eine Meldung mit dem
+Zeitstempel `00:00:00 +0200` zählt für ihren eigenen Tag, obwohl der Datumsteil von `published` der Vortag ist. `pubDate` ist oft der
 Zeitpunkt der **letzten Aktualisierung** und nicht der Erstveröffentlichung (am 26.09.2026 lagen
 45 von 265 mehr als drei Tage nach dem Meldungsdatum im Ordnernamen `JJMMTT_` der URL), daher
 bedeutet `--since` „veröffentlicht oder aktualisiert seit“.

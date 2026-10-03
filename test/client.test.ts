@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LebensmittelwarnungClient, FEED_PATH, isUnrenderedTitle } from "../src/client/client.js";
+import { LebensmittelwarnungClient, FEED_PATH, filterWarnings, isUnrenderedTitle } from "../src/client/client.js";
+import { berlinDay } from "../src/client/dates.js";
+import type { Warning } from "../src/client/types.js";
 import { LebensmittelwarnungNetworkError, LebensmittelwarnungValidationError } from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, queryOf } from "./helpers.js";
 import * as fx from "./fixtures.js";
@@ -160,4 +162,56 @@ test("warnings() resolves relative image URLs against the notice link", async ()
   assert.deepEqual(a!.imageUrls, ["https://www.lebensmittelwarnung.de/Meldungen/a/a_Bild.jpg"]);
   // No link: relative to the feed URL.
   assert.deepEqual(b!.imageUrls, ["https://www.lebensmittelwarnung.de/___LMW-Redaktion/RSSNewsfeed/Functions/RssFeeds/b.jpg"]);
+});
+
+// ---- Client-side narrowing: since / search / limit ----
+
+test("berlinDay gives the German calendar day of a timestamp", () => {
+  assert.equal(berlinDay("2026-09-03T22:00:00.000Z"), "2026-09-04");
+  assert.equal(berlinDay("2026-09-03T21:59:00.000Z"), "2026-09-03");
+  assert.equal(berlinDay("2026-01-04T23:00:00.000Z"), "2026-01-05");
+  assert.equal(berlinDay("not a date"), undefined);
+});
+
+test("filterWarnings applies since, then search, then limit", () => {
+  const w = (title: string, published?: string, product?: string): Warning => ({
+    title,
+    fields: {},
+    ...(published === undefined ? {} : { published }),
+    ...(product === undefined ? {} : { product }),
+  });
+  const list = [
+    w("Erdbeeren Bio", "2026-09-03T22:00:00.000Z"),
+    w("Spätes Teil", "2026-09-03T21:59:00.000Z", "Himbeeren"),
+    w("Alt", "2026-06-30T07:30:00.000Z", "BIO Honig"),
+    w("OhneDatum"),
+  ];
+  const titles = (ws: Warning[]) => ws.map((x) => x.title);
+  assert.deepEqual(titles(filterWarnings(list)), ["Erdbeeren Bio", "Spätes Teil", "Alt", "OhneDatum"]);
+  assert.deepEqual(titles(filterWarnings(list, { since: "2026-09-04" })), ["Erdbeeren Bio"]);
+  assert.deepEqual(titles(filterWarnings(list, { since: "2026-09-03" })), ["Erdbeeren Bio", "Spätes Teil"]);
+  assert.deepEqual(titles(filterWarnings(list, { search: " bio " })), ["Erdbeeren Bio", "Alt"]);
+  assert.deepEqual(titles(filterWarnings(list, { search: "beeren", limit: 1 })), ["Erdbeeren Bio"]);
+  assert.deepEqual(titles(filterWarnings(list, { since: "2026-01-01", search: "zzz" })), []);
+  assert.throws(() => filterWarnings(list, { limit: 0 }), LebensmittelwarnungValidationError);
+});
+
+test("warnings() rejects a bad since/search/limit before any request", async () => {
+  for (const query of [{ since: "2026-02-30" }, { search: "  " }, { limit: 0 }, { limit: 1.5 }]) {
+    const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+    await assert.rejects(
+      new LebensmittelwarnungClient({ transport: mt.transport }).warnings(query),
+      LebensmittelwarnungValidationError,
+      JSON.stringify(query),
+    );
+    assert.equal(mt.calls.length, 0);
+  }
+});
+
+test("warnings() narrows the fixture feed like the CLI's --since/--search/--limit", async () => {
+  const mt = makeMockTransport(() => rssResponse(fx.midnightFeedXml));
+  const client = new LebensmittelwarnungClient({ transport: mt.transport });
+  const rows = await client.warnings({ since: "2026-09-04" });
+  assert.deepEqual(rows.map((r) => r.title), ["Knackwürste im Ring", "UTC-stamped item"]);
+  assert.equal(queryOf(mt.last()).toString(), "");
 });

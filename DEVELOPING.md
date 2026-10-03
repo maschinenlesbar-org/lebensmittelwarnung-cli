@@ -87,12 +87,36 @@ try {
   });
   const w = bavarianFood[0];
   console.log(w?.affectedStates, w?.manufacturer);
+
+  // Client-side narrowing, the same as the CLI's --since / --search / --limit.
+  const recent = await client.warnings({ since: "2026-09-01", search: "bio", limit: 5 });
 } catch (err) {
   // warnings() rejects: the feed returned the HTML shell or an empty body.
   if (err instanceof LebensmittelwarnungParseError) console.error(err.message);
   else throw err;
 }
 ```
+
+### Narrowing: `state`, `type`, `since`, `search`, `limit`
+
+`warnings(query)` takes the server-side filters `state` and `type` (one slug each, see
+`STATE_SLUGS` / `TYPE_SLUGS`) and three client-side ones, applied after the fetch in
+this order — the CLI's `--since`, `--search` and `--limit` call exactly this:
+
+- `since` (`YYYY-MM-DD`) keeps warnings whose `published` day **in German time**
+  (Europe/Berlin, `berlinDay`) is that day or later, and drops a warning without a
+  parseable `pubDate`. A notice stamped `00:00:00 +0200` counts for its own day, although
+  the UTC date part of `published` is the day before — comparing UTC days would miss it;
+- `search` keeps warnings whose `title` or `product` contains the trimmed needle,
+  case-insensitively;
+- `limit` keeps the first `n` (1..`MAX_WARNINGS_LIMIT`, 100 000), in feed order.
+
+Every option is checked before the request: an unknown slug, an impossible date
+(`calendarDateProblem`: `2026-02-30`), a blank `search` (`nonBlankProblem`) or a
+`limit` outside its range (`limitProblem`) rejects with a
+`LebensmittelwarnungValidationError` (`Invalid since: Not a valid calendar date.`).
+`filterWarnings(list, { since, search, limit })` applies the same narrowing to a list
+you already have.
 
 ### Client options
 
@@ -179,6 +203,7 @@ src/
     entities.ts  # the HTML 4 named character references
     enums.ts     # the state/type slug vocabularies + display names + guards
     types.ts     # Warning / WarningsQuery
+    dates.ts     # berlinDay: the calendar day of a timestamp in German time
     query.ts     # dependency-free query-string builder
     http.ts      # the Transport interface + default node:http/https transport
     engine.ts    # URL building, retry/backoff, RSS decode + HTML-shell/empty guard, errors
@@ -187,7 +212,7 @@ src/
     client.ts    # LebensmittelwarnungClient — warnings() + field projection
   cli/
     io.ts        # injectable I/O seam (stdout/stderr/file)
-    shared.ts    # option parsers (incl. the --since date parser), global-option resolver, JSON renderer
+    shared.ts    # option parsers (thin wrappers over the library's rules), global-option resolver, JSON renderer
     commands/    # warnings.ts — warnings / states / types
     program.ts   # assembles the commander program from injectable deps
     run.ts       # parses argv -> exit code (no process.exit; testable)
@@ -215,7 +240,8 @@ pointed hint to check `--base-url`. Credential headers are never sent cross-host
 usually the HTML shell or the empty-body legacy-API failure), and
 `LebensmittelwarnungValidationError` (a rejected input, thrown before any request:
 an unknown `state`/`type` slug in `warnings()`, `Invalid state: expected one of …,
-got "bogus".`, or an engine option outside its range, `Invalid option timeoutMs:
+got "bogus".`, a bad `since`/`search`/`limit`, `Invalid limit: Must be >= 1.`, or an
+engine option outside its range, `Invalid option timeoutMs:
 expected an integer from 0 to 2147483647, got NaN.` — `maxRetries` 0..`MAX_RETRIES`
 (10), `retryDelayMs` 0..`MAX_RETRY_AFTER_MS`, `maxResponseBytes` 0..2^53−1), all
 extending `LebensmittelwarnungError`.
@@ -245,9 +271,12 @@ npm test          # builds, then runs `node --test` over dist/test
 - **`engine.test.ts`** — RSS decoding, the HTML-shell + empty-body guards, `429`/`503`
   retry, the 3xx-is-an-error rule, error mapping — mocked transport.
 - **`client.test.ts`** — the field projection, `affectedStates` split, ISO date
-  derivation, and the `state`/`type` query parameters — mocked transport.
+  derivation, the `state`/`type` query parameters, and the `since`/`search`/`limit`
+  narrowing (`filterWarnings`, `berlinDay`) — mocked transport.
 - **`cli.test.ts`** — command parsing, the `--state`/`--type` choice validation, the
-  `--limit`/`--since`/`--search` filters, `--output`, and exit codes — mocked client.
+  `--limit`/`--since`/`--search` options, `--output`, and exit codes — mocked client.
+- **`parity.test.ts`** — the same input through `run()` and through the library (via
+  `parity()`) gives the same outcome.
 - **`validate.test.ts`** — `assertValid`, the `run.ts` mapping of
   `LebensmittelwarnungValidationError`, and the `parity()` helper (`test/helpers.ts`),
   which sends one input through `run()` and through the library on one recording mock

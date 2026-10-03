@@ -26,7 +26,7 @@ should not be consumed/used. In this CLI each warning is one item of the RSS fee
 notice body gives it, e.g. "KIMCHI 300 Gramm". `title` is normally the feed item's own
 `<title>`; since September 2026 the portal serves every `<title>` as the unrendered
 template `$esc.escapeXml($cms.oneLineText($m.title))`, so the CLI then takes `title`
-from this field. `--search` matches both.
+from this field. `--search` (the library's `search` option) matches both.
 
 **Grund der Meldung (`reason`).** The reason the warning was issued, as a category
 label. On 2026-09-15 the live feed used seven: *Allergene* (allergens), *Fremdkörper*
@@ -112,9 +112,10 @@ section). This CLI parses it with a hand-rolled, dependency-free parser.
 
 **pubDate / published.** `pubDate` is the RFC-822 timestamp as served, in German
 time ("Wed, 8 Jul 2026 16:00:00 +0200"); `published` is that value normalised to an
-ISO-8601 UTC string. `--since` filters on it but compares calendar days in German
-time (Europe/Berlin): a notice stamped `00:00:00 +0200` counts for its own day,
-although the date part of `published` is the day before. `pubDate` is often the time
+ISO-8601 UTC string. `--since` (the library's `since` option) filters on it but
+compares calendar days in German time (Europe/Berlin): a notice stamped
+`00:00:00 +0200` counts for its own day, although the date part of `published` is the
+day before. `pubDate` is often the time
 of the **last update** rather than of first publication (on 2026-09-26, 45 of 265 were
 more than three days after the notice date in the URL's `YYMMDD_` folder name), so
 `--since` means "published or updated since".

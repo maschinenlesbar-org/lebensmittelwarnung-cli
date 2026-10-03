@@ -6,6 +6,7 @@ import { InvalidArgumentError, Option } from "commander";
 import type { CliDeps } from "./io.js";
 import type { LebensmittelwarnungClientOptions } from "../client/client.js";
 import { LebensmittelwarnungError, LebensmittelwarnungValidationError } from "../client/errors.js";
+import { calendarDateProblem, limitProblem, nonBlankProblem } from "../client/validate.js";
 
 /**
  * commander value-parser: a plain base-10 non-negative integer.
@@ -35,11 +36,10 @@ export function parseBoundedInt(min: number, max: number): (value: string) => nu
   };
 }
 
-/** commander value-parser: a non-empty (after trimming) string. */
+/** commander value-parser: a non-empty (after trimming) string (the library's {@link nonBlankProblem}). */
 export function parseNonEmpty(value: string): string {
-  if (value.trim() === "") {
-    throw new InvalidArgumentError("Expected a non-empty value.");
-  }
+  const problem = nonBlankProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
   return value;
 }
 
@@ -124,55 +124,27 @@ export function parseHeaderValue(value: string): string {
 }
 
 /**
- * commander value-parser for a `--since <YYYY-MM-DD>` calendar date. Rejects a
- * malformed or impossible date (e.g. `2026-13-40`) at parse time (exit 2) rather
- * than silently comparing against an Invalid Date. Returns the date as a
- * `YYYY-MM-DD` string, the lower bound for a "published on or after this day"
- * filter that compares it with {@link berlinDay} of each warning.
+ * commander value-parser for a `--since <YYYY-MM-DD>` calendar date. The rule is the
+ * library's {@link calendarDateProblem}: a malformed or impossible date (e.g.
+ * `2026-13-40`) is a usage error at parse time (exit 2). Returns the trimmed date,
+ * which the action passes to `client.warnings({ since })`.
  */
 export function parseDate(value: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
-  if (!m) {
-    throw new InvalidArgumentError("Expected a date in YYYY-MM-DD format.");
-  }
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  const day = Number(m[3]);
-  // setUTCFullYear, not Date.UTC: Date.UTC maps years 0–99 to 1900–1999, so a
-  // valid "0050-01-01" would fail the round trip below as "not a valid date".
-  const d = new Date(0);
-  d.setUTCFullYear(year, month - 1, day);
-  // Round-trip check: rejects impossible dates that Date.UTC would otherwise roll
-  // over (e.g. month 13 -> next year, day 40 -> next month).
-  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
-    throw new InvalidArgumentError("Not a valid calendar date.");
-  }
-  return `${m[1]}-${m[2]}-${m[3]}`;
+  const problem = calendarDateProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
+  return value.trim();
 }
 
-const BERLIN_DAY = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Europe/Berlin",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
 /**
- * The calendar day (`YYYY-MM-DD`) of a timestamp in German time (Europe/Berlin), or
- * `undefined` when it doesn't parse. The feed stamps notices in local time
- * (`Fri, 4 Sep 2026 00:00:00 +0200`), so the UTC day of a notice published between
- * midnight and 02:00 would be the day before.
+ * commander value-parser for `--limit <n>`: a plain base-10 integer (see
+ * {@link parseIntArg}) that passes the library's {@link limitProblem}
+ * (1..MAX_WARNINGS_LIMIT).
  */
-export function berlinDay(timestamp: string): string | undefined {
-  const ms = Date.parse(timestamp);
-  if (Number.isNaN(ms)) return undefined;
-  const parts = BERLIN_DAY.formatToParts(ms);
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value;
-  const year = part("year");
-  const month = part("month");
-  const day = part("day");
-  if (year === undefined || month === undefined || day === undefined) return undefined;
-  return `${year.padStart(4, "0")}-${month}-${day}`;
+export function parseLimit(value: string): number {
+  const n = parseIntArg(value);
+  const problem = limitProblem(n);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
+  return n;
 }
 
 export interface GlobalOptions {

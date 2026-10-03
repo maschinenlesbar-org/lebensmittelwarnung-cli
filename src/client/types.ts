@@ -78,4 +78,26 @@ export interface WarningsQuery {
   state?: StateSlug;
   /** Narrow to one product type (server-side `type=` filter). */
   type?: TypeSlug;
+  /**
+   * Keep only warnings whose `published` day in German time (Europe/Berlin) is this
+   * `YYYY-MM-DD` day or later (client-side; surrounding whitespace is ignored). A
+   * warning without a parseable `pubDate` is dropped. An impossible date throws a
+   * LebensmittelwarnungValidationError before any request.
+   */
+  since?: string;
+  /**
+   * Keep only warnings whose product name (`title` or `product`) contains this text,
+   * case-insensitively, after trimming (client-side). A blank value throws a
+   * LebensmittelwarnungValidationError before any request.
+   */
+  search?: string;
+  /**
+   * Return at most this many warnings, in feed order, after `since` and `search`
+   * (client-side). An integer from 1 to `MAX_WARNINGS_LIMIT` (100 000); anything
+   * else throws a LebensmittelwarnungValidationError before any request.
+   */
+  limit?: number;
 }
+
+/** The client-side narrowing of {@link WarningsQuery}: applied after the fetch. */
+export type WarningsFilter = Pick<WarningsQuery, "since" | "search" | "limit">;

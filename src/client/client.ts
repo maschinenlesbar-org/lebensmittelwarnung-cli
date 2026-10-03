@@ -11,12 +11,15 @@
 //   await c.warnings();                              // all current warnings
 //   await c.warnings({ state: "bayern" });           // one Bundesland
 //   await c.warnings({ type: "lebensmittel" });      // one product type
+//   await c.warnings({ since: "2026-09-01", search: "bio", limit: 5 }); // client-side
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { parseDescription } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
 import { LebensmittelwarnungValidationError } from "./errors.js";
-import type { Warning, WarningsQuery } from "./types.js";
+import { berlinDay } from "./dates.js";
+import { assertValid, calendarDateProblem, limitProblem, nonBlankProblem } from "./validate.js";
+import type { Warning, WarningsFilter, WarningsQuery } from "./types.js";
 
 /** The single feed path (relative to the base URL). GET, optionally `?state=&type=`. */
 export const FEED_PATH =
@@ -70,6 +73,57 @@ function invalid(name: string, expected: string, got: unknown): Lebensmittelwarn
   return new LebensmittelwarnungValidationError(`Invalid ${name}: expected ${expected}, got ${JSON.stringify(got)}.`);
 }
 
+/** The checked form of a {@link WarningsFilter}: a trimmed day, a folded needle. */
+interface CheckedFilter {
+  since?: string;
+  needle?: string;
+  limit?: number;
+}
+
+/** Validate the client-side narrowing; a bad value throws before any request. */
+function checkFilter(filter: WarningsFilter): CheckedFilter {
+  const checked: CheckedFilter = {};
+  if (filter.since !== undefined) checked.since = assertValid("since", filter.since, calendarDateProblem).trim();
+  if (filter.search !== undefined) {
+    checked.needle = assertValid("search", filter.search, nonBlankProblem).trim().toLowerCase();
+  }
+  if (filter.limit !== undefined) checked.limit = assertValid("limit", filter.limit, limitProblem);
+  return checked;
+}
+
+function applyFilter(warnings: Warning[], { since, needle, limit }: CheckedFilter): Warning[] {
+  let result = warnings;
+  // `since` compares calendar days in German time, not UTC: a notice stamped
+  // `00:00:00 +0200` belongs to that day, although its UTC instant is the day before.
+  // Field types are guarded so a filter never matches by accident.
+  if (since !== undefined) {
+    result = result.filter((w) => {
+      if (typeof w.published !== "string") return false;
+      const day = berlinDay(w.published);
+      return day !== undefined && day >= since;
+    });
+  }
+  if (needle !== undefined) {
+    // Both product-name fields: `title` (the feed's, or the fallback) and `product`
+    // (Produktbezeichnung), which can word the same product differently.
+    result = result.filter((w) =>
+      [w.title, w.product].some((v) => typeof v === "string" && v.toLowerCase().includes(needle)),
+    );
+  }
+  if (limit !== undefined) result = result.slice(0, limit);
+  return result;
+}
+
+/**
+ * Narrow a list of warnings the way {@link LebensmittelwarnungClient.warnings} does:
+ * `since` (German calendar day, items without `published` dropped), then `search`
+ * (trimmed, case-insensitive, against `title` and `product`), then `limit`. A bad
+ * value throws a LebensmittelwarnungValidationError.
+ */
+export function filterWarnings(warnings: Warning[], filter: WarningsFilter = {}): Warning[] {
+  return applyFilter(warnings, checkFilter(filter));
+}
+
 /** Options for the client (engine options only — the feed needs no auth). */
 export type LebensmittelwarnungClientOptions = EngineOptions;
 
@@ -82,7 +136,9 @@ export class LebensmittelwarnungClient {
 
   /**
    * Fetch the current product warnings, optionally narrowed by `state` / `type`
-   * (both are applied server-side via the feed's query parameters). Each item's
+   * (both are applied server-side via the feed's query parameters) and by `since`,
+   * `search` and `limit` (applied client-side, in that order; see
+   * {@link filterWarnings}). Every option is checked before the request. Each item's
    * HTML description is parsed into typed fields plus the generic `fields` map.
    */
   async warnings(query: WarningsQuery = {}): Promise<Warning[]> {
@@ -94,13 +150,14 @@ export class LebensmittelwarnungClient {
     if (query.type !== undefined && !isTypeSlug(query.type)) {
       throw invalid("type", `one of ${TYPE_SLUGS.join(", ")}`, query.type);
     }
+    const filter = checkFilter(query);
     const params: Record<string, string> = {};
     if (query.state !== undefined) params["state"] = query.state;
     if (query.type !== undefined) params["type"] = query.type;
 
     const feed = await this.engine.getFeed(FEED_PATH, params);
     const feedUrl = this.engine.buildUrl(FEED_PATH);
-    return feed.items.map((item) => {
+    const warnings = feed.items.map((item) => {
       // Relative image URLs resolve against the notice page (or the feed itself).
       const base = resolveBase(item.link, feedUrl);
       const { fields, imageUrls, images } = parseDescription(item.description ?? "", base);
@@ -141,5 +198,6 @@ export class LebensmittelwarnungClient {
 
       return warning;
     });
+    return applyFilter(warnings, filter);
   }
 }

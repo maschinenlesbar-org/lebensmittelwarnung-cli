@@ -1,16 +1,17 @@
-// The command group. `warnings` fetches the RSS feed (optionally narrowed
-// server-side by --state / --type) and applies the client-side --limit / --since /
-// --search filters before rendering JSON. `states` and `types` print the valid
-// offline slug vocabularies.
+// The command group. `warnings` fetches the RSS feed through the library, which
+// narrows it server-side by --state / --type and client-side by --since / --search /
+// --limit (see LebensmittelwarnungClient.warnings), and renders JSON. `states` and
+// `types` print the valid offline slug vocabularies.
 //
 // KNOWN BUG CLASS avoided: every value option here is validated. --state / --type
 // use commander `.choices()` (an unknown slug fails at parse time, exit 2, rather
-// than being silently dropped and returning the full unfiltered feed); --limit is a
-// positive-int parser; --since is a YYYY-MM-DD date parser; --search is non-empty.
+// than being silently dropped and returning the full unfiltered feed); --limit,
+// --since and --search are parsed with the library's own rules (limitProblem,
+// calendarDateProblem, nonBlankProblem), so the CLI and the library agree.
 
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
-import type { Warning, StateSlug, TypeSlug } from "../../client/types.js";
+import type { StateSlug, TypeSlug, WarningsQuery } from "../../client/types.js";
 import {
   STATE_SLUGS,
   STATE_NAMES,
@@ -19,11 +20,10 @@ import {
 } from "../../client/enums.js";
 import {
   action,
-  berlinDay,
   choiceOption,
   once,
-  parseBoundedInt,
   parseDate,
+  parseLimit,
   parseNonEmpty,
   renderJson,
 } from "../shared.js";
@@ -42,7 +42,7 @@ export function registerCommands(program: Command, deps: CliDeps): void {
     .option(
       "--limit <n>",
       "return at most this many warnings (in feed order — most recent first)",
-      once(parseBoundedInt(1, 100000)),
+      once(parseLimit),
     )
     .option(
       "--since <YYYY-MM-DD>",
@@ -56,40 +56,19 @@ export function registerCommands(program: Command, deps: CliDeps): void {
     )
     .action(
       action(deps, async ({ client, global, opts }) => {
+        const query: WarningsQuery = {};
         const state = opts["state"] as StateSlug | undefined;
         const type = opts["type"] as TypeSlug | undefined;
-        const query: { state?: StateSlug; type?: TypeSlug } = {};
+        const since = opts["since"] as string | undefined;
+        const search = opts["search"] as string | undefined;
+        const limit = opts["limit"] as number | undefined;
         if (state !== undefined) query.state = state;
         if (type !== undefined) query.type = type;
+        if (since !== undefined) query.since = since;
+        if (search !== undefined) query.search = search;
+        if (limit !== undefined) query.limit = limit;
 
-        let warnings = await client.warnings(query);
-
-        // Client-side filters. Guard field types so a filter never silently matches
-        // nothing due to an unexpectedly-shaped field.
-        // --since compares calendar days in German time, not UTC: a notice stamped
-        // `00:00:00 +0200` belongs to that day, although its UTC instant is the day before.
-        const since = opts["since"] as string | undefined;
-        if (since !== undefined) {
-          warnings = warnings.filter((w: Warning) => {
-            if (typeof w.published !== "string") return false;
-            const day = berlinDay(w.published);
-            return day !== undefined && day >= since;
-          });
-        }
-
-        const search = opts["search"] as string | undefined;
-        if (search !== undefined) {
-          const needle = search.trim().toLowerCase();
-          // Both product-name fields: `title` (the feed's, or the fallback) and
-          // `product` (Produktbezeichnung), which can word the same product differently.
-          warnings = warnings.filter((w: Warning) =>
-            [w.title, w.product].some((v) => typeof v === "string" && v.toLowerCase().includes(needle)),
-          );
-        }
-
-        const limit = opts["limit"] as number | undefined;
-        if (limit !== undefined) warnings = warnings.slice(0, limit);
-
+        const warnings = await client.warnings(query);
         renderJson(deps, global, warnings);
       }),
     );
