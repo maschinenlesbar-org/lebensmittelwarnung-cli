@@ -131,6 +131,14 @@ new LebensmittelwarnungClient({
 });
 ```
 
+`userAgent` and every `defaultHeaders` value are checked in the constructor with the
+same rule as the CLI's `--user-agent` (`headerValueProblem`, also exported as
+`assertHeaderValue(name, value)`): a blank value, a control character other than tab
+(CR/LF would inject a header), DEL or a character above U+00FF throws a
+`LebensmittelwarnungValidationError` before any request. Only an omitted `userAgent`
+selects the default `lebensmittelwarnung-cli`. `defaultHeaders` names must be HTTP
+tokens.
+
 ### The `Warning` shape
 
 `warnings()` returns one `Warning` per RSS `<item>`:
@@ -240,8 +248,8 @@ pointed hint to check `--base-url`. Credential headers are never sent cross-host
 usually the HTML shell or the empty-body legacy-API failure), and
 `LebensmittelwarnungValidationError` (a rejected input, thrown before any request:
 an unknown `state`/`type` slug in `warnings()`, `Invalid state: expected one of …,
-got "bogus".`, a bad `since`/`search`/`limit`, `Invalid limit: Must be >= 1.`, or an
-engine option outside its range, `Invalid option timeoutMs:
+got "bogus".`, a bad `since`/`search`/`limit`, `Invalid limit: Must be >= 1.`, a bad
+`userAgent` or `defaultHeaders` value, or an engine option outside its range, `Invalid option timeoutMs:
 expected an integer from 0 to 2147483647, got NaN.` — `maxRetries` 0..`MAX_RETRIES`
 (10), `retryDelayMs` 0..`MAX_RETRY_AFTER_MS`, `maxResponseBytes` 0..2^53−1), all
 extending `LebensmittelwarnungError`.

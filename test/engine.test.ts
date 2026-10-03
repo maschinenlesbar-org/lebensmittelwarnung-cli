@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RequestEngine, parseRetryAfter } from "../src/client/engine.js";
+import { RequestEngine, assertHeaderValue, parseRetryAfter, type EngineOptions } from "../src/client/engine.js";
+import { headerValueProblem } from "../src/client/validate.js";
 import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungNetworkError,
@@ -263,4 +264,46 @@ test("an unknown declared encoding is a parse error, not mojibake", async () => 
     () => new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml"),
     (err) => err instanceof LebensmittelwarnungParseError && err.message === 'Unsupported response charset "x-bogus" from /feed.xml.',
   );
+});
+
+// ---- Header values (CLI <-> library parity, finding 2) ----
+
+test("assertHeaderValue returns a valid value and throws LebensmittelwarnungValidationError otherwise", () => {
+  assert.equal(assertHeaderValue("userAgent", "my-app/1.0 (müller)\tx"), "my-app/1.0 (müller)\tx");
+  for (const bad of ["", "  ", "a\nb", "a\u007fb", "€"]) {
+    assert.throws(
+      () => assertHeaderValue("userAgent", bad),
+      (err: unknown) => err instanceof LebensmittelwarnungValidationError && /^Invalid userAgent: /.test(err.message),
+      JSON.stringify(bad),
+    );
+  }
+});
+
+test("headerValueProblem names the reason", () => {
+  assert.equal(headerValueProblem("ok"), undefined);
+  assert.equal(headerValueProblem(" "), "Expected a non-empty value.");
+  assert.equal(headerValueProblem("a\rb"), "Value contains control characters.");
+  assert.equal(headerValueProblem("Ā"), "Value contains characters outside Latin-1 (above U+00FF).");
+  assert.equal(headerValueProblem(1), "Expected a string.");
+});
+
+test("the engine checks userAgent and defaultHeaders at construction, before any request", () => {
+  const cases: EngineOptions[] = [
+    { userAgent: "" },
+    { userAgent: "a\r\nX-Inj: 1" },
+    { defaultHeaders: { "X-A": "a\r\nX-Inj: 1" } },
+    { defaultHeaders: { "Bad Name": "v" } },
+    { defaultHeaders: { "": "v" } },
+  ];
+  for (const options of cases) {
+    const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+    assert.throws(
+      () => new RequestEngine({ ...options, transport: mt.transport }),
+      LebensmittelwarnungValidationError,
+      JSON.stringify(options),
+    );
+    assert.equal(mt.calls.length, 0);
+  }
+  // An omitted userAgent still means the default.
+  assert.doesNotThrow(() => new RequestEngine({ defaultHeaders: { "X-Note": "ok" } }));
 });

@@ -80,3 +80,43 @@ test("warnings narrowing: a value the CLI rejects is rejected by the library too
     assert.equal(lib.requests.length, 0, label);
   }
 });
+
+// ---- Finding 2: --user-agent / userAgent ----
+
+test("user agent: a value the CLI rejects is rejected by the library too, with no request", async () => {
+  for (const [ua, reason] of [
+    ["", "Expected a non-empty value."],
+    ["   ", "Expected a non-empty value."],
+    ["a\r\nX-Inj: 1", "Value contains control characters."],
+    ["a\u007f", "Value contains control characters."],
+    ["a\u0000b", "Value contains control characters."],
+    ["€", "Value contains characters outside Latin-1 (above U+00FF)."],
+  ] as const) {
+    const label = JSON.stringify(ua);
+    const { cli, lib } = await parity(
+      ["--compact", "--user-agent", ua, "warnings"],
+      (transport) => new LebensmittelwarnungClient({ transport, userAgent: ua }).warnings(),
+      () => rssResponse(narrowFeedXml),
+    );
+    assert.equal(cli.code, 2, label);
+    assert.ok(cli.err.includes(reason), label);
+    assert.equal(cli.requests.length, 0, label);
+    assert.ok(!lib.ok && lib.error instanceof LebensmittelwarnungValidationError, label);
+    assert.equal((lib as { error: Error }).error.message, `Invalid userAgent: ${reason}`, label);
+    assert.equal(lib.requests.length, 0, label);
+  }
+});
+
+test("user agent: tab, Latin-1 and padded values are sent identically by both", async () => {
+  for (const ua of ["a\tb", "agent-ä", " x "]) {
+    const { cli, lib } = await parity(
+      ["--compact", "--user-agent", ua, "warnings"],
+      (transport) => new LebensmittelwarnungClient({ transport, userAgent: ua }).warnings(),
+      () => rssResponse(narrowFeedXml),
+    );
+    assert.equal(cli.code, 0, ua);
+    assert.ok(lib.ok, ua);
+    assert.equal(cli.requests[0]!.headers?.["User-Agent"], ua);
+    assert.deepEqual(cli.requests, lib.requests);
+  }
+});

@@ -3,7 +3,14 @@
 export { LebensmittelwarnungClient, FEED_PATH, filterWarnings, isUnrenderedTitle } from "./client.js";
 export { berlinDay } from "./dates.js";
 export type { LebensmittelwarnungClientOptions } from "./client.js";
-export { RequestEngine, DEFAULT_BASE_URL, MAX_RETRIES, MAX_RETRY_AFTER_MS, parseRetryAfter } from "./engine.js";
+export {
+  RequestEngine,
+  DEFAULT_BASE_URL,
+  MAX_RETRIES,
+  MAX_RETRY_AFTER_MS,
+  assertHeaderValue,
+  parseRetryAfter,
+} from "./engine.js";
 export type { EngineOptions, RawResponse } from "./engine.js";
 export { MAX_TIMEOUT_MS, nodeHttpTransport } from "./http.js";
 export type { Transport, HttpRequest, HttpResponse } from "./http.js";
@@ -13,6 +20,8 @@ export {
   MAX_WARNINGS_LIMIT,
   assertValid,
   calendarDateProblem,
+  headerNameProblem,
+  headerValueProblem,
   limitProblem,
   nonBlankProblem,
 } from "./validate.js";
