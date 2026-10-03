@@ -100,3 +100,24 @@ export const headerNameProblem: Problem<unknown> = (value) =>
   typeof value === "string" && /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(value)
     ? undefined
     : "Expected an HTTP header name (a token such as X-Request-Id).";
+
+/**
+ * Every rule for a base URL, in order: a non-blank string, a parseable URL, the
+ * `http:` or `https:` scheme, and no query or fragment — request paths are appended
+ * to the base URL as a string, so a `?` or `#` would swallow every path
+ * (`http://h/?x=1` requests `/?x=1/___LMW-Redaktion/...`, `http://h/#f` requests
+ * `/`). The reasons never echo the URL, so a credential in it cannot leak.
+ */
+export const baseUrlProblem: Problem<unknown> = (value) => {
+  if (typeof value !== "string") return "Expected a string.";
+  if (value.trim() === "") return "Expected a non-empty URL.";
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return "Expected a valid URL.";
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return "Only http: and https: base URLs are supported.";
+  if (/[?#]/.test(value)) return "A base URL cannot have a query (?) or fragment (#).";
+  return undefined;
+};

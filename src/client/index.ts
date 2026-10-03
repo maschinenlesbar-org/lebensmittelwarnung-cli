@@ -10,6 +10,7 @@ export {
   MAX_RETRY_AFTER_MS,
   assertHeaderValue,
   parseRetryAfter,
+  validateBaseUrl,
 } from "./engine.js";
 export type { EngineOptions, RawResponse } from "./engine.js";
 export { MAX_TIMEOUT_MS, nodeHttpTransport } from "./http.js";
@@ -19,6 +20,7 @@ export type { QueryParams, QueryValue } from "./query.js";
 export {
   MAX_WARNINGS_LIMIT,
   assertValid,
+  baseUrlProblem,
   calendarDateProblem,
   headerNameProblem,
   headerValueProblem,

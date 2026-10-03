@@ -93,7 +93,10 @@ test("the client rejects a non-http(s) base URL before any request, even with a 
     const mt = makeMockTransport(() => rssResponse(fx.feedXml));
     assert.throws(
       () => new LebensmittelwarnungClient({ baseUrl, transport: mt.transport }),
-      (err) => err instanceof LebensmittelwarnungNetworkError && /Unsupported protocol/.test(err.message),
+      (err) =>
+        err instanceof LebensmittelwarnungValidationError &&
+        !(err instanceof LebensmittelwarnungNetworkError) &&
+        /^Invalid baseUrl: Only http: and https:/.test(err.message),
     );
     assert.equal(mt.calls.length, 0);
   }

@@ -235,7 +235,14 @@ instead of calling `process.exit`).
 ### Redirects & base URL
 
 `--base-url` is trusted input, but only `http:`/`https:` are accepted (a stray
-`file:`/`ftp:` fails at parse time, exit `2`). **Redirects are not followed** — a
+`file:`/`ftp:` fails at parse time, exit `2`). The rule is the library's: the
+`RequestEngine` constructor checks the raw `baseUrl` with the exported
+`validateBaseUrl` (rule: `baseUrlProblem`, which the CLI's `--base-url` parser calls
+too). A blank value, an unparseable URL, a scheme other than `http:`/`https:`, and a
+query or fragment (request paths are appended to the base URL as a string) each throw a
+`LebensmittelwarnungValidationError` (`Invalid baseUrl: <reason>`) before any request —
+a configuration error, not a `LebensmittelwarnungNetworkError`. Only an omitted
+`baseUrl` selects the default. **Redirects are not followed** — a
 `3xx` surfaces as an error (the canonical host serves the feed directly), with a
 pointed hint to check `--base-url`. Credential headers are never sent cross-host
 (there are none here — the feed needs no auth).
@@ -244,12 +251,13 @@ pointed hint to check `--base-url`. Credential headers are never sent cross-host
 
 [`errors.ts`](src/client/errors.ts): `LebensmittelwarnungApiError` (non-2xx, carries
 `status`/`detail`, with `isRetryable`/`isNotFound`), `LebensmittelwarnungNetworkError`
-(transport failure/timeout), `LebensmittelwarnungParseError` (the body was not RSS —
+(transport failure/timeout, and the default transport's per-hop scheme check; a bad
+configured `baseUrl` is a `LebensmittelwarnungValidationError` instead), `LebensmittelwarnungParseError` (the body was not RSS —
 usually the HTML shell or the empty-body legacy-API failure), and
 `LebensmittelwarnungValidationError` (a rejected input, thrown before any request:
 an unknown `state`/`type` slug in `warnings()`, `Invalid state: expected one of …,
 got "bogus".`, a bad `since`/`search`/`limit`, `Invalid limit: Must be >= 1.`, a bad
-`userAgent` or `defaultHeaders` value, or an engine option outside its range, `Invalid option timeoutMs:
+`baseUrl`, `userAgent` or `defaultHeaders` value, or an engine option outside its range, `Invalid option timeoutMs:
 expected an integer from 0 to 2147483647, got NaN.` — `maxRetries` 0..`MAX_RETRIES`
 (10), `retryDelayMs` 0..`MAX_RETRY_AFTER_MS`, `maxResponseBytes` 0..2^53−1), all
 extending `LebensmittelwarnungError`.

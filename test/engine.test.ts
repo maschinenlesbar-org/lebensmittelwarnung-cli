@@ -1,10 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RequestEngine, assertHeaderValue, parseRetryAfter, type EngineOptions } from "../src/client/engine.js";
-import { headerValueProblem } from "../src/client/validate.js";
+import {
+  RequestEngine,
+  assertHeaderValue,
+  parseRetryAfter,
+  validateBaseUrl,
+  type EngineOptions,
+} from "../src/client/engine.js";
+import { baseUrlProblem, headerValueProblem } from "../src/client/validate.js";
 import {
   LebensmittelwarnungApiError,
-  LebensmittelwarnungNetworkError,
   LebensmittelwarnungParseError,
   LebensmittelwarnungValidationError,
   redactUrl,
@@ -120,7 +125,9 @@ test("the engine rejects a non-http(s) base URL before any request, even with a 
     const mt = makeMockTransport(() => rssResponse(fx.feedXml));
     assert.throws(
       () => new RequestEngine({ baseUrl, transport: mt.transport }),
-      (err) => err instanceof LebensmittelwarnungNetworkError && /Unsupported protocol/.test(err.message),
+      (err) =>
+        err instanceof LebensmittelwarnungValidationError &&
+        err.message === "Invalid baseUrl: Only http: and https: base URLs are supported.",
     );
     assert.equal(mt.calls.length, 0);
   }
@@ -130,7 +137,7 @@ test("the engine rejects an unparsable base URL", () => {
   const mt = makeMockTransport(() => rssResponse(fx.feedXml));
   assert.throws(
     () => new RequestEngine({ baseUrl: "not a url", transport: mt.transport }),
-    (err) => err instanceof LebensmittelwarnungNetworkError && /Invalid base URL/.test(err.message),
+    (err) => err instanceof LebensmittelwarnungValidationError && err.message === "Invalid baseUrl: Expected a valid URL.",
   );
   assert.equal(mt.calls.length, 0);
 });
@@ -202,7 +209,9 @@ test("the engine rejects a base URL with a query or fragment (library users)", (
   for (const baseUrl of ["https://x.test/?a=1", "https://x.test/p#f"]) {
     assert.throws(
       () => new RequestEngine({ baseUrl }),
-      (err) => err instanceof LebensmittelwarnungNetworkError && /must not contain a query or fragment/.test(err.message),
+      (err) =>
+        err instanceof LebensmittelwarnungValidationError &&
+        err.message === "Invalid baseUrl: A base URL cannot have a query (?) or fragment (#).",
     );
   }
 });
@@ -214,7 +223,8 @@ test("redactUrl hides userinfo and leaves other URLs unchanged", () => {
   assert.equal(redactUrl("not a url"), "not a url");
   assert.throws(
     () => new RequestEngine({ baseUrl: "https://u:p@x.test/#f" }),
-    (err) => err instanceof Error && !/u:p/.test(err.message) && /\*\*\*@x\.test/.test(err.message),
+    // The base-URL reasons never echo the URL, so the credential cannot leak.
+    (err) => err instanceof LebensmittelwarnungValidationError && !/u:p|x\.test/.test(err.message),
   );
 });
 
@@ -306,4 +316,26 @@ test("the engine checks userAgent and defaultHeaders at construction, before any
   }
   // An omitted userAgent still means the default.
   assert.doesNotThrow(() => new RequestEngine({ defaultHeaders: { "X-Note": "ok" } }));
+});
+
+// ---- Base URL (CLI <-> library parity, finding 3) ----
+
+test("validateBaseUrl strips trailing slashes and throws a ValidationError, never a NetworkError", () => {
+  assert.equal(validateBaseUrl("https://h.example/sub//"), "https://h.example/sub");
+  for (const bad of ["", " ", "/", "ftp://h.example", "https://h.example/?x=1", "https://h.example#f"]) {
+    assert.throws(
+      () => validateBaseUrl(bad),
+      (err: unknown) => err instanceof LebensmittelwarnungValidationError && /^Invalid baseUrl: /.test(err.message),
+      JSON.stringify(bad),
+    );
+  }
+});
+
+test("baseUrlProblem names the reason without echoing the URL", () => {
+  assert.equal(baseUrlProblem("https://www.lebensmittelwarnung.de"), undefined);
+  assert.equal(baseUrlProblem(""), "Expected a non-empty URL.");
+  assert.equal(baseUrlProblem("nope"), "Expected a valid URL.");
+  assert.equal(baseUrlProblem("ftp://u:secret@h"), "Only http: and https: base URLs are supported.");
+  assert.equal(baseUrlProblem("https://u:secret@h/?q"), "A base URL cannot have a query (?) or fragment (#).");
+  assert.equal(baseUrlProblem(1), "Expected a string.");
 });

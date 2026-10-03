@@ -13,12 +13,10 @@ import { buildQueryString, type QueryParams } from "./query.js";
 import { parseRss, type RssFeed } from "./rss.js";
 import {
   LebensmittelwarnungApiError,
-  LebensmittelwarnungNetworkError,
   LebensmittelwarnungParseError,
   LebensmittelwarnungValidationError,
-  redactUrl,
 } from "./errors.js";
-import { assertValid, headerNameProblem, headerValueProblem } from "./validate.js";
+import { assertValid, baseUrlProblem, headerNameProblem, headerValueProblem } from "./validate.js";
 
 export const DEFAULT_BASE_URL = "https://www.lebensmittelwarnung.de";
 const DEFAULT_USER_AGENT = "lebensmittelwarnung-cli";
@@ -36,7 +34,11 @@ export interface RawResponse {
  * LebensmittelwarnungValidationError.
  */
 export interface EngineOptions {
-  /** Base URL of the API. Defaults to https://www.lebensmittelwarnung.de */
+  /**
+   * Base URL of the API. Defaults to https://www.lebensmittelwarnung.de. A value
+   * that breaks a rule of {@link validateBaseUrl} (blank, unparseable, not http(s),
+   * a query or fragment) throws a LebensmittelwarnungValidationError.
+   */
   baseUrl?: string;
   /** Swappable transport. Defaults to the built-in node http/https transport. */
   transport?: Transport;
@@ -176,29 +178,16 @@ function sanitizeServerText(text: string): string {
 }
 
 /**
- * Reject a base URL whose scheme is not http(s), or that has a query or fragment.
- * The default transport already gates the scheme per hop, but the engine is
- * exported as a library and may be handed a custom transport that does no such
- * check, so gate the configured base URL here too (a `file:`/`ftp:` base URL fails
- * fast with a typed error). Request paths are appended to the base URL as a string,
- * so a `?` or `#` in it would swallow every path: `http://h/?x=1` requests
- * `/?x=1/___LMW-Redaktion/...` and `http://h/#f` requests `/`.
+ * Check a base URL against every rule of {@link baseUrlProblem} — blank,
+ * unparseable, a scheme other than `http:`/`https:`, a query or fragment — and
+ * return it with trailing slashes stripped. A bad value throws a
+ * LebensmittelwarnungValidationError ("Invalid baseUrl: <reason>"): it is a
+ * configuration error, not a transport failure. The default transport still gates
+ * the scheme per hop (as a NetworkError), but the engine may be handed a custom
+ * transport that does no such check, so the configured value is checked here.
  */
-function assertHttpScheme(baseUrl: string): void {
-  let url: URL;
-  try {
-    url = new URL(baseUrl);
-  } catch {
-    throw new LebensmittelwarnungNetworkError(`Invalid base URL: ${baseUrl}`);
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new LebensmittelwarnungNetworkError(
-      `Unsupported protocol "${url.protocol}" in base URL: ${redactUrl(baseUrl)}`,
-    );
-  }
-  if (/[?#]/.test(baseUrl)) {
-    throw new LebensmittelwarnungNetworkError(`Base URL must not contain a query or fragment: ${redactUrl(baseUrl)}`);
-  }
+export function validateBaseUrl(raw: string): string {
+  return assertValid("baseUrl", raw, baseUrlProblem).replace(/\/+$/, "");
 }
 
 /**
@@ -238,8 +227,9 @@ export class RequestEngine {
   private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(options: EngineOptions = {}) {
-    this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    assertHttpScheme(this.baseUrl);
+    // The raw value is checked before the trailing-slash strip; only an omitted
+    // baseUrl selects the default.
+    this.baseUrl = validateBaseUrl(options.baseUrl === undefined ? DEFAULT_BASE_URL : options.baseUrl);
     this.transport = options.transport ?? nodeHttpTransport;
     // Only an omitted userAgent selects the default: a blank one is an error, not
     // a silent fallback, and a malformed one fails here rather than at request time.

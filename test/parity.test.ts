@@ -120,3 +120,43 @@ test("user agent: tab, Latin-1 and padded values are sent identically by both", 
     assert.deepEqual(cli.requests, lib.requests);
   }
 });
+
+// ---- Finding 3: --base-url / baseUrl ----
+
+test("base URL: a value the CLI rejects is a LebensmittelwarnungValidationError in the library, no request", async () => {
+  for (const [url, reason] of [
+    ["https://h.example#f", "A base URL cannot have a query (?) or fragment (#)."],
+    ["https://h.example/p?x=1", "A base URL cannot have a query (?) or fragment (#)."],
+    ["", "Expected a non-empty URL."],
+    ["  ", "Expected a non-empty URL."],
+    ["/", "Expected a valid URL."],
+    ["not a url", "Expected a valid URL."],
+    ["ftp://h.example", "Only http: and https: base URLs are supported."],
+  ] as const) {
+    const label = JSON.stringify(url);
+    const { cli, lib } = await parity(
+      ["--base-url", url, "--compact", "warnings"],
+      (transport) => new LebensmittelwarnungClient({ transport, baseUrl: url }).warnings(),
+      () => rssResponse(narrowFeedXml),
+    );
+    assert.equal(cli.code, 2, label);
+    assert.ok(cli.err.includes(reason), label);
+    assert.equal(cli.requests.length, 0, label);
+    assert.ok(!lib.ok && lib.error instanceof LebensmittelwarnungValidationError, label);
+    assert.equal((lib as { error: Error }).error.message, `Invalid baseUrl: ${reason}`, label);
+    assert.equal(lib.requests.length, 0, label);
+  }
+});
+
+test("base URL: an accepted value gives the same request on both sides", async () => {
+  for (const url of ["https://h.example/", "http://h.example/sub//"]) {
+    const { cli, lib } = await parity(
+      ["--base-url", url, "--compact", "warnings"],
+      (transport) => new LebensmittelwarnungClient({ transport, baseUrl: url }).warnings(),
+      () => rssResponse(narrowFeedXml),
+    );
+    assert.equal(cli.code, 0, url);
+    assert.ok(lib.ok, url);
+    assert.deepEqual(cli.requests, lib.requests, url);
+  }
+});
