@@ -8,6 +8,7 @@
 // has returned HTTP 200 with an empty body since the portal relaunch. This engine
 // wraps the RSS feeds instead. No API key exists or is needed.
 
+import { TextDecoder } from "node:util";
 import {
   MAX_TIMEOUT_MS,
   nodeHttpTransport,

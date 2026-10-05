@@ -31,7 +31,7 @@ by federal state and product type, as clean JSON you can pipe straight into
 npm i -g @maschinenlesbar.org/lebensmittelwarnung-cli
 ```
 
-This installs the **`lebensmittel`** command. Requires **Node.js 20+**. No API key.
+This installs the **`lebensmittel`** command. Requires **Node.js 22.12+**. No API key.
 
 Check it works:
 
@@ -146,7 +146,7 @@ Use `--compact` for single-line JSON and `-o <file>` to write to a file — both
 ## Troubleshooting
 
 - **`command not found: lebensmittel`** — the global npm bin directory isn't on your
-  `PATH`. Run `npm bin -g` to find it and add it.
+  `PATH`. It is `$(npm prefix -g)/bin`; add that to your `PATH`.
 - **Exit `1` / "received an HTML page"** — the feed URL returned the website's HTML
   shell instead of RSS (it may have moved). Check `--base-url`.
 - **Exit `1` / "Empty response … legacy JSON API"** — the old
