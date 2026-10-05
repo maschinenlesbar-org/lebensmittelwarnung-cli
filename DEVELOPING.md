@@ -323,7 +323,13 @@ got "bogus".`, a bad `since`/`search`/`limit`, `Invalid limit: Must be >= 1.`, a
 `baseUrl`, `userAgent` or `defaultHeaders` value, or an engine option outside its range, `Invalid option timeoutMs:
 expected an integer from 0 to 2147483647, got NaN.` — `maxRetries` 0..`MAX_RETRIES`
 (10), `retryDelayMs` 0..`MAX_RETRY_AFTER_MS`, `maxResponseBytes` 0..2^53−1), all
-extending `LebensmittelwarnungError`.
+extending `LebensmittelwarnungError`. A wrong-typed input is that validation error too,
+never a raw `TypeError`: a non-object query (`warnings("bayern")`, `warnings(null)`), a
+non-array list for `filterWarnings`, a `transport` or `sleep` that isn't a function.
+Echoed values and server text are cut at 500 characters in messages
+(`cutForMessage`); the error's properties keep the full value.
+`test/conformance-p8-p9-p13-responses-and-errors.test.ts` checks the declared charset
+(P8), the RSS shape (P9) and twenty wrong-typed calls (P13).
 
 ### Input validation
 

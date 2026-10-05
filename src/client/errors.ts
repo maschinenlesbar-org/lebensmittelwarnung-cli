@@ -75,6 +75,18 @@ export function redactCredentials(text: string, credentials: readonly string[]):
 }
 
 /**
+ * Longest echoed value or server text (in characters) an error message shows. A huge
+ * value or a hostile body would otherwise put kilobytes on one stderr line; the error's
+ * own properties (`url`, `body`) keep the full value.
+ */
+export const MAX_MESSAGE_VALUE_LENGTH = 500;
+
+/** `text` cut to MAX_MESSAGE_VALUE_LENGTH characters, ending in "…" when cut. */
+export function cutForMessage(text: string): string {
+  return text.length > MAX_MESSAGE_VALUE_LENGTH ? `${text.slice(0, MAX_MESSAGE_VALUE_LENGTH)}…` : text;
+}
+
+/**
  * The server responded with a non-2xx HTTP status. `detail` holds a short snippet
  * of the response body when a useful textual one is present.
  */
@@ -109,7 +121,7 @@ export class LebensmittelwarnungApiError extends LebensmittelwarnungError {
     const detailPart = parts.length > 0 ? `: ${parts.join("; ")}` : "";
     // The URL is shown without userinfo: a credential in --base-url must not leak.
     const url = redactUrl(args.url);
-    super(`HTTP ${args.status} for ${args.method} ${url}${detailPart}`);
+    super(`HTTP ${args.status} for ${args.method} ${cutForMessage(url)}${detailPart}`);
     this.status = args.status;
     this.url = url;
     this.method = args.method;

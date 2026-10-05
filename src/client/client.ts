@@ -16,7 +16,7 @@
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { parseDescription } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
-import { LebensmittelwarnungValidationError } from "./errors.js";
+import { LebensmittelwarnungValidationError, cutForMessage } from "./errors.js";
 import { berlinDay } from "./dates.js";
 import { assertValid, calendarDateProblem, knownKeysProblem, limitProblem, nonBlankProblem } from "./validate.js";
 import type { Warning, WarningsFilter, WarningsQuery } from "./types.js";
@@ -70,7 +70,9 @@ function resolveBase(link: string | undefined, feedUrl: string): string {
 }
 
 function invalid(name: string, expected: string, got: unknown): LebensmittelwarnungValidationError {
-  return new LebensmittelwarnungValidationError(`Invalid ${name}: expected ${expected}, got ${JSON.stringify(got)}.`);
+  return new LebensmittelwarnungValidationError(
+    `Invalid ${name}: expected ${expected}, got ${cutForMessage(String(JSON.stringify(got)))}.`,
+  );
 }
 
 /** The checked form of a {@link WarningsFilter}: a trimmed day, a folded needle. */
@@ -78,6 +80,16 @@ interface CheckedFilter {
   since?: string;
   needle?: string;
   limit?: number;
+}
+
+/**
+ * A list for {@link filterWarnings} must be an array of objects. A string or `null`
+ * items used to come back unchanged or fail as a raw TypeError.
+ */
+function warningListProblem(value: unknown): string | undefined {
+  if (!Array.isArray(value)) return "Expected an array of warnings.";
+  const bad = value.findIndex((w) => typeof w !== "object" || w === null || Array.isArray(w));
+  return bad === -1 ? undefined : `Expected an array of warnings; item ${bad} is not an object.`;
 }
 
 /** The keys of a {@link WarningsQuery}; any other key is a validation error. */
@@ -126,6 +138,7 @@ function applyFilter(warnings: Warning[], { since, needle, limit }: CheckedFilte
  * value throws a LebensmittelwarnungValidationError.
  */
 export function filterWarnings(warnings: Warning[], filter: WarningsFilter = {}): Warning[] {
+  assertValid("warnings", warnings, warningListProblem);
   assertValid("filter", filter, knownKeysProblem(FILTER_KEYS));
   return applyFilter(warnings, checkFilter(filter));
 }

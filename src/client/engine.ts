@@ -25,6 +25,7 @@ import {
   LebensmittelwarnungParseError,
   LebensmittelwarnungValidationError,
   credentialsIn,
+  cutForMessage,
   redactCredentials,
 } from "./errors.js";
 import { assertValid, baseUrlProblem, headerNameProblem, headerValueProblem, knownKeysProblem } from "./validate.js";
@@ -134,7 +135,24 @@ function intOption(name: string, value: number | undefined, fallback: number, ma
   if (value === undefined) return fallback;
   if (!Number.isSafeInteger(value) || value < 0 || value > max) {
     throw new LebensmittelwarnungValidationError(
-      `Invalid option ${name}: expected an integer from 0 to ${max}, got ${String(value)}.`,
+      // A string is quoted, so `"5000"` doesn't read like the number 5000.
+      `Invalid option ${name}: expected an integer from 0 to ${max}, got ` +
+        `${cutForMessage(typeof value === "string" ? JSON.stringify(value) : String(value))}.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Read a function option: `undefined` gives the default; anything else that is not a
+ * function throws a LebensmittelwarnungValidationError. A string `transport` used to fail
+ * only at the first request, and a bad `sleep` as a raw TypeError on the first retry.
+ */
+function functionOption<F extends (...args: never[]) => unknown>(name: string, value: F | undefined, fallback: F): F {
+  if (value === undefined) return fallback;
+  if (typeof value !== "function") {
+    throw new LebensmittelwarnungValidationError(
+      `Invalid option ${name}: expected a function, got ${value === null ? "null" : typeof value}.`,
     );
   }
   return value;
@@ -354,7 +372,7 @@ export class RequestEngine {
         return [raw];
       }
     });
-    this.transport = options.transport ?? nodeHttpTransport;
+    this.transport = functionOption("transport", options.transport, nodeHttpTransport);
     // Only an omitted userAgent selects the default: a blank one is an error, not
     // a silent fallback, and a malformed one fails here rather than at request time.
     this.userAgent =
@@ -369,7 +387,7 @@ export class RequestEngine {
       DEFAULT_MAX_RESPONSE_BYTES,
       Number.MAX_SAFE_INTEGER,
     );
-    this.sleep = options.sleep ?? realSleep;
+    this.sleep = functionOption("sleep", options.sleep, realSleep);
   }
 
   /**
@@ -411,7 +429,7 @@ export class RequestEngine {
   private transportError(cause: unknown): LebensmittelwarnungError {
     if (cause instanceof LebensmittelwarnungError && !(cause instanceof LebensmittelwarnungNetworkError)) return cause;
     const reason = cause instanceof Error ? cause.message : String(cause);
-    const message = sanitizeServerText(this.scrub(reason));
+    const message = cutForMessage(sanitizeServerText(this.scrub(reason)));
     const scrubbed = this.scrubCause(cause);
     if (cause instanceof LebensmittelwarnungNetworkError && message === cause.message && scrubbed === cause) return cause;
     return new LebensmittelwarnungNetworkError(message, { cause: scrubbed });
@@ -572,7 +590,7 @@ export class RequestEngine {
       return parseRss(text);
     } catch (cause) {
       // Name the parser's reason (run.ts prints only the message, never `cause`).
-      const reason = cause instanceof Error ? `: ${sanitizeServerText(cause.message)}` : "";
+      const reason = cause instanceof Error ? `: ${cutForMessage(sanitizeServerText(cause.message))}` : "";
       throw new LebensmittelwarnungParseError(`Failed to parse RSS response from ${path}${reason}`, {
         cause: this.scrubCause(cause),
       });
