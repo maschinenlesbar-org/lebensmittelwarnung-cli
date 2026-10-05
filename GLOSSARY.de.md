@@ -27,7 +27,10 @@ ein Eintrag des RSS-Feeds.
 Meldung selbst angibt, z. B. „KIMCHI 300 Gramm“. `title` ist normalerweise der `<title>` des
 Feed-Eintrags; seit September 2026 liefert das Portal jeden `<title>` als nicht ausgewertete
 Vorlage `$esc.escapeXml($cms.oneLineText($m.title))`, und die CLI übernimmt `title` dann aus
-diesem Feld. `--search` (in der Bibliothek die Option `search`) durchsucht beide.
+diesem Feld. `--search` (in der Bibliothek die Option `search`) durchsucht beide und
+ignoriert dabei Groß-/Kleinschreibung, die Schreibung der Umlaute (`Käse`/`Kaese`/`Kase`),
+`ß`/`ss` und Akzente; es sucht eine Zeichenfolge, also nach dem Wortstamm suchen (`Tahin`
+für *Tahini*/*Tahina*).
 
 **Grund der Meldung (`reason`).** Der Grund, aus dem die Warnung herausgegeben wurde, als
 Kategorie. Am 15.09.2026 verwendete der Live-Feed sieben: *Allergene*, *Fremdkörper*,

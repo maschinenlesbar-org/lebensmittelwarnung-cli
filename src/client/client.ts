@@ -75,11 +75,46 @@ function invalid(name: string, expected: string, got: unknown): Lebensmittelwarn
   );
 }
 
-/** The checked form of a {@link WarningsFilter}: a trimmed day, a folded needle. */
+/** The checked form of a {@link WarningsFilter}: a trimmed day, the folded needles. */
 interface CheckedFilter {
   since?: string;
-  needle?: string;
+  needles?: SearchForms;
   limit?: number;
+}
+
+/** The two folded forms {@link searchForms} gives for one text. */
+export interface SearchForms {
+  /** Umlauts transliterated: `Käse` → `kaese`, `weiße` → `weisse`. */
+  transliterated: string;
+  /** Diacritics dropped: `Käse` → `kase`, `Erdnüsse` → `erdnusse`. */
+  plain: string;
+}
+
+/**
+ * The forms `search` compares, for one text: Unicode-normalised (a decomposed `a` +
+ * U+0308 from a macOS paste is `ä`), lower-cased, whitespace (a non-breaking space
+ * too) collapsed to one space and trimmed, then folded twice — once with the German
+ * umlauts transliterated (`ä` → `ae`, `ö` → `oe`, `ü` → `ue`) and once with every
+ * diacritic dropped (`ä` → `a`, `é` → `e`); `ß` and `ẞ` become `ss` in both. A needle
+ * matches when one of its forms is a substring of the same form of the product name,
+ * so `kaese`, `KÄSE` and `käse` all find "Käse", `weisse` finds "weiße", `Erdnuss` finds
+ * "Erdnüsse" and `muesli` "Müsli". The portal spells product names as their makers do,
+ * and the CLI's own slugs teach the `ae`/`oe`/`ue` spelling (`thueringen`), so a literal
+ * match answered "no recall" for five listed Käse recalls.
+ */
+export function searchForms(text: string): SearchForms {
+  const base = text.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim().replace(/ß/g, "ss");
+  const dropMarks = (s: string): string => s.normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC");
+  return {
+    transliterated: dropMarks(base.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue")),
+    plain: dropMarks(base),
+  };
+}
+
+/** True when `text` contains the needle in one of its folded forms (see {@link searchForms}). */
+function matchesSearch(text: string, needles: SearchForms): boolean {
+  const forms = searchForms(text);
+  return forms.transliterated.includes(needles.transliterated) || forms.plain.includes(needles.plain);
 }
 
 /**
@@ -102,13 +137,13 @@ function checkFilter(filter: WarningsFilter): CheckedFilter {
   const checked: CheckedFilter = {};
   if (filter.since !== undefined) checked.since = assertValid("since", filter.since, calendarDateProblem).trim();
   if (filter.search !== undefined) {
-    checked.needle = assertValid("search", filter.search, nonBlankProblem).trim().toLowerCase();
+    checked.needles = searchForms(assertValid("search", filter.search, nonBlankProblem));
   }
   if (filter.limit !== undefined) checked.limit = assertValid("limit", filter.limit, limitProblem);
   return checked;
 }
 
-function applyFilter(warnings: Warning[], { since, needle, limit }: CheckedFilter): Warning[] {
+function applyFilter(warnings: Warning[], { since, needles, limit }: CheckedFilter): Warning[] {
   let result = warnings;
   // `since` compares calendar days in German time, not UTC: a notice stamped
   // `00:00:00 +0200` belongs to that day, although its UTC instant is the day before.
@@ -120,11 +155,11 @@ function applyFilter(warnings: Warning[], { since, needle, limit }: CheckedFilte
       return day !== undefined && day >= since;
     });
   }
-  if (needle !== undefined) {
+  if (needles !== undefined) {
     // Both product-name fields: `title` (the feed's, or the fallback) and `product`
     // (Produktbezeichnung), which can word the same product differently.
     result = result.filter((w) =>
-      [w.title, w.product].some((v) => typeof v === "string" && v.toLowerCase().includes(needle)),
+      [w.title, w.product].some((v) => typeof v === "string" && matchesSearch(v, needles)),
     );
   }
   if (limit !== undefined) result = result.slice(0, limit);
@@ -134,7 +169,8 @@ function applyFilter(warnings: Warning[], { since, needle, limit }: CheckedFilte
 /**
  * Narrow a list of warnings the way {@link LebensmittelwarnungClient.warnings} does:
  * `since` (German calendar day, items without `published` dropped), then `search`
- * (trimmed, case-insensitive, against `title` and `product`), then `limit`. A bad
+ * (against `title` and `product`; case, umlaut spelling, `ß`/`ss`, accents and Unicode
+ * normalisation don't matter, see {@link searchForms}), then `limit`. A bad
  * value throws a LebensmittelwarnungValidationError.
  */
 export function filterWarnings(warnings: Warning[], filter: WarningsFilter = {}): Warning[] {

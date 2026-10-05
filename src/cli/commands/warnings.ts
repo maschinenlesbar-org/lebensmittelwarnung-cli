@@ -51,7 +51,7 @@ export function registerCommands(program: Command, deps: CliDeps): void {
     )
     .option(
       "--search <term>",
-      "only warnings whose product name (title or Produktbezeichnung) contains this text (case-insensitive)",
+      "only warnings whose product name (title or Produktbezeichnung) contains this text; case, umlaut spelling (Käse/Kaese), ß/ss and accents don't matter",
       once(parseNonEmpty),
     )
     .action(

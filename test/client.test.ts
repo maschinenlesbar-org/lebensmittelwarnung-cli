@@ -231,3 +231,32 @@ test("a relative image URL of an item without a link never carries the base URL'
   // The request itself still carries them (the transport needs them for Basic auth).
   assert.match(mt.last().url, /^https:\/\/alice:s3cret@mirror\.example\//);
 });
+
+test("search folds case, umlaut spelling, ß, accents and Unicode normalisation (findings 01#2, 06#1)", () => {
+  const list: Warning[] = [
+    { fields: {}, title: "Diverse Käsesorten" },
+    { fields: {}, title: "Weiße Bohnen" },
+    { fields: {}, title: "ültje Erdnüsse pikant gewürzt" },
+    { fields: {}, title: "Bio Müsli" },
+    { fields: {}, title: "Crème fraîche" },
+    { fields: {}, product: "Sesampaste (Tahina), 12x800 Gramm" },
+    { fields: {}, title: "GROẞE Brezel" },
+  ];
+  const titles = (q: string) => filterWarnings(list, { search: q }).map((w) => w.title ?? w.product);
+  for (const q of ["kaese", "Kaese", "KÄSE", "käse", "käse", "Kase"]) assert.deepEqual(titles(q), ["Diverse Käsesorten"], q);
+  for (const q of ["weisse", "WEISSE", "WEIẞE", "weiße"]) assert.deepEqual(titles(q), ["Weiße Bohnen"], q);
+  assert.deepEqual(titles("Erdnuss"), ["ültje Erdnüsse pikant gewürzt"]);
+  assert.deepEqual(titles("Erdnuesse"), ["ültje Erdnüsse pikant gewürzt"]);
+  assert.deepEqual(titles("muesli"), ["Bio Müsli"]);
+  assert.deepEqual(titles("creme"), ["Crème fraîche"]);
+  assert.deepEqual(titles("12x800 gramm"), ["Sesampaste (Tahina), 12x800 Gramm"]);
+  assert.deepEqual(titles("grosse"), ["GROẞE Brezel"]);
+  // Still a substring match: a different word form needs a stem.
+  assert.deepEqual(titles("Tahini"), []);
+  assert.deepEqual(titles("Tahin"), ["Sesampaste (Tahina), 12x800 Gramm"]);
+});
+
+test("searchForms gives the transliterated and the plain form", async () => {
+  const { searchForms } = await import("../src/client/client.js");
+  assert.deepEqual(searchForms("  Weiße  KÄSE Ö "), { transliterated: "weisse kaese oe", plain: "weisse kase o" });
+});

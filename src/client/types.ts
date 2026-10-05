@@ -86,9 +86,12 @@ export interface WarningsQuery {
    */
   since?: string;
   /**
-   * Keep only warnings whose product name (`title` or `product`) contains this text,
-   * case-insensitively, after trimming (client-side). A blank value throws a
-   * LebensmittelwarnungValidationError before any request.
+   * Keep only warnings whose product name (`title` or `product`) contains this text
+   * (client-side). Case, umlaut spelling (`Käse`/`Kaese`/`Kase`), `ß`/`ss`, accents,
+   * Unicode normalisation and runs of whitespace don't matter (see `searchForms`); it is
+   * still a substring match, so `Tahini` does not find "Tahina" — search a stem
+   * (`Tahin`). A blank value throws a LebensmittelwarnungValidationError before any
+   * request.
    */
   search?: string;
   /**

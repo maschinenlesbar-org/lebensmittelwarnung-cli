@@ -107,8 +107,11 @@ this order — the CLI's `--since`, `--search` and `--limit` call exactly this:
   (Europe/Berlin, `berlinDay`) is that day or later, and drops a warning without a
   parseable `pubDate`. A notice stamped `00:00:00 +0200` counts for its own day, although
   the UTC date part of `published` is the day before — comparing UTC days would miss it;
-- `search` keeps warnings whose `title` or `product` contains the trimmed needle,
-  case-insensitively;
+- `search` keeps warnings whose `title` or `product` contains the needle, compared in
+  two folded forms (`searchForms`): lower-cased, NFC, whitespace collapsed, `ß` → `ss`,
+  and then umlauts transliterated (`ä` → `ae`) or all diacritics dropped (`ä` → `a`). So
+  `kaese`, `KÄSE`, a decomposed `käse` and `Kase` find "Käse", `Erdnuss` finds
+  "Erdnüsse". It stays a substring match (`Tahini` doesn't find "Tahina");
 - `limit` keeps the first `n` (1..`MAX_WARNINGS_LIMIT`, 100 000), in feed order.
 
 Every option is checked before the request: an unknown slug, an impossible date

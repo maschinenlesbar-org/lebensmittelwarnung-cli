@@ -26,7 +26,9 @@ should not be consumed/used. In this CLI each warning is one item of the RSS fee
 notice body gives it, e.g. "KIMCHI 300 Gramm". `title` is normally the feed item's own
 `<title>`; since September 2026 the portal serves every `<title>` as the unrendered
 template `$esc.escapeXml($cms.oneLineText($m.title))`, so the CLI then takes `title`
-from this field. `--search` (the library's `search` option) matches both.
+from this field. `--search` (the library's `search` option) matches both, with case,
+umlaut spelling (`Käse`/`Kaese`/`Kase`), `ß`/`ss` and accents folded away; it is a
+substring match, so search a word stem (`Tahin` for *Tahini*/*Tahina*).
 
 **Grund der Meldung (`reason`).** The reason the warning was issued, as a category
 label. On 2026-09-15 the live feed used seven: *Allergene* (allergens), *Fremdkörper*

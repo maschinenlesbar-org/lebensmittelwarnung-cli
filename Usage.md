@@ -116,8 +116,11 @@ always in `product` too.
 # Only recalls published on or after a date
 lebensmittel warnings --since 2026-07-01
 
-# Only recalls whose product name (title or product) contains a term (case-insensitive)
+# Only recalls whose product name (title or product) contains a term
 lebensmittel warnings --search schokolade | jq -r '.[].title'
+
+# Spelling doesn't matter: käse, Kaese and KASE find the same Käse recalls
+lebensmittel warnings --search kaese | jq -r '.[].title'
 
 # The 5 most recent
 lebensmittel warnings --limit 5
@@ -125,6 +128,14 @@ lebensmittel warnings --limit 5
 # Combine everything
 lebensmittel warnings --type lebensmittel --since 2026-07-01 --search bio --limit 10
 ```
+
+`--search` compares the product name (`title` and `product`) with case, umlaut spelling
+(`ä`/`ae`/`a`), `ß`/`ss`, accents, Unicode normalisation (a decomposed `ä` pasted on
+macOS) and runs of whitespace folded away, so `kaese`, `weisse` and `Erdnuss` find
+"Käse", "weiße" and "Erdnüsse". It is still a substring match: another word form needs
+a stem (`Tahin` finds "Tahina" and "Tahin", `Tahini` finds neither), and a term that is
+only in the reason, the manufacturer or another field is not searched (filter the JSON
+for those, see the recipes below).
 
 `--since` takes a `YYYY-MM-DD` date and keeps warnings whose `pubDate` day, in
 German time (Europe/Berlin), is that day or later.
