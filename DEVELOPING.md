@@ -261,6 +261,17 @@ of the value part of `--opt=value`) and redacts every line printed on stdout and
 command '…'`, `too many arguments … got 1: …`). `test/conformance-p1-cli-redaction.test.ts`
 checks ten passwords in seven URL shapes at nine argv positions.
 
+The library keeps them out of what a caller logs, too. The engine holds the base URL in
+a real `#private` field (so `console.log(client)`, `util.inspect` and `JSON.stringify`
+never show it) next to its userinfo, raw and percent-decoded, and scrubs that from
+error bodies (`LebensmittelwarnungApiError.body`/`detail`), transport error text and the
+`cause` chain. `LebensmittelwarnungApiError.url` is the request URL with its userinfo
+redacted. Whatever a custom transport throws (a string, fetch's `TypeError` naming the
+URL) reaches the caller as a `LebensmittelwarnungNetworkError` with the original,
+scrubbed, as its `cause`. Relative image URLs of an item without a `<link>` are resolved
+against the feed URL without its userinfo. `test/conformance-p2-library-redaction.test.ts`
+checks the client, nine failing transports and five rejected base URLs.
+
 ### Error types
 
 [`errors.ts`](src/client/errors.ts): `LebensmittelwarnungApiError` (non-2xx, carries

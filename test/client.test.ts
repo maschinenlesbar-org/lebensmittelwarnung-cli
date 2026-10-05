@@ -218,3 +218,16 @@ test("warnings() narrows the fixture feed like the CLI's --since/--search/--limi
   assert.deepEqual(rows.map((r) => r.title), ["Knackwürste im Ring", "UTC-stamped item"]);
   assert.equal(queryOf(mt.last()).toString(), "");
 });
+
+test("a relative image URL of an item without a link never carries the base URL's credentials", async () => {
+  const xml =
+    '<rss version="2.0"><channel><item><title>X</title>' +
+    '<description><![CDATA[<img src="bild.jpg"/><b>Bildquelle</b> © A]]></description></item></channel></rss>';
+  const mt = makeMockTransport(() => rssResponse(xml));
+  const client = new LebensmittelwarnungClient({ baseUrl: "https://alice:s3cret@mirror.example", transport: mt.transport });
+  const [w] = await client.warnings();
+  assert.equal(w!.imageUrls![0], "https://mirror.example/___LMW-Redaktion/RSSNewsfeed/Functions/RssFeeds/bild.jpg");
+  assert.ok(!JSON.stringify(w).includes("s3cret"));
+  // The request itself still carries them (the transport needs them for Basic auth).
+  assert.match(mt.last().url, /^https:\/\/alice:s3cret@mirror\.example\//);
+});

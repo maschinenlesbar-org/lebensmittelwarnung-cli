@@ -156,7 +156,8 @@ export class LebensmittelwarnungClient {
     if (query.type !== undefined) params["type"] = query.type;
 
     const feed = await this.engine.getFeed(FEED_PATH, params);
-    const feedUrl = this.engine.buildUrl(FEED_PATH);
+    // Without the base URL's userinfo: relative image URLs are resolved against it.
+    const feedUrl = this.engine.publicUrl(FEED_PATH);
     const warnings = feed.items.map((item) => {
       // Relative image URLs resolve against the notice page (or the feed itself).
       const base = resolveBase(item.link, feedUrl);
