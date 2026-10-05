@@ -16,7 +16,7 @@ export interface Warning {
   /**
    * The product name, e.g. "ja! Beerenmischung, tiefgefroren, 750 Gramm Beutel" —
    * the feed's `<title>`. When the portal serves an unrendered template there
-   * instead (`$esc.escapeXml(…)`, every item since September 2026), this is
+   * instead (`$esc.escapeXml(…)`, every item in September 2026), this is
    * {@link product}; absent when neither is usable.
    */
   title?: string;

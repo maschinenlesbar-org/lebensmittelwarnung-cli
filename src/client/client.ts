@@ -39,9 +39,9 @@ const LABEL = {
 } as const;
 
 /**
- * Is `title` an unrendered CMS template rather than a product name? Since September
- * 2026 the portal serves every item's `<title>` as the literal Velocity expression
- * `$esc.escapeXml($cms.oneLineText($m.title))`. Detected by a Velocity method
+ * Is `title` an unrendered CMS template rather than a product name? In September
+ * 2026 the portal served every item's `<title>` as the literal Velocity expression
+ * `$esc.escapeXml($cms.oneLineText($m.title))` (real names were back by 2026-10-05). Detected by a Velocity method
  * reference (`$name.method(`) anywhere in the text — a real product name never has
  * one (a price such as `$5.99` has a digit after the `$`).
  */

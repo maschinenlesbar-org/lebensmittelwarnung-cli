@@ -89,7 +89,7 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 
 | Field | Meaning |
 |---|---|
-| `title` | Product name — the `[Produkttitel]` of the citation. The feed's own `<title>` has been an unrendered template (`$esc.escapeXml(…)`) since Sep 2026; the CLI then fills `title` from `product` |
+| `title` | Product name — the `[Produkttitel]` of the citation. When the feed serves an unrendered template as `<title>` (`$esc.escapeXml(…)`, every item in Sep 2026), the CLI fills `title` from `product` |
 | `product` | *Produktbezeichnung / -beschreibung* — the product name from the notice body |
 | `reason` | *Grund der Meldung* — why (Fremdkörper, Krankheitserreger, Allergen, …) |
 | `manufacturer` | *Hersteller / Inverkehrbringer* |

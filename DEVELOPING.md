@@ -178,7 +178,7 @@ tokens.
 
 | Field | Source | Notes |
 |---|---|---|
-| `title` | `<title>` | Product name (entity-decoded). If the feed serves an unrendered template there (`$esc.escapeXml(…)`, every item since September 2026; `isUnrenderedTitle`), `product` instead, absent without one |
+| `title` | `<title>` | Product name (entity-decoded). If the feed serves an unrendered template there (`$esc.escapeXml(…)`, every item in September 2026; `isUnrenderedTitle`), `product` instead, absent without one |
 | `product` | "Produktbezeichnung/ -beschreibung" | Product name/description from the notice body |
 | `link` | `<link>` | Detail-page URL (a reference, not scraped) |
 | `pubDate` | `<pubDate>` | RFC-822 string, as served |

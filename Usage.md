@@ -105,10 +105,10 @@ Run `lebensmittel types` for the five valid slugs. Each takes one value (a repea
 lebensmittel warnings --state bayern --type lebensmittel | jq length
 ```
 
-`title` is the product name. Since September 2026 the portal serves every item's
-`<title>` as an unrendered template (`$esc.escapeXml($cms.oneLineText($m.title))`); the
-CLI then takes `title` from the notice's *Produktbezeichnung / -beschreibung*, which is
-always in `product` too.
+`title` is the product name. In September 2026 the portal served every item's
+`<title>` as an unrendered template (`$esc.escapeXml($cms.oneLineText($m.title))`; real
+product names were back by 2026-10-05). When it serves one, the CLI takes `title` from
+the notice's *Produktbezeichnung / -beschreibung*, which is always in `product` too.
 
 ### Narrow by date, product name, and count (client-side)
 

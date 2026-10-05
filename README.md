@@ -106,9 +106,10 @@ Each item carries typed accessors plus a generic `fields` map and the raw HTML:
 }
 ```
 
-`title` is the product name. The portal currently serves every item's `<title>` as an
-unrendered template (`$esc.escapeXml(…)`, since September 2026); the CLI then fills
-`title` from the notice's *Produktbezeichnung / -beschreibung*, which is also `product`.
+`title` is the product name. In September 2026 the portal served every item's `<title>`
+as an unrendered template (`$esc.escapeXml(…)`; real names were back by 2026-10-05).
+When it serves one, the CLI fills `title` from the notice's *Produktbezeichnung /
+-beschreibung*, which is also `product`.
 
 The typed fields are extracted from the feed's HTML `<description>`; `fields` is the
 complete label→value map (a superset, so a label this CLI does not model first-class

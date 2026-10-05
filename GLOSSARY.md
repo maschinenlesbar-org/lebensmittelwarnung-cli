@@ -24,9 +24,9 @@ should not be consumed/used. In this CLI each warning is one item of the RSS fee
 
 **Produktbezeichnung / -beschreibung (`product`, `title`).** The product name as the
 notice body gives it, e.g. "KIMCHI 300 Gramm". `title` is normally the feed item's own
-`<title>`; since September 2026 the portal serves every `<title>` as the unrendered
-template `$esc.escapeXml($cms.oneLineText($m.title))`, so the CLI then takes `title`
-from this field. `--search` (the library's `search` option) matches both, with case,
+`<title>`; in September 2026 the portal served every `<title>` as the unrendered
+template `$esc.escapeXml($cms.oneLineText($m.title))` (real names were back by
+2026-10-05), and when it serves one, the CLI takes `title` from this field. `--search` (the library's `search` option) matches both, with case,
 umlaut spelling (`Käse`/`Kaese`/`Kase`), `ß`/`ss` and accents folded away; it is a
 substring match, so search a word stem (`Tahin` for *Tahini*/*Tahina*).
 

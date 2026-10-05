@@ -25,9 +25,9 @@ ein Eintrag des RSS-Feeds.
 
 **Produktbezeichnung / -beschreibung (`product`, `title`).** Der Produktname, wie ihn die
 Meldung selbst angibt, z. B. „KIMCHI 300 Gramm“. `title` ist normalerweise der `<title>` des
-Feed-Eintrags; seit September 2026 liefert das Portal jeden `<title>` als nicht ausgewertete
-Vorlage `$esc.escapeXml($cms.oneLineText($m.title))`, und die CLI übernimmt `title` dann aus
-diesem Feld. `--search` (in der Bibliothek die Option `search`) durchsucht beide und
+Feed-Eintrags; im September 2026 lieferte das Portal jeden `<title>` als nicht ausgewertete
+Vorlage `$esc.escapeXml($cms.oneLineText($m.title))` (am 05.10.2026 waren die echten Namen
+zurück), und wenn es eine liefert, übernimmt die CLI `title` aus diesem Feld. `--search` (in der Bibliothek die Option `search`) durchsucht beide und
 ignoriert dabei Groß-/Kleinschreibung, die Schreibung der Umlaute (`Käse`/`Kaese`/`Kase`),
 `ß`/`ss` und Akzente; es sucht eine Zeichenfolge, also nach dem Wortstamm suchen (`Tahin`
 für *Tahini*/*Tahina*).
