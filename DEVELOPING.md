@@ -379,6 +379,14 @@ npm test          # builds, then runs `node --test` over dist/test
   `LebensmittelwarnungValidationError`, and the `parity()` helper (`test/helpers.ts`),
   which sends one input through `run()` and through the library on one recording mock
   transport so a test can assert both give the same outcome.
+- **`conformance-*.test.ts`** — the checks shared by every maschinenlesbar.org CLI (fix
+  plan of 2026-10-06), each copied from the reference with only its adapter block
+  changed: `p1` no base-URL password in any output line; `p2` none in a logged client or
+  error; `p4-p19` base-URL rules (P19 skipped: no environment variable); `p5` the
+  transport contract (deadline, size cap, header and body shapes, resets); `p6` the retry
+  floor and the above-cap message; `p7` closed pipes and exit codes (runs the built bin);
+  `p8-p9-p13` charset, RSS shape and wrong-typed input; `p10` unknown keys, slugs, value
+  types and repeated flags.
 
 ## Continuous integration
 
