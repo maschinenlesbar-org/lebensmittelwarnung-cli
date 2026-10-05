@@ -338,4 +338,8 @@ test("baseUrlProblem names the reason without echoing the URL", () => {
   assert.equal(baseUrlProblem("ftp://u:secret@h"), "Only http: and https: base URLs are supported.");
   assert.equal(baseUrlProblem("https://u:secret@h/?q"), "A base URL cannot have a query (?) or fragment (#).");
   assert.equal(baseUrlProblem(1), "Expected a string.");
+  // new URL() trims these silently; a trailing space used to land in the request path.
+  assert.equal(baseUrlProblem("https://u:secret@h/ "), "A base URL cannot have surrounding whitespace.");
+  assert.equal(baseUrlProblem(" https://h"), "A base URL cannot have surrounding whitespace.");
+  assert.equal(baseUrlProblem("https://h/a\tb"), "A base URL cannot contain control characters.");
 });

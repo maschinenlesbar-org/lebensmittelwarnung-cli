@@ -238,8 +238,11 @@ instead of calling `process.exit`).
 `file:`/`ftp:` fails at parse time, exit `2`). The rule is the library's: the
 `RequestEngine` constructor checks the raw `baseUrl` with the exported
 `validateBaseUrl` (rule: `baseUrlProblem`, which the CLI's `--base-url` parser calls
-too). A blank value, an unparseable URL, a scheme other than `http:`/`https:`, and a
-query or fragment (request paths are appended to the base URL as a string) each throw a
+too). A blank value, surrounding whitespace or a control character (`new URL()` would
+drop them silently, and a trailing space ended up in the request path), an unparseable
+URL, a scheme other than `http:`/`https:`, a query or fragment (request paths are
+appended to the base URL as a string), and a `%` in the userinfo that isn't an escape
+(Node would fail to decode it for the Authorization header; write `%25`) each throw a
 `LebensmittelwarnungValidationError` (`Invalid baseUrl: <reason>`) before any request —
 a configuration error, not a `LebensmittelwarnungNetworkError`. Only an omitted
 `baseUrl` selects the default. **Redirects are not followed** — a
