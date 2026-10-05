@@ -102,8 +102,9 @@ TH`) plus `BVL`.
   <Land> warned about". Most items were issued by other Länder; use the URL code
   above for the issuer.
 - **`--since` means "published or updated".** `pubDate` moves when a notice is
-  updated, so an old recall can show up as recent; check the `YYMMDD_` date in the
-  `.link` folder name before calling it new.
+  updated, so an old recall can show up as recent; check the date in the `.link`
+  folder name before calling it new — `YYMMDD_` (`260904_03_BW_…` = 4 Sep 2026) or, for
+  some notices, `YYYYMMDD_` (`20260701_01_ST_…`).
 - **Empty `[]` is valid** — "no current recalls for that state feed", not an error.
 - **Batch-specific.** Report `lotNumbers` / `bestBefore` so the user can check their
   own item, and link `.link` for the official notice.

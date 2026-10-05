@@ -126,8 +126,9 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 - **`pubDate` moves when a notice is updated.** It is often the last-update time, not
   the first publication (on 2026-09-26, 45 of 265 were days to years after the notice
   date), so `--since` returns "new **or updated**" warnings. Before calling one new,
-  compare the `YYMMDD_` date in the `.link` folder name (e.g. `…/260616_11_BE_Austern…` =
-  16 Jun 2026) and say "updated on …" when they differ.
+  compare the date in the `.link` folder name — `YYMMDD_` (e.g. `…/260616_11_BE_Austern…`
+  = 16 Jun 2026) or, for some notices, `YYYYMMDD_` (`…/20260701_01_ST_…`) — and say
+  "updated on …" when they differ.
 - **Don't take the date from `published[:10]`.** `published` is UTC, so a notice
   stamped `Fri, 4 Sep 2026 00:00:00 +0200` shows as 2026-09-03. Take the German date
   from `pubDate` instead: `.pubDate | split(" ")[1:4] | join(" ")` gives `4 Sep 2026`.

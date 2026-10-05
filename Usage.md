@@ -150,13 +150,20 @@ could not be read …`), never silently.
 > 16 June 2026, `pubDate` 18 Sep), one of them years later. So `--since` also returns old
 > notices that were updated in the window ("new or updated"), and can leave out a notice
 > whose `pubDate` is earlier than its folder date. When "first published" matters, take
-> the date from the folder name (`YYMMDD_`, a naming convention rather than data):
+> the date from the folder name — `YYMMDD_` (`260616_…`) or, for some notices,
+> `YYYYMMDD_` (`20260701_01_ST_…`); a naming convention rather than data. Filter the
+> whole feed, not a `--since` window, and keep a notice whose folder has no date (shown
+> as `????????`) rather than dropping it:
 >
 > ```bash
-> lebensmittel warnings --since 2026-09-15 --compact \
->   | jq -r '.[] | (.link | capture("/(?<d>\\d{6})_").d) as $d | select($d >= "260915") | .title'
-> ``` A malformed date (`2026-13-40`,
-`10.07.2026`) is a usage error (exit `2`).
+> lebensmittel warnings --compact \
+>   | jq -r '.[] | ([(.link // "") | capture("/(?<d>\\d{8}|\\d{6})_")][0].d // "") as $d
+>       | (if ($d | length) == 6 then "20" + $d else $d end) as $filed
+>       | select($filed == "" or $filed >= "20260915")
+>       | "\(if $filed == "" then "????????" else $filed end)\t\(.title)"'
+> ```
+
+A malformed `--since` date (`2026-13-40`, `10.07.2026`) is a usage error (exit `2`).
 
 `published` is the same instant in UTC, so its first ten characters give the day
 before for notices published in the first one or two hours after midnight German

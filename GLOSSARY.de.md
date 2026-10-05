@@ -122,7 +122,8 @@ zu einem ISO-8601-String in UTC. `--since` (in der Bibliothek die Option `since`
 darauf, vergleicht aber Kalendertage in deutscher Zeit (Europe/Berlin): Eine Meldung mit dem
 Zeitstempel `00:00:00 +0200` zählt für ihren eigenen Tag, obwohl der Datumsteil von `published` der Vortag ist. `pubDate` ist oft der
 Zeitpunkt der **letzten Aktualisierung** und nicht der Erstveröffentlichung (am 26.09.2026 lagen
-45 von 265 mehr als drei Tage nach dem Meldungsdatum im Ordnernamen `JJMMTT_` der URL), daher
+45 von 265 mehr als drei Tage nach dem Meldungsdatum im Ordnernamen der URL, `JJMMTT_` oder bei
+einigen Meldungen `JJJJMMTT_`), daher
 bedeutet `--since` „veröffentlicht oder aktualisiert seit“.
 
 **fields (Map Bezeichnung→Wert).** Die vollständige Menge der Paare `<b>Label:</b> value`, die

@@ -120,7 +120,8 @@ compares calendar days in German time (Europe/Berlin): a notice stamped
 `00:00:00 +0200` counts for its own day, although the date part of `published` is the
 day before. `pubDate` is often the time
 of the **last update** rather than of first publication (on 2026-09-26, 45 of 265 were
-more than three days after the notice date in the URL's `YYMMDD_` folder name), so
+more than three days after the notice date in the URL's folder name, `YYMMDD_` or for a
+few notices `YYYYMMDD_`), so
 `--since` means "published or updated since".
 
 **fields (label→value map).** The complete set of `<b>Label:</b> value` pairs parsed
