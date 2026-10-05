@@ -29,7 +29,11 @@ export interface Warning {
   link?: string;
   /** Publication timestamp as served (RFC 822), e.g. "Wed, 8 Jul 2026 16:00:00 +0200". */
   pubDate?: string;
-  /** `pubDate` normalised to an ISO-8601 string when parseable, else absent. */
+  /**
+   * `pubDate` as an ISO-8601 string in UTC, when it is a form `parsePubDate` reads (RFC
+   * 822 with English or German names and zones, ISO 8601, `DD.MM.YYYY HH:MM`; a stamp
+   * without a zone is German time), else absent.
+   */
   published?: string;
 
   /** "Grund der Meldung" — why the warning was issued (e.g. "Fremdkörper"). */

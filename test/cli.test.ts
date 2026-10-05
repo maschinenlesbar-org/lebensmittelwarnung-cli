@@ -405,3 +405,37 @@ test("--since accepts years 0000-0099 (no Date.UTC 19xx mapping) and still rejec
     assert.equal(await run(["warnings", "--since", date], cli.deps), 2, date);
   }
 });
+
+test("pubDate is read strictly; --since notes the warnings it left out (finding 02#3)", async () => {
+  const item = (title: string, date: string) => `<item><title>${title}</title><pubDate>${date}</pubDate></item>`;
+  const feed =
+    '<rss version="2.0"><channel><title>t</title>' +
+    item("Deutsch numerisch", "02.10.2026 16:52") + // was read as 10 February
+    item("Ohne Zone", "Fri, 2 Oct 2026 00:30:00") + // was read in the host's time zone
+    item("MESZ", "Fr, 2 Okt 2026 16:52:00 MESZ") + // was not read at all
+    item("Unlesbar", "irgendwann im Oktober") +
+    item("Alt", "Wed, 30 Sep 2026 10:00:00 +0200") +
+    "</channel></rss>";
+  const cli = makeCli(() => rssResponse(feed));
+  assert.equal(await run(["--compact", "warnings", "--since", "2026-10-02"], cli.deps), 0);
+  const rows = JSON.parse(cli.out.join("\n")) as Array<{ title: string; published: string }>;
+  assert.deepEqual(rows.map((r) => [r.title, r.published]), [
+    ["Deutsch numerisch", "2026-10-02T14:52:00.000Z"],
+    ["Ohne Zone", "2026-10-01T22:30:00.000Z"],
+    ["MESZ", "2026-10-02T14:52:00.000Z"],
+  ]);
+  assert.deepEqual(cli.err, [
+    "Note: --since left out 1 warning whose pubDate could not be read as a date (run without --since to see them).",
+  ]);
+  // Without --since nothing is left out and nothing is noted; the unreadable one has no `published`.
+  const all = makeCli(() => rssResponse(feed));
+  assert.equal(await run(["--compact", "warnings"], all.deps), 0);
+  const allRows = JSON.parse(all.out.join("\n")) as Array<{ title: string; published?: string }>;
+  assert.equal(allRows.length, 5);
+  assert.equal(allRows[3]!.published, undefined);
+  assert.deepEqual(all.err, []);
+  // --limit still applies after --since.
+  const limited = makeCli(() => rssResponse(feed));
+  await run(["--compact", "warnings", "--since", "2026-10-02", "--limit", "1"], limited.deps);
+  assert.deepEqual((JSON.parse(limited.out.join("\n")) as Array<{ title: string }>).map((r) => r.title), ["Deutsch numerisch"]);
+});

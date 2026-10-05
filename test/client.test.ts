@@ -260,3 +260,26 @@ test("searchForms gives the transliterated and the plain form", async () => {
   const { searchForms } = await import("../src/client/client.js");
   assert.deepEqual(searchForms("  Weiße  KÄSE Ö "), { transliterated: "weisse kaese oe", plain: "weisse kase o" });
 });
+
+test("parsePubDate reads the feed's forms strictly, zone-less as German time", async () => {
+  const { parsePubDate } = await import("../src/client/dates.js");
+  const iso = (s: string) => {
+    const ms = parsePubDate(s);
+    return ms === undefined ? undefined : new Date(ms).toISOString();
+  };
+  assert.equal(iso("Fri, 2 Oct 2026 16:52:00 +0200"), "2026-10-02T14:52:00.000Z");
+  assert.equal(iso("Fri, 4 Sep 2026 00:00:00 +0200"), "2026-09-03T22:00:00.000Z");
+  assert.equal(iso("Fri, 2 Oct 2026 16:52:00 GMT"), "2026-10-02T16:52:00.000Z");
+  assert.equal(iso("Fri, 2 Oct 2026 16:52:00 CEST"), "2026-10-02T14:52:00.000Z");
+  assert.equal(iso("Mon, 5 Jan 2026 08:00:00 MEZ"), "2026-01-05T07:00:00.000Z");
+  assert.equal(iso("Fr, 2 Okt 2026 16:52:00"), "2026-10-02T14:52:00.000Z");
+  assert.equal(iso("Mon, 5 Jan 2026 08:00"), "2026-01-05T07:00:00.000Z"); // winter: +0100
+  assert.equal(iso("Fri, 2 Oct 26 16:52:00 +0200"), "2026-10-02T14:52:00.000Z");
+  assert.equal(iso("2026-10-02T16:52:00+02:00"), "2026-10-02T14:52:00.000Z");
+  assert.equal(iso("2026-10-02T14:52:00Z"), "2026-10-02T14:52:00.000Z");
+  assert.equal(iso("02.10.2026 16:52"), "2026-10-02T14:52:00.000Z");
+  assert.equal(iso("02.10.2026"), "2026-10-01T22:00:00.000Z");
+  for (const bad of ["", "soon", "Fri, 2 Oct 2026 16:52:00 XYZ", "Fri, 31 Feb 2026 10:00:00 +0100", "2026-13-01", "Fri, 2 Foo 2026 10:00:00", "Fri, 2 Oct 2026 25:00:00 +0200", "1.5"]) {
+    assert.equal(parsePubDate(bad), undefined, bad);
+  }
+});

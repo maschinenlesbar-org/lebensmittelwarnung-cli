@@ -138,7 +138,11 @@ only in the reason, the manufacturer or another field is not searched (filter th
 for those, see the recipes below).
 
 `--since` takes a `YYYY-MM-DD` date and keeps warnings whose `pubDate` day, in
-German time (Europe/Berlin), is that day or later.
+German time (Europe/Berlin), is that day or later. A `pubDate` without a time zone is
+read as German time, whatever the computer's own zone is; one that isn't a date the CLI
+knows (RFC 822 as the feed serves it, ISO 8601, `DD.MM.YYYY HH:MM`) leaves that warning
+out of `--since` with a note on stderr (`Note: --since left out 1 warning whose pubDate
+could not be read …`), never silently.
 
 > **`pubDate` is not always the first publication.** The portal re-stamps a notice when
 > it is updated: on 2026-09-26, 45 of 265 `pubDate`s were more than three days after the

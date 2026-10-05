@@ -11,7 +11,8 @@
 
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
-import type { StateSlug, TypeSlug, WarningsQuery } from "../../client/types.js";
+import type { StateSlug, TypeSlug, Warning, WarningsQuery } from "../../client/types.js";
+import { filterWarnings } from "../../client/client.js";
 import {
   STATE_SLUGS,
   STATE_NAMES,
@@ -64,11 +65,26 @@ export function registerCommands(program: Command, deps: CliDeps): void {
         const limit = opts["limit"] as number | undefined;
         if (state !== undefined) query.state = state;
         if (type !== undefined) query.type = type;
-        if (since !== undefined) query.since = since;
         if (search !== undefined) query.search = search;
-        if (limit !== undefined) query.limit = limit;
 
-        const warnings = await client.warnings(query);
+        let warnings: Warning[];
+        if (since === undefined) {
+          if (limit !== undefined) query.limit = limit;
+          warnings = await client.warnings(query);
+        } else {
+          // The library's own narrowing, in two steps (since and search commute; limit
+          // comes last either way), so the CLI can say when --since left out warnings
+          // whose pubDate it can't read instead of dropping them silently.
+          const all = await client.warnings(query);
+          const unreadable = all.filter((w) => w.published === undefined).length;
+          warnings = filterWarnings(all, limit === undefined ? { since } : { since, limit });
+          if (unreadable > 0) {
+            deps.io.err(
+              `Note: --since left out ${unreadable} warning${unreadable === 1 ? "" : "s"} whose pubDate ` +
+                "could not be read as a date (run without --since to see them).",
+            );
+          }
+        }
         renderJson(deps, global, warnings);
       }),
     );

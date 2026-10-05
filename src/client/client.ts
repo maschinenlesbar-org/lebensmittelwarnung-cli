@@ -17,7 +17,7 @@ import { RequestEngine, type EngineOptions } from "./engine.js";
 import { parseDescription } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
 import { LebensmittelwarnungValidationError, cutForMessage } from "./errors.js";
-import { berlinDay } from "./dates.js";
+import { berlinDay, parsePubDate } from "./dates.js";
 import { assertValid, calendarDateProblem, knownKeysProblem, limitProblem, nonBlankProblem } from "./validate.js";
 import type { Warning, WarningsFilter, WarningsQuery } from "./types.js";
 
@@ -50,13 +50,14 @@ export function isUnrenderedTitle(title: string): boolean {
 }
 
 /**
- * Parse an RFC-822 `pubDate` into an ISO-8601 string, or `undefined` when it is
- * absent/unparseable (Date.parse understands the RFC-822 form the feed serves).
+ * Parse a `pubDate` into an ISO-8601 string, or `undefined` when it is absent or not a
+ * form {@link parsePubDate} reads (then the warning has no `published`, and `since`
+ * leaves it out).
  */
 function toIso(pubDate: string | undefined): string | undefined {
   if (!pubDate) return undefined;
-  const ms = Date.parse(pubDate);
-  return Number.isNaN(ms) ? undefined : new Date(ms).toISOString();
+  const ms = parsePubDate(pubDate);
+  return ms === undefined ? undefined : new Date(ms).toISOString();
 }
 
 /** The notice URL (resolved against the feed URL), else the feed URL. */

@@ -73,7 +73,7 @@ New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
 | --- | --- |
 | `--state <slug>` | Only warnings for one Bundesland — server-side filter. One of the 16 slugs from `lebensmittel states` (e.g. `bayern`, `nordrheinwestfalen`). An unknown slug is a usage error. |
 | `--type <slug>` | Only warnings for one product type — server-side filter. One of `lebensmittel`, `kosmetischemittel`, `bedarfsgegenstaende`, `mittelzumtaetowieren`, `babyundkinderprodukte`. |
-| `--since <YYYY-MM-DD>` | Only warnings whose `pubDate` is on or after this date, counted in German time (Europe/Berlin), client-side. `pubDate` is often the time of the **last update**, not of first publication: an old notice that was updated comes back as new (see [Usage.md](Usage.md#narrow-by-date-product-name-and-count-client-side)). |
+| `--since <YYYY-MM-DD>` | Only warnings whose `pubDate` is on or after this date, counted in German time (Europe/Berlin), client-side. A warning whose `pubDate` can't be read as a date is left out, and a note on stderr says how many. `pubDate` is often the time of the **last update**, not of first publication: an old notice that was updated comes back as new (see [Usage.md](Usage.md#narrow-by-date-product-name-and-count-client-side)). |
 | `--search <term>` | Only warnings whose **product name** (`title` or `product`) contains this text (client-side). Case, umlaut spelling (`käse`, `kaese` and `kase` all find "Käse"; `Erdnuss` finds "Erdnüsse"), `ß`/`ss`, accents and Unicode normalisation don't matter. It is still a substring match: `Tahini` does not find "Tahina", so search a stem (`Tahin`) before concluding there is no recall. |
 | `--limit <n>` | Return at most `n` warnings, in feed order (most recent first). |
 

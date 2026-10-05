@@ -105,7 +105,11 @@ this order — the CLI's `--since`, `--search` and `--limit` call exactly this:
 
 - `since` (`YYYY-MM-DD`) keeps warnings whose `published` day **in German time**
   (Europe/Berlin, `berlinDay`) is that day or later, and drops a warning without a
-  parseable `pubDate`. A notice stamped `00:00:00 +0200` counts for its own day, although
+  readable `pubDate` (the CLI says on stderr how many it left out). `parsePubDate` reads
+  `pubDate` strictly: RFC 822 as the feed serves it (English or German month and zone
+  names, `CEST`/`MESZ`, a numeric zone), ISO 8601 and `DD.MM.YYYY HH:MM`, a stamp without
+  a zone as German time; anything else is not guessed (`Date.parse` read
+  `02.10.2026` as 10 February and a zone-less stamp in the host's time zone). A notice stamped `00:00:00 +0200` counts for its own day, although
   the UTC date part of `published` is the day before — comparing UTC days would miss it;
 - `search` keeps warnings whose `title` or `product` contains the needle, compared in
   two folded forms (`searchForms`): lower-cased, NFC, whitespace collapsed, `ß` → `ss`,
@@ -178,7 +182,7 @@ tokens.
 | `product` | "Produktbezeichnung/ -beschreibung" | Product name/description from the notice body |
 | `link` | `<link>` | Detail-page URL (a reference, not scraped) |
 | `pubDate` | `<pubDate>` | RFC-822 string, as served |
-| `published` | derived | `pubDate` normalised to ISO-8601 (absent if unparseable) |
+| `published` | derived | `pubDate` as ISO-8601 in UTC, read strictly by `parsePubDate` (absent if it isn't a known form) |
 | `reason` | "Grund der Meldung" | Why the recall was issued |
 | `manufacturer` | "Hersteller / Inverkehrbringer" | Whitespace-collapsed to one line |
 | `affectedStates` | "Betroffene Bundesländer nach derzeitigem Stand" | Split into a `string[]` |
