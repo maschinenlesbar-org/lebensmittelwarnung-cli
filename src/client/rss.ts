@@ -331,6 +331,9 @@ const IMAGE_CREDIT_LABEL = "Bildquelle";
  */
 export const REPEATED_LABEL_SEPARATOR = "; ";
 
+/** Tags that end a line: a bold run right after one (or at the start) is a label. */
+const LINE_BREAK_TAGS = new Set(["br", "p", "div", "li", "ul", "ol", "tr", "td", "table", "img", "hr"]);
+
 /** `url` resolved against `base`, or `url` unchanged without a base or when it fails. */
 function resolveUrl(url: string, base: string | undefined): string {
   if (base === undefined) return url;
@@ -442,7 +445,12 @@ function attribute(raw: string, wanted: string): string | undefined {
  *     relative `src` is otherwise useless outside the portal's page);
  *   - let each bold label (`<b>` or `<strong>`, with or without attributes) own the
  *     text up to the next bold label, dropping the residual tags from that value
- *     and collapsing its whitespace.
+ *     and collapsing its whitespace. A bold run is a label only at the start of a
+ *     line — the start of the description, or after a `<br>`, a block tag or an image,
+ *     with only whitespace between (every label in the live feed is). A bold run
+ *     inside a value (`L-1111 <b>sowie</b> L-2222`, `<b>Grund der Meldung:</b>
+ *     <b>Achtung:</b> Fremdkörper`) is emphasis: its text stays in the value instead of
+ *     cutting it off and starting a field named after the bold word.
  *
  * A label the description repeats keeps every distinct non-empty value, in order, joined
  * with {@link REPEATED_LABEL_SEPARATOR}: a notice for two products lists a product name
@@ -461,6 +469,8 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
   const seen = new Map<string, string[]>();
   let label: string[] | undefined; // collecting a label's text (inside <b>/<strong>)
   let labelTag = ""; // the tag that opened the label, whose close tag ends it
+  let lineStart = true; // nothing but whitespace since the start or the last line break
+  let emphasis: string | undefined; // the bold tag of an emphasis inside a value
   // `image`: for a credit caption, the index of the image it follows (the value is
   // only complete at the next label, after the next <img> may have been seen).
   let value: { label: string; parts: string[]; image: number } | undefined;
@@ -488,6 +498,7 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
       const text = decodeEntities(token.text);
       if (label) label.push(text);
       else if (value) value.parts.push(text);
+      if (text.trim() !== "") lineStart = false;
       continue;
     }
     if (token.name === "img" && !token.close) {
@@ -499,7 +510,12 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
       }
     }
     if (token.name === "b" || token.name === "strong") {
-      if (!token.close && label === undefined) {
+      if (!token.close && label === undefined && emphasis === undefined) {
+        if (!lineStart && value !== undefined) {
+          // Bold inside a value: emphasis, not a new label.
+          emphasis = token.name;
+          continue;
+        }
         finishValue();
         label = [];
         labelTag = token.name;
@@ -508,9 +524,18 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
       if (token.close && label && token.name === labelTag) {
         const name = label.join("").trim().replace(/:\s*$/, "");
         label = undefined;
+        lineStart = false;
         if (name !== "") value = { label: name, parts: [], image: images.length - 1 };
         continue;
       }
+      if (token.close && token.name === emphasis) {
+        emphasis = undefined;
+        continue;
+      }
+    }
+    if (LINE_BREAK_TAGS.has(token.name)) {
+      lineStart = true;
+      emphasis = undefined; // an unclosed emphasis ends with its line
     }
     // Any other tag separates words, like the whitespace it usually stands for.
     if (label) label.push(" ");

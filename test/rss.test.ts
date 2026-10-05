@@ -221,3 +221,22 @@ test("a repeated label keeps every distinct value (finding 02#1)", () => {
   assert.equal(fields["Grund der Meldung"], "Allergene"); // the same value twice is kept once
   assert.equal(fields["Haltbarkeit"], "01.01.2027"); // an empty one adds nothing
 });
+
+test("bold text inside a value is emphasis, not a new label (finding 02#2)", () => {
+  const { fields } = parseDescription(
+    "<b>Chargennummer / Los-Kennzeichnung:</b> L-1111 <b>sowie</b> L-2222<br/>" +
+      "<b>Grund der Meldung:</b> <b>Achtung:</b> Fremdkörper (Glas)<br/>" +
+      "<b>Haltbarkeit:</b> <strong>bis</strong> 01.01.2027<br/><b>Verpackungseinheit:</b> 175 Gramm<br/>" +
+      "<b>Hersteller / Inverkehrbringer:</b> <b>unclosed<br/><b>Kontakt:</b> x",
+  );
+  assert.deepEqual(fields, {
+    "Chargennummer / Los-Kennzeichnung": "L-1111 sowie L-2222",
+    "Grund der Meldung": "Achtung: Fremdkörper (Glas)",
+    Haltbarkeit: "bis 01.01.2027",
+    Verpackungseinheit: "175 Gramm",
+    "Hersteller / Inverkehrbringer": "unclosed",
+    Kontakt: "x",
+  });
+  // A label right after an image or at the very start is still a label.
+  assert.deepEqual(parseDescription('<b>A:</b> 1<img src="x.png"/><b>Bildquelle</b> © B').fields, { A: "1", Bildquelle: "© B" });
+});
