@@ -65,7 +65,7 @@ test("EPIPE on stdout (reader closed early, e.g. | head) exits 0 quietly", () =>
   assert.deepEqual(s.exits, [0]);
 });
 
-test("another stdout error exits 1; stderr EPIPE exits 0, other stderr errors 1", () => {
+test("another stdout error exits 1; stderr EPIPE is ignored (the run keeps its code), other stderr errors 1", () => {
   const s = fakeStreams();
   const written: string[] = [];
   const original = process.stderr.write.bind(process.stderr);
@@ -78,5 +78,5 @@ test("another stdout error exits 1; stderr EPIPE exits 0, other stderr errors 1"
   assert.deepEqual(written, ["Output error: write ENOSPC\n"]);
   s.stderr.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
   s.stderr.emit("error", Object.assign(new Error("write EIO"), { code: "EIO" }));
-  assert.deepEqual(s.exits, [1, 0, 1]);
+  assert.deepEqual(s.exits, [1, 1]);
 });
