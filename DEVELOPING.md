@@ -124,12 +124,25 @@ you already have.
 new LebensmittelwarnungClient({
   baseUrl: "https://www.lebensmittelwarnung.de",
   timeoutMs: 15_000,
-  maxRetries: 3, // 429/503; waits Retry-After (<= MAX_RETRY_AFTER_MS, 30 s; longer: no retry)
+  maxRetries: 3, // 429/503 and resets; waits Retry-After (<= MAX_RETRY_AFTER_MS, 30 s; longer: no retry)
   maxResponseBytes: 100 << 20, // the default (100 MiB); set to 0 for no limit
   userAgent: "my-app/1.0",
   transport: customTransport,
 });
 ```
+
+**Custom transports.** `timeoutMs` and `maxResponseBytes` hold for every transport, not
+only the built-in one: the engine races the call against its own deadline and passes an
+`AbortSignal` in `HttpRequest.signal` (hand it to `fetch(url, { signal })`), and it checks
+the size of the body it gets back. A transport may return its headers as a fetch `Headers`
+object, a `Map` or a record with names in any case (`Retry-After` is read from all of
+them), and its body as a `Buffer`, any ArrayBuffer view (fetch's `Uint8Array`) or an
+`ArrayBuffer`, from any realm. A reset connection (`ECONNRESET`, `EPIPE`, `ECONNABORTED`,
+undici's `UND_ERR_SOCKET`, anywhere in the `cause` chain) is retried like a 503; whatever a
+transport throws or returns that isn't a response becomes a
+`LebensmittelwarnungNetworkError`. `test/conformance-p5-transport-contract.test.ts` checks
+this with a never-answering transport, `fetch` against a silent server, a 2 MiB body and
+every body and header shape.
 
 `userAgent` and every `defaultHeaders` value are checked in the constructor with the
 same rule as the CLI's `--user-agent` (`headerValueProblem`, also exported as
