@@ -124,7 +124,7 @@ you already have.
 new LebensmittelwarnungClient({
   baseUrl: "https://www.lebensmittelwarnung.de",
   timeoutMs: 15_000,
-  maxRetries: 3, // 429/503 and resets; waits Retry-After (<= MAX_RETRY_AFTER_MS, 30 s; longer: no retry)
+  maxRetries: 3, // 429/503 and resets; linear backoff, or a longer Retry-After (<= 30 s; longer: no retry)
   maxResponseBytes: 100 << 20, // the default (100 MiB); set to 0 for no limit
   userAgent: "my-app/1.0",
   transport: customTransport,
@@ -143,6 +143,13 @@ transport throws or returns that isn't a response becomes a
 `LebensmittelwarnungNetworkError`. `test/conformance-p5-transport-contract.test.ts` checks
 this with a never-answering transport, `fetch` against a silent server, a 2 MiB body and
 every body and header shape.
+
+**Retries never burst.** The linear backoff (`retryDelayMs * attempt`, 200 ms by default)
+is the floor: a `Retry-After` can make a wait longer, never shorter, so `Retry-After: 0`
+or a date in the past no longer sends the retries back to back. A `Retry-After` above
+`MAX_RETRY_AFTER_MS` (30 s) is not retried; the `LebensmittelwarnungApiError` says so,
+names the requested wait and carries it as `retryAfterMs`.
+`test/conformance-p6-retry-policy.test.ts` checks both.
 
 `userAgent` and every `defaultHeaders` value are checked in the constructor with the
 same rule as the CLI's `--user-agent` (`headerValueProblem`, also exported as

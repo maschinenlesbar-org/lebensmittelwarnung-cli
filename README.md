@@ -168,9 +168,9 @@ Given **before or after** the command, e.g. `lebensmittel --compact warnings`:
 | `-o, --output <file>` | Write output to this file instead of stdout (`-` = stdout). An existing file is not overwritten (exit `2`, checked before any request) unless `--force` is given |
 | `--force` | Overwrite the `--output` file if it already exists (only with `-o`) |
 | `--base-url <url>` | API base URL (default `https://www.lebensmittelwarnung.de`; `http:`/`https:` only, no query `?` or fragment `#`, no surrounding whitespace; a literal `%` in a password is written `%25`). A `user:password@` in it is sent as Basic auth and shown as `***@` in error messages |
-| `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` = none; at most `2147483647`) |
+| `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` = none; at most `2147483647`). It bounds each attempt; the waits between retries come on top |
 | `--user-agent <ua>` | `User-Agent` header value (non-blank, Latin-1, no control characters; else exit `2`) |
-| `--max-retries <n>` | Retries for transient `429`/`503` responses and reset connections (0..10, default `2`); a refused connection, a DNS failure and a timeout are not retried. Each waits the server's `Retry-After` (seconds or HTTP-date), else 200 ms × attempt; a `Retry-After` above 30 s is not retried, the error is reported at once |
+| `--max-retries <n>` | Retries for transient `429`/`503` responses and reset connections (0..10, default `2`); a refused connection, a DNS failure and a timeout are not retried. Each waits 200 ms × attempt, or the server's `Retry-After` (seconds or HTTP-date) when that is longer; a `Retry-After` above 30 s is not retried, and the error names the requested wait |
 | `--max-response-bytes <n>` | Cap response body size in bytes (`0` = unlimited; default 100 MiB) |
 
 ## Learn more
