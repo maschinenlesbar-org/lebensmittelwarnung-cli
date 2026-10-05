@@ -325,6 +325,12 @@ export interface DescriptionImage {
 /** The caption label that credits the image before it. */
 const IMAGE_CREDIT_LABEL = "Bildquelle";
 
+/**
+ * What joins the values of a label the description repeats (a notice for two products
+ * gives each its own "Chargennummer / Los-Kennzeichnung"): `"A-111; B-222"`.
+ */
+export const REPEATED_LABEL_SEPARATOR = "; ";
+
 /** `url` resolved against `base`, or `url` unchanged without a base or when it fails. */
 function resolveUrl(url: string, base: string | undefined): string {
   if (base === undefined) return url;
@@ -428,7 +434,7 @@ function attribute(raw: string, wanted: string): string | undefined {
 }
 
 /**
- * Turn one item's HTML description into a `{ fields, imageUrls }` structure.
+ * Turn one item's HTML description into a `{ fields, imageUrls, images }` structure.
  *
  * The description is a flat run of `<img …/>` tags and `<b>Label:</b> value`
  * pairs joined by `<br/>`. We:
@@ -438,11 +444,11 @@ function attribute(raw: string, wanted: string): string | undefined {
  *     text up to the next bold label, dropping the residual tags from that value
  *     and collapsing its whitespace.
  *
- * Labels repeat across item types but not always (a "Bildquelle" caption has no
- * colon and its own following text); we keep the LAST value for a repeated label
- * rather than concatenating, which matches how the portal renders single-valued
- * fields. The one label that does repeat with different values is the image credit
- * ("Bildquelle", one per image), so `images` pairs each image with the credit that
+ * A label the description repeats keeps every distinct non-empty value, in order, joined
+ * with {@link REPEATED_LABEL_SEPARATOR}: a notice for two products lists a product name
+ * and a lot number per product, and keeping only the last one dropped the first
+ * product's batch from `lotNumbers` and from `fields`. The image credit ("Bildquelle",
+ * one per image) repeats too, so `images` also pairs each image with the credit that
  * follows it. The raw description stays available on the item for anyone who needs more.
  *
  * One forward scan over the fragment, so the cost is linear in its length.
@@ -451,6 +457,8 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
   const imageUrls: string[] = [];
   const images: DescriptionImage[] = [];
   const fields: Record<string, string> = {};
+  /** Every distinct non-empty value seen per label, in order. */
+  const seen = new Map<string, string[]>();
   let label: string[] | undefined; // collecting a label's text (inside <b>/<strong>)
   let labelTag = ""; // the tag that opened the label, whose close tag ends it
   // `image`: for a credit caption, the index of the image it follows (the value is
@@ -460,14 +468,18 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
   const finishValue = (): void => {
     if (value === undefined) return;
     // Collapse all whitespace (incl. the manufacturer's embedded newlines) to a
-    // single space and trim; keep the last non-empty value for a repeated label.
+    // single space and trim; a repeated label keeps every distinct non-empty value.
     const text = value.parts.join("").replace(/\s+/g, " ").trim();
     if (value.label === IMAGE_CREDIT_LABEL) {
       const image = images[value.image];
       if (image !== undefined && image.credit === undefined && text !== "") image.credit = text;
     }
-    if (text !== "") fields[value.label] = text;
-    else if (!Object.hasOwn(fields, value.label)) fields[value.label] = "";
+    if (text !== "") {
+      const values = seen.get(value.label) ?? [];
+      if (!values.includes(text)) values.push(text);
+      seen.set(value.label, values);
+      fields[value.label] = values.join(REPEATED_LABEL_SEPARATOR);
+    } else if (!Object.hasOwn(fields, value.label)) fields[value.label] = "";
     value = undefined;
   };
 

@@ -146,7 +146,8 @@ test("parseDescription pairs each image with the Bildquelle credit that follows 
     { url: "https://x/c.jpg" },
   ]);
   assert.deepEqual(imageUrls, images.map((i) => i.url));
-  assert.equal(fields["Bildquelle"], "© Jütro Tiefkühlkost GmbH & Co. KG"); // last one, as before
+  // fields joins the distinct credits; images says which photo each belongs to.
+  assert.equal(fields["Bildquelle"], "© Netto Marken Discount; © Jütro Tiefkühlkost GmbH & Co. KG");
 });
 
 test("parseRss: a </item> inside a CDATA description does not end the item", () => {
@@ -206,4 +207,17 @@ test("a feed with more than 100000 items is an error, not silently cut", () => {
   const items = (n: number) => "<rss><channel>" + "<item><title>a</title></item>".repeat(n) + "</channel></rss>";
   assert.equal(parseRss(items(100_000)).items.length, 100_000);
   assert.throws(() => parseRss(items(100_001)), /more than 100000 items/);
+});
+
+test("a repeated label keeps every distinct value (finding 02#1)", () => {
+  const { fields } = parseDescription(
+    "<b>Chargennummer / Los-Kennzeichnung:</b> A-111<br/><b>Produktbezeichnung/ -beschreibung:</b> Produkt A<br/>" +
+      "<b>Chargennummer / Los-Kennzeichnung:</b> B-222<br/><b>Produktbezeichnung/ -beschreibung:</b> Produkt B<br/>" +
+      "<b>Grund der Meldung:</b> Allergene<br/><b>Grund der Meldung:</b> Allergene<br/>" +
+      "<b>Haltbarkeit:</b> <br/><b>Haltbarkeit:</b> 01.01.2027",
+  );
+  assert.equal(fields["Chargennummer / Los-Kennzeichnung"], "A-111; B-222");
+  assert.equal(fields["Produktbezeichnung/ -beschreibung"], "Produkt A; Produkt B");
+  assert.equal(fields["Grund der Meldung"], "Allergene"); // the same value twice is kept once
+  assert.equal(fields["Haltbarkeit"], "01.01.2027"); // an empty one adds nothing
 });

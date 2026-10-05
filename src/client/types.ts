@@ -48,8 +48,8 @@ export interface Warning {
   imageUrls?: string[];
   /**
    * The same images, each with its own credit ("Bildquelle", e.g. "© Netto Marken
-   * Discount") — the credit to show with that image. `fields.Bildquelle` holds only
-   * the last one, which is wrong for every other image of a multi-image notice.
+   * Discount") — the credit to show with that image. `fields.Bildquelle` joins the
+   * distinct credits of all images, so it can't tell which image each one belongs to.
    */
   images?: WarningImage[];
 
@@ -57,7 +57,9 @@ export interface Warning {
    * The full label→value map parsed from the HTML description — a superset of the
    * typed accessors above, so a label this client does not model first-class (or a
    * product-type-specific one) is still available. Keys are the German labels with
-   * the trailing colon stripped, e.g. "Grund der Meldung", "Bildquelle".
+   * the trailing colon stripped, e.g. "Grund der Meldung", "Bildquelle". A label the
+   * notice repeats (one lot number per product) keeps every distinct value, joined with
+   * `"; "`; the typed fields above carry the same joined text.
    */
   fields: Record<string, string>;
 

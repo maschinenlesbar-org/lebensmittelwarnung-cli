@@ -63,7 +63,8 @@ oder ein Verbrauchsdatum, ebenfalls zum Abgleich mit Ihrem Exemplar.
 **Bildquelle.** Der Bildnachweis für ein Produktfoto (© beim Hersteller oder einer Agentur). Die
 Meldung nennt ihn je Foto, und die Nachweise können sich unterscheiden (am 26.09.2026 hatten 6 von
 265 Warnungen Fotos aus verschiedenen Quellen). `images` ordnet jeder Foto-URL ihren eigenen
-Nachweis zu; die allgemeine Map `fields` enthält nur den letzten. Die **Bilder selbst**
+Nachweis zu; die allgemeine Map `fields` verbindet die verschiedenen Nachweise mit `; `, ohne zu
+sagen, zu welchem Foto welcher gehört. Die **Bilder selbst**
 (`imageUrls`, `images`) sind urheberrechtlich geschützt – siehe [DATA_LICENSE.md](DATA_LICENSE.md).
 
 ## Produkttypen (`--type` / `types`)

@@ -61,7 +61,8 @@ in scope.
 **Bildquelle.** The image credit for a product photo (© the manufacturer or an
 agency). The notice gives one per photo, and they can differ (on 2026-09-26, 6 of 265
 warnings had photos from different sources). `images` pairs each photo URL with its own
-credit; the generic `fields` map holds only the last one. The **images themselves**
+credit; the generic `fields` map joins the distinct credits with `; `, without saying
+which photo each belongs to. The **images themselves**
 (`imageUrls`, `images`) are copyright-protected — see [DATA_LICENSE.md](DATA_LICENSE.md).
 
 ## Product types (`--type` / `types`)

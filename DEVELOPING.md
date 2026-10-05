@@ -223,7 +223,10 @@ tokens.
 into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
 (a relative `src` resolved against the notice's `link`, or the feed URL) and lets each
 bold label (`<b>` or `<strong>`, attributes allowed) own the text up to the next label,
-dropping residual tags and HTML comments and collapsing whitespace.
+dropping residual tags and HTML comments and collapsing whitespace. A label the notice
+repeats (a notice for two products gives a name and a lot number per product) keeps
+every distinct value, joined with `"; "` (`REPEATED_LABEL_SEPARATOR`), in `fields` and
+in the typed field; `affectedStates` is split on `,` and `;`.
 [`decodeEntities`](src/client/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
 `&euro;`, … in [`entities.ts`](src/client/entities.ts); `&nbsp;` gives U+00A0), and
 numeric (`&#228;` / `&#xE4;`) refs, rejecting surrogate-range code points; an unknown

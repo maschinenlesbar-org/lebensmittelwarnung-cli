@@ -65,7 +65,7 @@ lebensmittel warnings | jq length
 lebensmittel warnings | jq -r '.[].imageUrls[]?'
 
 # … with the credit of each photo (a notice can have several photos with different credits;
-# fields.Bildquelle holds only the last one)
+# fields.Bildquelle joins all of them without saying which photo each belongs to)
 lebensmittel warnings | jq -r '.[].images[]? | "\(.url)\t\(.credit // "")"'
 ```
 
