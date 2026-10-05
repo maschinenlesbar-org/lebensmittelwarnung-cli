@@ -34,7 +34,7 @@ This skill also filters JSON with `jq`. **Validate it too** — run `command -v 
 
 ```bash
 lebensmittel warnings --compact                 # every listed warning (goes back years)
-lebensmittel warnings --search "<term>"         # product-name substring (title or product; case-insensitive)
+lebensmittel warnings --search "<stem>"         # product-name substring (title or product; case/umlaut/ß-insensitive)
 lebensmittel warnings --since 2026-07-01         # only on/after a date (YYYY-MM-DD)
 lebensmittel warnings --limit 10                 # first N (feed order = most recent first)
 ```
@@ -42,16 +42,33 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 ## How to answer
 
 1. **Product / keyword lookup** — start with `--search`, which matches the product
-   **name** (`title` and `product`):
+   **name** (`title` and `product`). Search the **German word stem**, not the word as
+   the user wrote it: drop plural and inflection endings (*Erdnüsse* → `Erdnuss`,
+   *Würstchen* → `Wurst`, *Tahini* → `Tahin`), and use the German word for an English one
+   (*cheese* → `Käse`, *peanut* → `Erdnuss`). Case and umlaut spelling don't matter
+   (`kaese` finds "Käse"), but it is a substring match: `Tahini` finds neither "Tahina"
+   nor "Tahin" — `Tahin` finds both.
 
    ```bash
    lebensmittel warnings --search "beeren" --compact \
      | jq -r '.[] | "\(.title)\n  Grund: \(.reason // "?")\n  Hersteller: \(.manufacturer // "?")\n  Charge: \(.lotNumbers // "—")\n  MHD: \(.bestBefore // "—")\n  \(.link)"'
    ```
 
-   If `--search` returns `[]`, the term isn't in any product **name** — widen: pull
-   all warnings and grep the reason/manufacturer/`fields` too before concluding
-   "no recall".
+   If `--search` returns `[]`, **widen before concluding "no recall"**: search every
+   text field — reason, manufacturer, all `fields`, and the notice URL (its folder name
+   often carries the product words, e.g. `…_Butter_Erdnuss_Taler…`) — with a regex
+   built from the stem that allows each umlaut three ways (`ü` → `(u|ü|ue)`) and lists
+   the synonyms you thought of:
+
+   ```bash
+   lebensmittel warnings --compact | jq -r --arg re 'erdn(u|ü|ue)ss|peanut' \
+     '.[] | select([.title, .product, .reason, .manufacturer, .link, (.fields | tostring)]
+       | map(. // "") | join(" ") | test($re; "i")) | "\(.title) — \(.reason // "?") — \(.link)"'
+   ```
+
+   Only when the stem, the singular and plural, the umlaut spellings, a synonym (German
+   and English) and the brand all find nothing, answer "no listed recall matched" — and
+   name the terms you searched, so the user can judge the search.
 
 2. **"Anything current?" / "diese Woche?"** — use a date window, and name it in the
    answer:
@@ -98,6 +115,11 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 - **`--search` matches the product name only** (`title` and `product`), not the reason
   or manufacturer. For "recalls because of Salmonella" or "cosmetics recalls" use the
   **lebensmittelwarnung-produkttyp** skill (filters by reason/type), not `--search`.
+- **`--search` is a substring match of one word form.** It ignores case, umlaut
+  spelling (`ä`/`ae`/`a`), `ß`/`ss` and accents, but not word forms: on 2026-10-05
+  `Tahini` found none of the four listed *Tahina*/*Tahin* recalls (among them the
+  newest recall in the feed), and the widen step with the same literal term found none
+  either. Always search the stem and the variants in step 1 before saying "no recall".
 - **`--state` follows `affectedStates`, not the issuer.** `--state` returns the
   warnings distributed in that Land (its name is in `affectedStates`), whoever issued
   them. For a Bundesland question use **lebensmittelwarnung-regional**.
