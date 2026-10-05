@@ -214,9 +214,11 @@ dropping residual tags and HTML comments and collapsing whitespace.
 [`decodeEntities`](src/client/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
 `&euro;`, … in [`entities.ts`](src/client/entities.ts); `&nbsp;` gives U+00A0), and
 numeric (`&#228;` / `&#xE4;`) refs, rejecting surrogate-range code points; an unknown
-name is left as written. The engine decodes the body by the XML declaration's
-`encoding` (UTF-8 without one; the Content-Type is ignored), and an encoding Node's
-`TextDecoder` doesn't know is a `LebensmittelwarnungParseError`.
+name is left as written. The engine decodes the body by the encoding it is declared
+in, in RFC 7303's order: a byte-order mark (UTF-8, UTF-16), then the Content-Type's
+`charset`, then the XML declaration's `encoding`, else UTF-8. An encoding Node's
+`TextDecoder` doesn't know is a `LebensmittelwarnungParseError`; bytes invalid in the
+declared encoding become U+FFFD.
 
 It is deliberately **not** a general-purpose parser (no namespaces, DTDs, or full
 mixed-content reconstruction) — just enough for these shallow feeds, and exercised

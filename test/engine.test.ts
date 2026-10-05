@@ -267,6 +267,32 @@ test("getFeed defaults to UTF-8 and drops a byte-order mark", async () => {
   assert.equal(feed.items[0]!.title, "Käse");
 });
 
+test("getFeed decodes by the Content-Type charset when the XML declaration names none", async () => {
+  // Finding 02#4: a Latin-1 body declared only in the header was read as UTF-8 (U+FFFD),
+  // and the label "Betroffene Bundesländer …" no longer matched, so affectedStates vanished.
+  const xml = '<?xml version="1.0"?><rss><channel><item><title>K\u00e4se</title></item></channel></rss>';
+  const mt = makeMockTransport(() => rawResponse(Buffer.from(xml, "latin1"), "text/xml; charset=ISO-8859-1"));
+  const feed = await new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml");
+  assert.equal(feed.items[0]!.title, "Käse");
+});
+
+test("the Content-Type charset outranks the XML declaration, a byte-order mark outranks both", async () => {
+  const xml = '<?xml version="1.0" encoding="UTF-8"?><rss><channel><item><title>K\u00e4se</title></item></channel></rss>';
+  let mt = makeMockTransport(() => rawResponse(Buffer.from(xml, "latin1"), 'text/xml; charset="iso-8859-1"'));
+  assert.equal((await new RequestEngine({ transport: mt.transport }).getFeed("/f")).items[0]!.title, "Käse");
+  const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(xml, "utf16le")]);
+  mt = makeMockTransport(() => rawResponse(utf16, "text/xml; charset=iso-8859-1"));
+  assert.equal((await new RequestEngine({ transport: mt.transport }).getFeed("/f")).items[0]!.title, "Käse");
+});
+
+test("an unknown Content-Type charset is a parse error", async () => {
+  const mt = makeMockTransport(() => rawResponse("<rss><channel></channel></rss>", "text/xml; charset=x-bogus"));
+  await assert.rejects(
+    () => new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml"),
+    (err) => err instanceof LebensmittelwarnungParseError && /Unsupported response charset "x-bogus"/.test(err.message),
+  );
+});
+
 test("an unknown declared encoding is a parse error, not mojibake", async () => {
   const xml = '<?xml version="1.0" encoding="x-bogus"?><rss><channel></channel></rss>';
   const mt = makeMockTransport(() => rawResponse(xml, "text/xml"));

@@ -278,23 +278,33 @@ export function validateBaseUrl(raw: string): string {
 }
 
 /**
- * Decode an XML body by the encoding its XML declaration names
- * (`<?xml version="1.0" encoding="ISO-8859-1"?>`), UTF-8 when it names none — the
- * XML default. The Content-Type is ignored, as for the rest of the body sniffing
- * (see getFeed); the declaration travels with the document. A leading UTF-8
- * byte-order mark is dropped (TextDecoder does that by default). An encoding
- * TextDecoder doesn't know is a LebensmittelwarnungParseError rather than mojibake.
+ * Decode an XML body by the encoding it is declared in, in the order RFC 7303 (§3.2,
+ * XML media types) gives:
+ *   1. a byte-order mark (UTF-8, UTF-16LE, UTF-16BE), which TextDecoder then drops;
+ *   2. the `charset` parameter of the Content-Type (`text/xml; charset=ISO-8859-1`);
+ *   3. the XML declaration's `encoding` (`<?xml version="1.0" encoding="ISO-8859-1"?>`);
+ *   4. UTF-8, the XML default.
+ * The Content-Type used to be ignored, so a Latin-1 body declared only there was read as
+ * UTF-8: thousands of U+FFFD, and the label `Betroffene Bundesländer …` no longer matched,
+ * so every warning lost `affectedStates`. An encoding TextDecoder doesn't know is a
+ * LebensmittelwarnungParseError rather than mojibake. (Bytes that are invalid in the
+ * declared encoding become U+FFFD, as everywhere in the WHATWG decoders.)
  */
-function decodeXml(body: Buffer, path: string): string {
-  const start = body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf ? 3 : 0;
-  const head = body.subarray(start, start + 256).toString("latin1");
-  const declared = /^\s*<\?xml\s[^>]*?\bencoding\s*=\s*["']([^"']*)["']/.exec(head)?.[1];
-  const charset = declared ?? "utf-8";
+function decodeXml(body: Buffer, contentType: string, path: string): string {
+  let charset: string | undefined;
+  if (body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf) charset = "utf-8";
+  else if (body[0] === 0xff && body[1] === 0xfe) charset = "utf-16le";
+  else if (body[0] === 0xfe && body[1] === 0xff) charset = "utf-16be";
+  charset ??= /;\s*charset\s*=\s*"?([^";\s]+)"?/i.exec(contentType)?.[1];
+  charset ??= /^\s*<\?xml\s[^>]*?\bencoding\s*=\s*["']([^"']*)["']/.exec(body.subarray(0, 256).toString("latin1"))?.[1];
+  charset ??= "utf-8";
   let decoder: TextDecoder;
   try {
     decoder = new TextDecoder(charset);
   } catch {
-    throw new LebensmittelwarnungParseError(`Unsupported response charset "${sanitizeServerText(charset)}" from ${path}.`);
+    throw new LebensmittelwarnungParseError(
+      `Unsupported response charset "${sanitizeServerText(charset).slice(0, 100)}" from ${path}.`,
+    );
   }
   return decoder.decode(body);
 }
@@ -518,8 +528,9 @@ export class RequestEngine {
   /**
    * GET a feed path and parse the RSS reply.
    *
-   * The response Content-Type is intentionally *ignored* (the portal serves the
-   * feed as `text/xml`, but we sniff the body rather than trust the header). Two
+   * The response Content-Type does not decide whether the body is a feed (the portal
+   * serves it as `text/xml`, but we sniff the body rather than trust the type); only its
+   * `charset` is used, to decode the body (see decodeXml). Two
    * failure modes are surfaced as a typed LebensmittelwarnungParseError with a
    * plain-language message rather than a cryptic parse failure:
    *   - an HTML shell (the feed moved, or a proxy returned the website); and
@@ -529,7 +540,7 @@ export class RequestEngine {
    */
   async getFeed(path: string, query?: QueryParams): Promise<RssFeed> {
     const res = await this.request(path, query);
-    const text = decodeXml(res.data, path);
+    const text = decodeXml(res.data, res.contentType, path);
     const head = text.trimStart().slice(0, 200).toLowerCase();
     if (head.startsWith("<!doctype html") || head.startsWith("<html")) {
       throw new LebensmittelwarnungParseError(
