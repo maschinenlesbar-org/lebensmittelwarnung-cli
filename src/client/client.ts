@@ -18,7 +18,7 @@ import { parseDescription } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
 import { LebensmittelwarnungValidationError } from "./errors.js";
 import { berlinDay } from "./dates.js";
-import { assertValid, calendarDateProblem, limitProblem, nonBlankProblem } from "./validate.js";
+import { assertValid, calendarDateProblem, knownKeysProblem, limitProblem, nonBlankProblem } from "./validate.js";
 import type { Warning, WarningsFilter, WarningsQuery } from "./types.js";
 
 /** The single feed path (relative to the base URL). GET, optionally `?state=&type=`. */
@@ -80,6 +80,11 @@ interface CheckedFilter {
   limit?: number;
 }
 
+/** The keys of a {@link WarningsQuery}; any other key is a validation error. */
+const QUERY_KEYS = ["state", "type", "since", "search", "limit"] as const;
+/** The keys of a {@link WarningsFilter}. */
+const FILTER_KEYS = ["since", "search", "limit"] as const;
+
 /** Validate the client-side narrowing; a bad value throws before any request. */
 function checkFilter(filter: WarningsFilter): CheckedFilter {
   const checked: CheckedFilter = {};
@@ -121,6 +126,7 @@ function applyFilter(warnings: Warning[], { since, needle, limit }: CheckedFilte
  * value throws a LebensmittelwarnungValidationError.
  */
 export function filterWarnings(warnings: Warning[], filter: WarningsFilter = {}): Warning[] {
+  assertValid("filter", filter, knownKeysProblem(FILTER_KEYS));
   return applyFilter(warnings, checkFilter(filter));
 }
 
@@ -142,6 +148,8 @@ export class LebensmittelwarnungClient {
    * HTML description is parsed into typed fields plus the generic `fields` map.
    */
   async warnings(query: WarningsQuery = {}): Promise<Warning[]> {
+    // A misspelled key (`States`, `serach`) used to be ignored, returning the whole feed.
+    assertValid("query", query, knownKeysProblem(QUERY_KEYS));
     // Checked before any request: the feed answers an unknown slug with HTTP 400,
     // and a value such as "bayern&type=x" would be sent (encoded) as one slug.
     if (query.state !== undefined && !isStateSlug(query.state)) {

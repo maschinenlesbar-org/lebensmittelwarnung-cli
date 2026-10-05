@@ -6,6 +6,7 @@ export type { LebensmittelwarnungClientOptions } from "./client.js";
 export {
   RequestEngine,
   DEFAULT_BASE_URL,
+  ENGINE_OPTION_KEYS,
   MAX_RETRIES,
   MAX_RETRY_AFTER_MS,
   assertHeaderValue,
@@ -24,6 +25,7 @@ export {
   calendarDateProblem,
   headerNameProblem,
   headerValueProblem,
+  knownKeysProblem,
   limitProblem,
   nonBlankProblem,
 } from "./validate.js";

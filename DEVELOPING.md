@@ -116,7 +116,13 @@ Every option is checked before the request: an unknown slug, an impossible date
 `limit` outside its range (`limitProblem`) rejects with a
 `LebensmittelwarnungValidationError` (`Invalid since: Not a valid calendar date.`).
 `filterWarnings(list, { since, search, limit })` applies the same narrowing to a list
-you already have.
+you already have. A key these objects don't have (`States`, `serach`, a `__proto__` key
+from `JSON.parse`) is a `LebensmittelwarnungValidationError` too (`Invalid query: Unknown
+key "States"; expected one of state, type, since, search, limit.`) — it used to be
+ignored, and the whole unfiltered feed came back; so is an unknown client option
+(`timeout` for `timeoutMs`; the known ones are `ENGINE_OPTION_KEYS`).
+`test/conformance-p10-strict-filters.test.ts` checks unknown keys, unknown slugs, arrays
+and NaN, and repeated `--state`/`--limit` flags.
 
 ### Client options
 
