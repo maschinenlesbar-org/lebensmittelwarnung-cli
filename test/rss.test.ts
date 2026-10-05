@@ -58,7 +58,16 @@ test("parseRss handles a channel with no items", () => {
 });
 
 test("parseRss throws on a document with no <channel>", () => {
-  assert.throws(() => parseRss("<html><body>nope</body></html>"), /No <channel>/);
+  assert.throws(() => parseRss("<html><body>nope</body></html>"), /document element is <html>/);
+  assert.throws(() => parseRss('<rss version="2.0"></rss>'), /No <channel>/);
+  // The documented shape only: an error envelope, an Atom feed, a channel outside <rss>,
+  // or no element at all is an error, never "no warnings".
+  assert.throws(() => parseRss("<error>boom</error>"), /document element is <error>/);
+  assert.throws(() => parseRss('<feed xmlns="http://www.w3.org/2005/Atom"><entry/></feed>'), /document element is <feed>/);
+  assert.throws(() => parseRss("<x><channel><item/></channel></x>"), /document element is <x>/);
+  assert.throws(() => parseRss('<rss><wrapper><channel><item/></channel></wrapper></rss>'), /No <channel>/);
+  assert.throws(() => parseRss('{"items": []}'), /No document element/);
+  assert.throws(() => parseRss("null"), /No document element/);
 });
 
 test("parseDescription extracts the label→value field map", () => {

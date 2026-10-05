@@ -194,6 +194,10 @@ tokens.
   time is **linear** in the body size whatever it contains (the earlier lazy-regex
   parser was quadratic on unclosed tags: 742 KiB took 14 s, and `--timeout` covers
   only the transport, not the parse);
+- the document must have the documented RSS 2.0 shape: its document element is
+  `<rss>` and the `<channel>` a direct child of it. Anything else — an XML error
+  envelope, an Atom feed, a JSON body, a channel wrapped in another element — is a parse
+  error (exit 1), never an empty list of warnings;
 - channel metadata (`title`/`link`/`description`/`language`/`ttl`) is read from the
   **direct children** of the first `<channel>`, so an item's own `<title>` can never
   be mistaken for the channel's;

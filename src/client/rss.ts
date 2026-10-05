@@ -138,7 +138,9 @@ interface Leaf {
 
 /**
  * Parse an RSS 2.0 document into its channel metadata and raw items. Throws on a
- * document with no `<channel>` (e.g. the portal's HTML shell or an empty body —
+ * document whose document element is not `<rss>` (an XML error envelope, an Atom feed,
+ * a JSON body), on one with no `<channel>` directly inside it (e.g. the portal's HTML
+ * shell or an empty body —
  * the engine turns those into a typed LebensmittelwarnungParseError first, but
  * this is a defensive backstop), and on an unterminated element, comment, CDATA
  * section, processing instruction, declaration or tag (a truncated or hostile body).
@@ -157,6 +159,7 @@ export function parseRss(xml: string): RssFeed {
   let item: RawRssItem | undefined;
   let itemAt = -1;
   let leaf: Leaf | undefined;
+  let root: string | undefined; // the document element's name, once seen
 
   const finishLeaf = (l: Leaf): void => {
     if (l.target[l.key] === undefined) l.target[l.key] = l.parts.join("").trim();
@@ -248,9 +251,15 @@ export function parseRss(xml: string): RssFeed {
         continue;
       }
       const depth = stack.length;
+      if (root === undefined) {
+        // The documented shape is RSS 2.0: anything else is not this feed, whatever it
+        // contains, and must not read as "no warnings".
+        root = name;
+        if (name !== "rss") throw new Error(`Expected an RSS document, but the document element is <${name.slice(0, 40)}>`);
+      }
       let key: string | undefined;
       let target: Record<string, string | undefined> | undefined;
-      if (channel === undefined && name === "channel") {
+      if (channel === undefined && name === "channel" && depth === 1) {
         channel = {};
         channelAt = depth;
       } else if (channelAt !== -1 && depth === channelAt + 1 && channel !== undefined) {
@@ -287,6 +296,7 @@ export function parseRss(xml: string): RssFeed {
   if (leaf) throw new Error(`Unterminated element <${leaf.name}>`);
   const open = stack[stack.length - 1];
   if (open !== undefined) throw new Error(`Unterminated element <${open}>`);
+  if (root === undefined) throw new Error("No document element found");
   if (channel === undefined) {
     throw new Error("No <channel> element found in RSS document");
   }
