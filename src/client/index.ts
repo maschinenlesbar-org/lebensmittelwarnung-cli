@@ -46,6 +46,8 @@ export {
   LebensmittelwarnungValidationError,
   LebensmittelwarnungParseError,
   redactUrl,
+  credentialsIn,
+  redactCredentials,
 } from "./errors.js";
 
 export * from "./types.js";

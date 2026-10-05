@@ -247,6 +247,17 @@ a configuration error, not a `LebensmittelwarnungNetworkError`. Only an omitted
 pointed hint to check `--base-url`. Credential headers are never sent cross-host
 (there are none here — the feed needs no auth).
 
+A `user:password@` in the base URL (a mirror behind a login) never reaches the CLI's
+output. `credentialsIn(value)` finds the exact userinfo of a URL-like value, parseable
+or not, with a prefix (`--base-url=…`) or without a scheme (`user:pw@host`), and
+`redactCredentials(text, list)` replaces each `secret@` with `***@`; `redactUrl` falls
+back to them for a value that doesn't parse. `run()` starts with
+`withRedactedOutput(deps, argv)`, which collects the credentials of every argument (and
+of the value part of `--opt=value`) and redacts every line printed on stdout and stderr
+— commander's usage errors echo rejected values (`argument '…' is invalid`, `unknown
+command '…'`, `too many arguments … got 1: …`). `test/conformance-p1-cli-redaction.test.ts`
+checks ten passwords in seven URL shapes at nine argv positions.
+
 ### Error types
 
 [`errors.ts`](src/client/errors.ts): `LebensmittelwarnungApiError` (non-2xx, carries
