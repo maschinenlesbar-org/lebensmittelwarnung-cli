@@ -53,14 +53,15 @@ export function parseNonEmpty(value: string): string {
 /**
  * Wrap a commander value-parser for a single-valued option so that a second
  * occurrence is a usage error. commander otherwise keeps only the last value, so
- * `--state bayern --state hessen` silently dropped Bayern. (The option must have no
- * default: commander passes the default as `previous` on the first occurrence.)
+ * `--state bayern --state hessen` silently dropped Bayern, and `--base-url A
+ * --base-url B` requested B. The wrapper counts the occurrences itself (a default
+ * value is not one), so build it once per program — `buildProgram` does, per run.
  */
 export function once<T>(parse: (value: string) => T): (value: string, previous: T | undefined) => T {
-  return (value, previous) => {
-    if (previous !== undefined) {
-      throw new InvalidArgumentError("Given more than once; this option takes a single value.");
-    }
+  let given = false;
+  return (value) => {
+    if (given) throw new InvalidArgumentError("Given more than once; this option takes a single value.");
+    given = true;
     return parse(value);
   };
 }

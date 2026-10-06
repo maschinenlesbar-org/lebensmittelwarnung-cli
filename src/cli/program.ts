@@ -10,7 +10,7 @@ import { defaultIO } from "./io.js";
 import { LebensmittelwarnungClient } from "../client/client.js";
 import { DEFAULT_BASE_URL, MAX_RETRIES } from "../client/engine.js";
 import { MAX_TIMEOUT_MS } from "../client/http.js";
-import { parseBaseUrl, parseBoundedInt, parseHeaderValue, parseIntArg, parseOutputPath } from "./shared.js";
+import { once, parseBaseUrl, parseBoundedInt, parseHeaderValue, parseIntArg, parseOutputPath } from "./shared.js";
 import { registerCommands } from "./commands/warnings.js";
 
 /**
@@ -51,26 +51,28 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
         "are copyright-protected; cite lebensmittelwarnung.de — see DATA_LICENSE.md.",
     )
     .version(VERSION)
-    .option("--base-url <url>", "API base URL", parseBaseUrl, DEFAULT_BASE_URL)
+    .option("--base-url <url>", "API base URL", once(parseBaseUrl), DEFAULT_BASE_URL)
     .option(
       "--timeout <ms>",
       "time limit per request in ms, whole response included (0 = no timeout)",
-      parseBoundedInt(0, MAX_TIMEOUT_MS),
+      once(parseBoundedInt(0, MAX_TIMEOUT_MS)),
     )
-    .option("--user-agent <ua>", "User-Agent header value", parseHeaderValue)
+    .option("--user-agent <ua>", "User-Agent header value", once(parseHeaderValue))
     .option(
       "--max-retries <n>",
       "retries for transient 429/503 responses and reset connections (0..10; a 429/503 waits the server's Retry-After, up to 30 s)",
-      parseBoundedInt(0, MAX_RETRIES),
+      once(parseBoundedInt(0, MAX_RETRIES)),
     )
     .option(
       "--max-response-bytes <n>",
       "cap response body size in bytes (0 = unlimited; default 100 MiB)",
-      parseIntArg,
+      once(parseIntArg),
     )
     .option("--compact", "print JSON on a single line instead of pretty-printed")
-    .option("-o, --output <file>", "write output to this file instead of stdout (- = stdout)", parseOutputPath)
+    .option("-o, --output <file>", "write output to this file instead of stdout (- = stdout)", once(parseOutputPath))
     .option("--force", "overwrite the --output file if it already exists")
+    // Every value option above takes one value: a repeat is a usage error (exit 2), not
+    // "last one wins". The flags (--compact, --force) may repeat harmlessly.
     .showHelpAfterError();
 
   registerCommands(program, deps);

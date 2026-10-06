@@ -129,7 +129,10 @@ key "States"; expected one of state, type, since, search, limit.`) — it used t
 ignored, and the whole unfiltered feed came back; so is an unknown client option
 (`timeout` for `timeoutMs`; the known ones are `ENGINE_OPTION_KEYS`).
 `test/conformance-p10-strict-filters.test.ts` checks unknown keys, unknown slugs, arrays
-and NaN, and repeated `--state`/`--limit` flags.
+and NaN, and repeated `--state`/`--limit` flags. The global value options (`--base-url`,
+`--timeout`, `--user-agent`, `--max-retries`, `--max-response-bytes`, `-o`) go through the
+same `once()` wrapper, which counts occurrences in a closure (so a default value is not
+one); `buildProgram` builds fresh wrappers for every run.
 
 ### Client options
 

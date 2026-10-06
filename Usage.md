@@ -11,6 +11,9 @@ lebensmittel [global options] <command>
 
 ## Global options
 
+Each option that takes a value may be given once; a repeat (`--timeout 5000 --timeout 10`)
+is a usage error (exit 2) before any request, rather than the last value silently winning.
+
 | Option | Description |
 |---|---|
 | `--base-url <url>` | API base URL (only `http:`/`https:` accepted; no query `?` or fragment `#`, no surrounding whitespace; a literal `%` in a password is written `%25`). A plain `http:` URL to a non-loopback host (not `localhost`, `127.0.0.0/8`, `::1`) gets one `warning: … sent unencrypted (http:, not https:)` line on stderr naming the host (and the URL's credentials, never printed); stdout and the exit code are unchanged |

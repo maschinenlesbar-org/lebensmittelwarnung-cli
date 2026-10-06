@@ -385,6 +385,29 @@ test("a repeated warnings option is a usage error (exit 2), not last-one-wins", 
   }
 });
 
+test("a repeated global value option is a usage error (exit 2), not last-one-wins (finding 03 Q3)", async () => {
+  for (const args of [
+    ["--base-url", "https://a.example", "--base-url", "https://b.example", "warnings"],
+    ["--timeout", "5000", "--timeout", "10", "warnings"],
+    ["--user-agent", "a", "warnings", "--user-agent", "b"],
+    ["--max-retries", "1", "--max-retries", "2", "warnings"],
+    ["--max-response-bytes", "1000", "--max-response-bytes", "2000", "warnings"],
+    ["-o", "a.json", "--output", "b.json", "warnings"],
+  ]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(args, cli.deps), 2, args.join(" "));
+    assert.equal(cli.mt.calls.length, 0, args.join(" "));
+    assert.match(cli.err.join("\n"), /Given more than once; this option takes a single value\./);
+  }
+  // Given once, each works as before (the default base URL is not an occurrence); flags may repeat.
+  const once = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["--base-url", "https://a.example", "--compact", "--compact", "warnings"], once.deps), 0);
+  assert.match(once.mt.last().url, /^https:\/\/a\.example\//);
+  // Every run builds a fresh program: the count never carries over to the next run.
+  const again = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["--base-url", "https://a.example", "warnings"], again.deps), 0);
+});
+
 test("--state/--type still list their choices in --help and reject unknown slugs", async () => {
   const cli = makeCli(() => rssResponse(fx.feedXml));
   assert.equal(await run(["warnings", "--help"], cli.deps), 0);

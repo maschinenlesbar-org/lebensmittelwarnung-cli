@@ -166,7 +166,9 @@ Use `--compact` for single-line JSON and `-o <file>` to write to a file — both
 
 ## Global options
 
-Given **before or after** the command, e.g. `lebensmittel --compact warnings`:
+Given **before or after** the command, e.g. `lebensmittel --compact warnings`. Each option
+that takes a value takes it once: a repeat (`--base-url A --base-url B`) is a usage error
+(exit `2`), not "the last one wins".
 
 | Option | Description |
 | --- | --- |
