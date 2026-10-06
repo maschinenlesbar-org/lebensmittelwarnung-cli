@@ -79,7 +79,13 @@ export interface EngineOptions {
    * a LebensmittelwarnungValidationError.
    */
   userAgent?: string;
-  /** Extra headers sent on every request; names and values are checked like `userAgent`. */
+  /**
+   * Extra headers sent on every request; names and values are checked like `userAgent`.
+   * `Accept` and `User-Agent` are the engine's own in any case: the request headers are
+   * `{ ...defaultHeaders, Accept, "User-Agent" }`, so a `user-agent`/`accept` here reaches
+   * the transport next to the engine's key, which comes last and is the one the built-in
+   * transport sends. Use `userAgent` to set the User-Agent; `Accept` is fixed.
+   */
   defaultHeaders?: Record<string, string>;
   /**
    * Time limit per request in milliseconds, covering the whole response body, not

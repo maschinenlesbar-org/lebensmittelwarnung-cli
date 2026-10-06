@@ -387,3 +387,22 @@ test("cleartextProblem: exact wording, host with port, loopback range, never the
   }
   assert.notEqual(cleartextProblem("http://128.0.0.1"), undefined);
 });
+
+test("defaultHeaders cannot override Accept/User-Agent in any case: the engine's keys come last (finding 04 Q2, documented)", async () => {
+  let seen: Record<string, string> | undefined;
+  const engine = new RequestEngine({
+    defaultHeaders: { "user-agent": "mine/1", accept: "text/plain", "X-Trace": "t1" },
+    transport: async (req) => {
+      seen = req.headers;
+      return { status: 200, headers: { "content-type": "text/xml" }, body: Buffer.from("<rss><channel></channel></rss>") };
+    },
+  });
+  await engine.getFeed("/feed.xml");
+  assert.deepEqual(Object.entries(seen ?? {}), [
+    ["user-agent", "mine/1"],
+    ["accept", "text/plain"],
+    ["X-Trace", "t1"],
+    ["Accept", "application/rss+xml, application/xml"],
+    ["User-Agent", "lebensmittelwarnung-cli"],
+  ]);
+});

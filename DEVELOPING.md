@@ -175,6 +175,15 @@ same rule as the CLI's `--user-agent` (`headerValueProblem`, also exported as
 selects the default `lebensmittelwarnung-cli`. `defaultHeaders` names must be HTTP
 tokens.
 
+**`Accept` and `User-Agent` are the engine's.** The engine builds each request's headers
+as `{ ...defaultHeaders, Accept: …, "User-Agent": userAgent }`, so `defaultHeaders` cannot
+set either: under the same spelling the engine's value replaces it, and under another case
+(`user-agent`, `accept`) both keys reach the transport, the engine's last. The built-in
+transport (`node:http`) then sends only the engine's values (it keeps the last of two
+differently-cased keys); a custom transport sees both and should do the same. Set the
+User-Agent with `userAgent`; `Accept` (`application/rss+xml, application/xml`) is fixed.
+Every other header in `defaultHeaders` goes through unchanged.
+
 ### The `Warning` shape
 
 `warnings()` returns one `Warning` per RSS `<item>`:
