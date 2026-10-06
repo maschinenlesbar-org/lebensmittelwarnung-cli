@@ -169,7 +169,10 @@ A malformed `--since` date (`2026-13-40`, `10.07.2026`) is a usage error (exit `
 before for notices published in the first one or two hours after midnight German
 time (many are stamped `00:00:00 +0200`). For a date to show, take it from `pubDate`, which is in
 German time: `.pubDate | split(" ")[1:4] | join(" ")` gives `4 Sep 2026`.
-`--search`/`--since` that match nothing return `[]` (not the full feed).
+`--search`/`--since` that match nothing return `[]` (not the full feed). A `--state`/`--type`
+feed may be empty (`[]`, exit 0); the unfiltered feed never is — when it comes back with no
+items, or with `<item>`s anywhere but directly in its `<channel>` (an `<items>` wrapper), the
+CLI exits `1` with the reason on stderr instead of answering "no recalls".
 
 ## `states` — the valid Bundesland slugs
 
@@ -232,7 +235,7 @@ lebensmittel warnings -o warnings-$(date +%F).json --force
 | `2` | Bad usage / invalid argument (unknown `--state`/`--type`, bad `--since`/`--limit`, an existing `-o` file without `--force`) |
 | `4` | Not found (`404`) |
 | `6` | Network / transport failure (DNS, connection, timeout, size cap) |
-| `1` | Any other error — non-RSS HTML shell, empty body, or a `3xx` redirect |
+| `1` | Any other error — non-RSS HTML shell, empty body, an unfiltered feed with no items, `<item>`s outside the channel, or a `3xx` redirect |
 
 ## Notes
 

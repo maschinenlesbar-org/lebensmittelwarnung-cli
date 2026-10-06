@@ -144,7 +144,7 @@ Use `--compact` for single-line JSON and `-o <file>` to write to a file — both
 | `2` | Bad usage / invalid argument (nothing was sent) |
 | `4` | Not found (`404` from the server) |
 | `6` | Network / transport failure (DNS, connection, timeout, size cap) |
-| `1` | Any other error — including a non-RSS response (HTML shell) or an empty body |
+| `1` | Any other error — including a non-RSS response (HTML shell), an empty body, an unfiltered feed with no items, or `<item>`s outside the channel |
 
 ## Troubleshooting
 
@@ -156,6 +156,11 @@ Use `--compact` for single-line JSON and `-o <file>` to write to a file — both
   `megov.bayern.de` JSON API (bundesAPI spec) is **defunct** and returns an empty
   body; this CLI uses the RSS feeds instead and does not touch it. If you see this,
   a proxy or a wrong `--base-url` returned an empty body.
+- **Exit `1` / "The unfiltered feed … with no <item> elements"** or **"Found N <item>
+  elements that are not a direct child of the first <channel>"** — the all-Germany feed
+  lists every active recall and is never empty, and items in a wrapper would be dropped
+  unread; rather than answer "no recalls", the CLI fails. Try again later; if it persists,
+  the portal changed its feed.
 - **A filter returned everything** — it didn't: `--state`/`--type` are validated, so
   an unknown value exits `2`. `--search`/`--since` that match nothing return `[]`.
 

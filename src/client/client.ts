@@ -16,7 +16,7 @@
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { parseDescription } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
-import { LebensmittelwarnungValidationError, cutForMessage } from "./errors.js";
+import { LebensmittelwarnungParseError, LebensmittelwarnungValidationError, cutForMessage } from "./errors.js";
 import { berlinDay, parsePubDate } from "./dates.js";
 import { assertValid, calendarDateProblem, knownKeysProblem, limitProblem, nonBlankProblem } from "./validate.js";
 import type { Warning, WarningsFilter, WarningsQuery } from "./types.js";
@@ -219,6 +219,10 @@ export class LebensmittelwarnungClient {
    * `search` and `limit` (applied client-side, in that order; see
    * {@link filterWarnings}). Every option is checked before the request. Each item's
    * HTML description is parsed into typed fields plus the generic `fields` map.
+   *
+   * An unfiltered feed (no `state`, no `type`) with no items, and a feed with `<item>`
+   * elements outside the first `<channel>`'s direct children, throw a
+   * LebensmittelwarnungParseError instead of answering `[]`.
    */
   async warnings(query: WarningsQuery = {}): Promise<Warning[]> {
     // A misspelled key (`States`, `serach`) used to be ignored, returning the whole feed.
@@ -237,6 +241,16 @@ export class LebensmittelwarnungClient {
     if (query.type !== undefined) params["type"] = query.type;
 
     const feed = await this.engine.getFeed(FEED_PATH, params);
+    // The all-Germany feed lists every active notice and goes back years (255 items on
+    // 2026-10-06); empty, it is a failing portal, not "no recalls". A --state/--type
+    // feed may well be empty.
+    if (feed.items.length === 0 && query.state === undefined && query.type === undefined) {
+      throw new LebensmittelwarnungParseError(
+        `The unfiltered feed ${FEED_PATH} came back as an RSS <channel> with no <item> elements. ` +
+          "It always lists the active recalls (it goes back years), so this is not \"no recalls\": " +
+          "the portal may be failing — try again later.",
+      );
+    }
     // Without the base URL's userinfo: relative image URLs are resolved against it.
     const feedUrl = this.engine.publicUrl(FEED_PATH);
     const warnings = feed.items.map((item) => {

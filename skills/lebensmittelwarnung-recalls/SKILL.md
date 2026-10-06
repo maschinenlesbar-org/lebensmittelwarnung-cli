@@ -133,7 +133,8 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
   stamped `Fri, 4 Sep 2026 00:00:00 +0200` shows as 2026-09-03. Take the German date
   from `pubDate` instead: `.pubDate | split(" ")[1:4] | join(" ")` gives `4 Sep 2026`.
 - **Empty `[]` is a valid answer** ("nothing matches right now"), not an error. A
-  non-RSS/empty body exits 1 with a message — surface it, don't retry blindly.
+  non-RSS/empty body, or an unfiltered feed with no items, exits 1 with a message —
+  surface it, don't retry blindly.
 - **Cite and don't alter.** These are copyright-protected safety notices; quote them
   whole with the prescribed citation, and point the user to the live portal for the
   authoritative, current status (warnings get withdrawn).

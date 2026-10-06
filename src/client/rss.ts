@@ -139,7 +139,9 @@ interface Leaf {
 /**
  * Parse an RSS 2.0 document into its channel metadata and raw items. Throws on a
  * document whose document element is not `<rss>` (an XML error envelope, an Atom feed,
- * a JSON body), on one with no `<channel>` directly inside it (e.g. the portal's HTML
+ * a JSON body), on an `<item>` anywhere but directly inside the first `<channel>` (items
+ * wrapped in `<items>`, or in a second channel: they would be dropped unread), on one
+ * with no `<channel>` directly inside it (e.g. the portal's HTML
  * shell or an empty body —
  * the engine turns those into a typed LebensmittelwarnungParseError first, but
  * this is a defensive backstop), and on an unterminated element, comment, CDATA
@@ -160,6 +162,10 @@ export function parseRss(xml: string): RssFeed {
   let itemAt = -1;
   let leaf: Leaf | undefined;
   let root: string | undefined; // the document element's name, once seen
+  // `<item>` elements this parser does not read (not a direct child of the first
+  // <channel>), by the element they sit in: a feed whose items moved into a wrapper
+  // must not read as "no warnings".
+  const misplaced = new Map<string, number>();
 
   const finishLeaf = (l: Leaf): void => {
     if (l.target[l.key] === undefined) l.target[l.key] = l.parts.join("").trim();
@@ -259,6 +265,10 @@ export function parseRss(xml: string): RssFeed {
       }
       let key: string | undefined;
       let target: Record<string, string | undefined> | undefined;
+      if (name === "item" && !(channelAt !== -1 && depth === channelAt + 1 && channel !== undefined)) {
+        const parent = stack[depth - 1] ?? "";
+        misplaced.set(parent, (misplaced.get(parent) ?? 0) + 1);
+      }
       if (channel === undefined && name === "channel" && depth === 1) {
         channel = {};
         channelAt = depth;
@@ -299,6 +309,14 @@ export function parseRss(xml: string): RssFeed {
   if (root === undefined) throw new Error("No document element found");
   if (channel === undefined) {
     throw new Error("No <channel> element found in RSS document");
+  }
+  if (misplaced.size > 0) {
+    const total = [...misplaced.values()].reduce((a, b) => a + b, 0);
+    const where = [...misplaced].map(([parent, n]) => `${n} inside <${parent.slice(0, 40)}>`).join(", ");
+    throw new Error(
+      `Found ${total} <item> element${total === 1 ? "" : "s"} that ${total === 1 ? "is" : "are"} not a direct child of ` +
+        `the first <channel> (${where}; ${items.length} in place) — the feed's shape has changed`,
+    );
   }
   return { channel, items };
 }

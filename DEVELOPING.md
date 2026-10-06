@@ -215,7 +215,11 @@ tokens.
 - the document must have the documented RSS 2.0 shape: its document element is
   `<rss>` and the `<channel>` a direct child of it. Anything else — an XML error
   envelope, an Atom feed, a JSON body, a channel wrapped in another element — is a parse
-  error (exit 1), never an empty list of warnings;
+  error (exit 1), never an empty list of warnings. So is an `<item>` anywhere but directly
+  inside the first `<channel>` (an `<items>` wrapper, a second channel): it would be
+  dropped unread. And `client.warnings()` rejects an **unfiltered** feed (no `state`, no
+  `type`) with no items as a `LebensmittelwarnungParseError` — the all-Germany feed lists
+  years of notices, so empty means a failing portal; a `state`/`type` feed may be empty;
 - channel metadata (`title`/`link`/`description`/`language`/`ttl`) is read from the
   **direct children** of the first `<channel>`, so an item's own `<title>` can never
   be mistaken for the channel's;

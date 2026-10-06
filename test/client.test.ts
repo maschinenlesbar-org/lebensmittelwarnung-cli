@@ -10,7 +10,11 @@ import {
 } from "../src/client/client.js";
 import { berlinDay } from "../src/client/dates.js";
 import type { Warning } from "../src/client/types.js";
-import { LebensmittelwarnungNetworkError, LebensmittelwarnungValidationError } from "../src/client/errors.js";
+import {
+  LebensmittelwarnungNetworkError,
+  LebensmittelwarnungParseError,
+  LebensmittelwarnungValidationError,
+} from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, queryOf } from "./helpers.js";
 import * as fx from "./fixtures.js";
 
@@ -301,4 +305,19 @@ test("missingLabels names the required labels no warning carries, in REQUIRED_LA
   assert.deepEqual(missingLabels([{ fields: noReason }, { fields: noReason }]), ["Grund der Meldung"]);
   assert.deepEqual(missingLabels([{ fields: {} }]), [...REQUIRED_LABELS]);
   assert.throws(() => missingLabels("nope" as never), /Invalid warnings/);
+});
+
+test("an empty unfiltered feed is an error, an empty --state/--type feed is not (finding 02 Q2)", async () => {
+  const empty = '<rss version="2.0"><channel><title>Lebensmittelwarnung.de</title></channel></rss>';
+  const mt = makeMockTransport(() => rssResponse(empty));
+  const c = new LebensmittelwarnungClient({ transport: mt.transport });
+  await assert.rejects(c.warnings(), (e: unknown) => {
+    assert.ok(e instanceof LebensmittelwarnungParseError);
+    assert.match(e.message, /unfiltered feed .* came back as an RSS <channel> with no <item> elements/);
+    return true;
+  });
+  // Client-side filters don't make it a filtered feed: the feed itself was empty.
+  await assert.rejects(c.warnings({ search: "Käse", since: "2026-01-01" }), LebensmittelwarnungParseError);
+  assert.deepEqual(await c.warnings({ state: "bremen" }), []);
+  assert.deepEqual(await c.warnings({ type: "kosmetischemittel" }), []);
 });

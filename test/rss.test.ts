@@ -240,3 +240,16 @@ test("bold text inside a value is emphasis, not a new label (finding 02#2)", () 
   // A label right after an image or at the very start is still a label.
   assert.deepEqual(parseDescription('<b>A:</b> 1<img src="x.png"/><b>Bildquelle</b> © B').fields, { A: "1", Bildquelle: "© B" });
 });
+
+test("parseRss throws on <item> elements it would not read (an <items> wrapper, a second channel) (finding 02 Q2)", () => {
+  assert.throws(
+    () => parseRss('<rss><channel><title>t</title><items><item><title>a</title></item><item/></items></channel></rss>'),
+    /Found 2 <item> elements that are not a direct child of the first <channel> \(2 inside <items>; 0 in place\)/,
+  );
+  assert.throws(
+    () => parseRss("<rss><channel><item><title>a</title></item></channel><channel><item><title>b</title></item></channel></rss>"),
+    /Found 1 <item> element that is not a direct child of the first <channel> \(1 inside <channel>; 1 in place\)/,
+  );
+  // An <item> in an item's description is text, not an element; items in place are fine.
+  assert.equal(parseRss("<rss><channel><item><description><![CDATA[<item>x</item>]]></description></item></channel></rss>").items.length, 1);
+});

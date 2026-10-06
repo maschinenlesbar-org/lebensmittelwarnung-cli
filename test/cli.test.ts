@@ -471,3 +471,20 @@ test("a description label the typed fields depend on, missing from every item, i
   assert.equal(await run(["warnings", "--state", "bremen"], empty.deps), 0);
   assert.deepEqual(empty.err, []);
 });
+
+test("an empty unfiltered feed or wrapped items exit 1 with the reason on stderr, nothing on stdout (finding 02 Q2)", async () => {
+  const empty = makeCli(() => rssResponse('<rss version="2.0"><channel><title>t</title></channel></rss>'));
+  assert.equal(await run(["warnings", "--limit", "3"], empty.deps), 1);
+  assert.deepEqual(empty.out, []);
+  assert.match(empty.err.join("\n"), /^Error: The unfiltered feed .* with no <item> elements\./);
+
+  const wrapped = makeCli(() =>
+    rssResponse(
+      '<rss version="2.0"><channel><title>t</title><items>' +
+        "<item><title>a</title></item><item><title>b</title></item></items></channel></rss>",
+    ),
+  );
+  assert.equal(await run(["warnings", "--state", "bayern"], wrapped.deps), 1);
+  assert.deepEqual(wrapped.out, []);
+  assert.match(wrapped.err.join("\n"), /Found 2 <item> elements .* \(2 inside <items>; 0 in place\)/);
+});
