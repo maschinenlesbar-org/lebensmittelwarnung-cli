@@ -80,3 +80,10 @@ test("another stdout error exits 1; stderr EPIPE is ignored (the run keeps its c
   s.stderr.emit("error", Object.assign(new Error("write EIO"), { code: "EIO" }));
   assert.deepEqual(s.exits, [1, 1]);
 });
+
+test("ENOTCONN (a socket whose reader has gone) is treated like EPIPE: stdout exits 0, stderr is ignored", () => {
+  const s = fakeStreams();
+  s.stdout.emit("error", Object.assign(new Error("write ENOTCONN"), { code: "ENOTCONN" }));
+  s.stderr.emit("error", Object.assign(new Error("write ENOTCONN"), { code: "ENOTCONN" }));
+  assert.deepEqual(s.exits, [0]);
+});
