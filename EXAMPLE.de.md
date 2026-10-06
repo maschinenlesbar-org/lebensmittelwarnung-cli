@@ -3,7 +3,9 @@
 Echte Beispiele für die Claude-Code-Skills des Plugins `lebensmittelwarnung`, eines pro Skill: eine
 Anfrage, die `lebensmittel`-Befehle, die der Skill ausgeführt hat, und Claudes Antwort.
 
-Jedes Beispiel lief am 6. Oktober 2026 mit `lebensmittel` 0.3.0 gegen die Live-API.
+Jedes Beispiel lief am 6. Oktober 2026 mit `lebensmittel` 0.3.0 gegen die Live-API; das
+Rückruf-Beispiel lief am selben Tag noch einmal mit dem Build des nächsten Release, dessen
+Werte ihre Zeilenumbrüche behalten.
 Die Daten ändern sich, Ihre Ergebnisse werden also abweichen; mit den gezeigten IDs und
 Schlüsseln können Sie die Anfragen selbst ausprobieren. Lange Listen sind gekürzt.
 
@@ -67,7 +69,9 @@ https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/08_A
 
 ```bash
 lebensmittel warnings --search "Tahini" --compact    # [] – das Wort wie gefragt
-lebensmittel warnings --search "Tahin" --compact     # 4 – der Wortstamm findet „Tahina" und „Tahin"
+lebensmittel warnings --search "Tahin" --compact \
+  | jq -r 'def ind: gsub("\n"; "\n    "); .[] | "\(.title // "?" | ind)\n  Grund: \(.reason // "?" | ind)\n  Hersteller: \(.manufacturer // "?" | ind)\n  Charge: \(.lotNumbers // "—" | ind)\n  MHD: \(.bestBefore // "—" | ind)\n  \(.link)"'
+                                                     # 4 – der Wortstamm findet „Tahina" und „Tahin"
 lebensmittel warnings --compact | jq -r --arg re 'tahin|sesampaste|sesammus|sesame paste' \
   '.[] | select([.title, .product, .reason, .manufacturer, .link, (.fields | tostring)]
     | map(. // "") | join(" ") | test($re; "i")) | "\(.title) — \(.reason // "?") — \(.link)"'   # dieselben 4
@@ -78,7 +82,9 @@ oder *Tahin*. Der Skill sucht den Wortstamm `Tahin`, der alle vier findet, und d
 alle Felder und die Meldungs-URLs nach dem Stamm und den deutschen und englischen Wörtern für
 Sesampaste; weitere Meldungen kamen nicht hinzu. Alle vier sind Rückrufe wegen Krankheitserregern;
 der neueste ist die jüngste Meldung im ganzen Feed. Alle sind noch innerhalb ihrer
-Mindesthaltbarkeit, daher nennt die Antwort alle vier mit den Angaben zum Vergleichen.
+Mindesthaltbarkeit, daher nennt die Antwort alle vier mit den Angaben zum Vergleichen. Zwei
+Herstelleranschriften kommen über drei Zeilen (`El Khawas Trading GmbH,` / `Schwelmer Straße 185,` /
+`42389 Wuppertal`), die das Rezept unter `Hersteller:` einrückt.
 
 ```
 Ja – vier Rückrufe für Tahini bzw. Sesampaste sind gelistet, alle wegen Krankheitserregern.

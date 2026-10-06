@@ -3,7 +3,9 @@
 Real examples for the Claude Code skills of the `lebensmittelwarnung` plugin, one per skill: a request,
 the `lebensmittel` commands the skill ran, and the answer Claude gave.
 
-Every example ran against the live API on 6 October 2026 with `lebensmittel` 0.3.0.
+Every example ran against the live API on 6 October 2026 with `lebensmittel` 0.3.0; the
+recalls example was re-run the same day with the next release's build, whose values keep
+their line breaks.
 The data changes, so your results will differ; the ids and keys shown work for trying the
 requests yourself. Long lists are shortened.
 
@@ -67,7 +69,9 @@ https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/08_A
 
 ```bash
 lebensmittel warnings --search "Tahini" --compact    # [] — the word as asked
-lebensmittel warnings --search "Tahin" --compact     # 4 — the stem finds "Tahina" and "Tahin"
+lebensmittel warnings --search "Tahin" --compact \
+  | jq -r 'def ind: gsub("\n"; "\n    "); .[] | "\(.title // "?" | ind)\n  Grund: \(.reason // "?" | ind)\n  Hersteller: \(.manufacturer // "?" | ind)\n  Charge: \(.lotNumbers // "—" | ind)\n  MHD: \(.bestBefore // "—" | ind)\n  \(.link)"'
+                                                     # 4 — the stem finds "Tahina" and "Tahin"
 lebensmittel warnings --compact | jq -r --arg re 'tahin|sesampaste|sesammus|sesame paste' \
   '.[] | select([.title, .product, .reason, .manufacturer, .link, (.fields | tostring)]
     | map(. // "") | join(" ") | test($re; "i")) | "\(.title) — \(.reason // "?") — \(.link)"'   # the same 4
@@ -78,7 +82,9 @@ called *Tahina* or *Tahin*. The skill searches the stem, `Tahin`, which finds al
 then scans every field and the notice URLs for the stem and the German and English words for
 sesame paste; that found no further notice. All four are pathogen recalls; the newest is the
 latest notice in the whole feed. Each is still within its best-before date, so the answer
-lists all four with the codes to compare.
+lists all four with the codes to compare. Two manufacturer addresses come over three lines
+(`El Khawas Trading GmbH,` / `Schwelmer Straße 185,` / `42389 Wuppertal`), which the recipe
+indents under `Hersteller:`.
 
 ```
 Yes — four tahini / sesame-paste recalls are listed, all for pathogens (Krankheitserreger).
