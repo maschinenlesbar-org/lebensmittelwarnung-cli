@@ -1,6 +1,14 @@
 // Public entry point for the API client library.
 
-export { LebensmittelwarnungClient, FEED_PATH, filterWarnings, isUnrenderedTitle, searchForms } from "./client.js";
+export {
+  LebensmittelwarnungClient,
+  FEED_PATH,
+  REQUIRED_LABELS,
+  filterWarnings,
+  isUnrenderedTitle,
+  missingLabels,
+  searchForms,
+} from "./client.js";
 export type { SearchForms } from "./client.js";
 export { berlinDay, parsePubDate } from "./dates.js";
 export type { LebensmittelwarnungClientOptions } from "./client.js";

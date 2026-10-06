@@ -39,6 +39,29 @@ const LABEL = {
 } as const;
 
 /**
+ * The description labels the typed fields the CLI and the skills filter on depend on:
+ * `product` (and with it `--search`), `reason`, `manufacturer` and `affectedStates`. Every
+ * item of the live feed carries all four (255 of 255 on 2026-10-06); the other labels
+ * (packaging, lot numbers, best-before, contact) are missing from some notices by nature.
+ */
+export const REQUIRED_LABELS: readonly string[] = [LABEL.product, LABEL.reason, LABEL.manufacturer, LABEL.affectedStates];
+
+/**
+ * The labels of {@link REQUIRED_LABELS} that not one of `warnings` carries in its `fields`
+ * — the sign of a portal-side rename, which would otherwise leave the typed field (and
+ * the filters on it) silently empty while the value sits under its new label in
+ * `fields`. In {@link REQUIRED_LABELS} order; empty for an empty list (nothing to judge).
+ * A list that is not an array of objects throws a LebensmittelwarnungValidationError.
+ */
+export function missingLabels(warnings: readonly Warning[]): string[] {
+  assertValid("warnings", warnings, warningListProblem);
+  if (warnings.length === 0) return [];
+  return REQUIRED_LABELS.filter((label) =>
+    warnings.every((w) => typeof w.fields !== "object" || w.fields === null || !Object.hasOwn(w.fields, label)),
+  );
+}
+
+/**
  * Is `title` an unrendered CMS template rather than a product name? In September
  * 2026 the portal served every item's `<title>` as the literal Velocity expression
  * `$esc.escapeXml($cms.oneLineText($m.title))` (real names were back by 2026-10-05). Detected by a Velocity method

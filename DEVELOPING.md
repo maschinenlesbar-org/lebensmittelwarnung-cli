@@ -198,6 +198,11 @@ tokens.
 > `LABEL` table). If the portal renames a label, the typed field goes empty but the
 > value still appears in `fields` under the new label — revisit `LABEL` when the feed
 > changes. Non-food product types were checked (2026-07-13) and use the same labels.
+> `REQUIRED_LABELS` (product, reason, manufacturer, affected states — on every live item,
+> 255 of 255 on 2026-10-06) and `missingLabels(warnings)` detect such a rename: the
+> `warnings` command fetches the feed with only the server-side filters, checks it, prints
+> one `warning:` line on stderr when a required label is missing from every
+> item, and then narrows with `filterWarnings` (the same order `client.warnings()` uses).
 
 ## The RSS parser
 

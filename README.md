@@ -118,7 +118,9 @@ is still there), and `rawDescription` keeps the original markup.
 ## Output & scripting
 
 Every command prints **JSON to stdout**; diagnostics go to stderr, so piping into
-`jq` stays clean.
+`jq` stays clean. When a label the typed fields depend on (`product`, `reason`,
+`manufacturer`, `affectedStates`) is missing from every warning in the feed, a
+`warning:` line on stderr says so (a portal-side rename; the value is still in `fields`).
 
 ```bash
 # Reasons, grouped and counted (a warning can carry several, joined with ", ")

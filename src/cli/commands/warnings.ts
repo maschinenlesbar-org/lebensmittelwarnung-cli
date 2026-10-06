@@ -11,8 +11,8 @@
 
 import type { Command } from "commander";
 import type { CliDeps } from "../io.js";
-import type { StateSlug, TypeSlug, Warning, WarningsQuery } from "../../client/types.js";
-import { filterWarnings } from "../../client/client.js";
+import type { StateSlug, TypeSlug, Warning, WarningsFilter, WarningsQuery } from "../../client/types.js";
+import { filterWarnings, missingLabels } from "../../client/client.js";
 import {
   STATE_SLUGS,
   STATE_NAMES,
@@ -65,19 +65,28 @@ export function registerCommands(program: Command, deps: CliDeps): void {
         const limit = opts["limit"] as number | undefined;
         if (state !== undefined) query.state = state;
         if (type !== undefined) query.type = type;
-        if (search !== undefined) query.search = search;
 
-        let warnings: Warning[];
-        if (since === undefined) {
-          if (limit !== undefined) query.limit = limit;
-          warnings = await client.warnings(query);
-        } else {
-          // The library's own narrowing, in two steps (since and search commute; limit
-          // comes last either way), so the CLI can say when --since left out warnings
-          // whose pubDate it can't read instead of dropping them silently.
-          const all = await client.warnings(query);
+        // The feed as served (server-side --state/--type only), then the library's own
+        // client-side narrowing (filterWarnings: since, search, limit — the order
+        // client.warnings() applies), so the CLI can judge the whole feed: a label
+        // missing from every item, and the warnings --since can't date.
+        const all = await client.warnings(query);
+        const missing = missingLabels(all);
+        if (missing.length > 0) {
+          deps.io.err(
+            `warning: none of the ${all.length} warning${all.length === 1 ? "" : "s"} in the feed has the ` +
+              `description label${missing.length === 1 ? "" : "s"} ${missing.map((l) => `"${l}"`).join(", ")}; ` +
+              "a portal-side rename leaves the typed fields empty (the value may sit under another " +
+              "label in `fields`), so filters on them may miss recalls.",
+          );
+        }
+        const filter: WarningsFilter = {};
+        if (since !== undefined) filter.since = since;
+        if (search !== undefined) filter.search = search;
+        if (limit !== undefined) filter.limit = limit;
+        const warnings: Warning[] = filterWarnings(all, filter);
+        if (since !== undefined) {
           const unreadable = all.filter((w) => w.published === undefined).length;
-          warnings = filterWarnings(all, limit === undefined ? { since } : { since, limit });
           if (unreadable > 0) {
             deps.io.err(
               `Note: --since left out ${unreadable} warning${unreadable === 1 ? "" : "s"} whose pubDate ` +

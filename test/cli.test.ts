@@ -407,7 +407,8 @@ test("--since accepts years 0000-0099 (no Date.UTC 19xx mapping) and still rejec
 });
 
 test("pubDate is read strictly; --since notes the warnings it left out (finding 02#3)", async () => {
-  const item = (title: string, date: string) => `<item><title>${title}</title><pubDate>${date}</pubDate></item>`;
+  const item = (title: string, date: string) =>
+    `<item><title>${title}</title><pubDate>${date}</pubDate><description>${fx.labelledDescription}</description></item>`;
   const feed =
     '<rss version="2.0"><channel><title>t</title>' +
     item("Deutsch numerisch", "02.10.2026 16:52") + // was read as 10 February
@@ -438,4 +439,35 @@ test("pubDate is read strictly; --since notes the warnings it left out (finding 
   const limited = makeCli(() => rssResponse(feed));
   await run(["--compact", "warnings", "--since", "2026-10-02", "--limit", "1"], limited.deps);
   assert.deepEqual((JSON.parse(limited.out.join("\n")) as Array<{ title: string }>).map((r) => r.title), ["Deutsch numerisch"]);
+});
+
+test("a description label the typed fields depend on, missing from every item, is warned about on stderr (finding 02 Q1)", async () => {
+  const item = (description: string) => `<item><title>Käse</title><description><![CDATA[${description}]]></description></item>`;
+  const renamed =
+    "<b>Produkt:</b> Käse<br/><b>Grund der Meldung:</b> Listerien<br/><b>Hersteller / Inverkehrbringer:</b> Firma<br/>" +
+    "<b>Betroffene Bundesländer nach derzeitigem Stand:</b> Bayern<br/>";
+  const feed = `<rss version="2.0"><channel><title>t</title>${item(renamed)}${item(renamed)}</channel></rss>`;
+  const cli = makeCli(() => rssResponse(feed));
+  assert.equal(await run(["--compact", "warnings"], cli.deps), 0);
+  assert.deepEqual(cli.err, [
+    'warning: none of the 2 warnings in the feed has the description label "Produktbezeichnung/ -beschreibung"; ' +
+      "a portal-side rename leaves the typed fields empty (the value may sit under another label in `fields`), " +
+      "so filters on them may miss recalls.",
+  ]);
+  // stdout is the same answer as before: the value is still in `fields`.
+  const rows = JSON.parse(cli.out.join("\n")) as Array<{ product?: string; fields: Record<string, string> }>;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]!.product, undefined);
+  assert.equal(rows[0]!.fields["Produkt"], "Käse");
+
+  // The check sees the whole feed, not what --limit/--search leave: one item with the label is enough.
+  const mixed = `<rss version="2.0"><channel><title>t</title>${item(renamed)}<item><title>Brot</title><description>${fx.labelledDescription}</description></item></channel></rss>`;
+  const ok = makeCli(() => rssResponse(mixed));
+  assert.equal(await run(["--compact", "warnings", "--limit", "1"], ok.deps), 0);
+  assert.deepEqual(ok.err, []);
+
+  // An empty filtered feed has nothing to judge.
+  const empty = makeCli(() => rssResponse('<rss version="2.0"><channel><title>t</title></channel></rss>'));
+  assert.equal(await run(["warnings", "--state", "bremen"], empty.deps), 0);
+  assert.deepEqual(empty.err, []);
 });

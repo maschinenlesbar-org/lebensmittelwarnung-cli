@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LebensmittelwarnungClient, FEED_PATH, filterWarnings, isUnrenderedTitle } from "../src/client/client.js";
+import {
+  LebensmittelwarnungClient,
+  FEED_PATH,
+  REQUIRED_LABELS,
+  filterWarnings,
+  isUnrenderedTitle,
+  missingLabels,
+} from "../src/client/client.js";
 import { berlinDay } from "../src/client/dates.js";
 import type { Warning } from "../src/client/types.js";
 import { LebensmittelwarnungNetworkError, LebensmittelwarnungValidationError } from "../src/client/errors.js";
@@ -282,4 +289,16 @@ test("parsePubDate reads the feed's forms strictly, zone-less as German time", a
   for (const bad of ["", "soon", "Fri, 2 Oct 2026 16:52:00 XYZ", "Fri, 31 Feb 2026 10:00:00 +0100", "2026-13-01", "Fri, 2 Foo 2026 10:00:00", "Fri, 2 Oct 2026 25:00:00 +0200", "1.5"]) {
     assert.equal(parsePubDate(bad), undefined, bad);
   }
+});
+
+test("missingLabels names the required labels no warning carries, in REQUIRED_LABELS order", () => {
+  const all = Object.fromEntries(REQUIRED_LABELS.map((l) => [l, "x"]));
+  assert.deepEqual(missingLabels([]), []);
+  assert.deepEqual(missingLabels([{ fields: all }]), []);
+  // One warning with the label is enough; an empty value still counts as the label being there.
+  const { ["Grund der Meldung"]: _reason, ...noReason } = all;
+  assert.deepEqual(missingLabels([{ fields: noReason }, { fields: { ...noReason, "Grund der Meldung": "" } }]), []);
+  assert.deepEqual(missingLabels([{ fields: noReason }, { fields: noReason }]), ["Grund der Meldung"]);
+  assert.deepEqual(missingLabels([{ fields: {} }]), [...REQUIRED_LABELS]);
+  assert.throws(() => missingLabels("nope" as never), /Invalid warnings/);
 });

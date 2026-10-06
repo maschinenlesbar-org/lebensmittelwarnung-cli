@@ -83,6 +83,15 @@ export const midnightFeedXml = `<?xml version="1.0" encoding="UTF-8"?>
 </item>
 </channel></rss>`;
 
+/**
+ * A description carrying the four labels every live item has (REQUIRED_LABELS), as a
+ * CDATA section for a hand-built `<item>`: without them the CLI warns that the feed
+ * lost a label.
+ */
+export const labelledDescription =
+  "<![CDATA[<b>Produktbezeichnung/ -beschreibung:</b> Produkt<br/><b>Grund der Meldung:</b> Test<br/>" +
+  "<b>Hersteller / Inverkehrbringer:</b> Firma<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Bayern<br/>]]>";
+
 /** A single-item feed with an empty <item> and a self-closed pubDate (edge cases). */
 export const sparseFeedXml = `<?xml version="1.0"?>
 <rss version="2.0"><channel>

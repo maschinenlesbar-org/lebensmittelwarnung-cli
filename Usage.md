@@ -239,5 +239,13 @@ lebensmittel warnings -o warnings-$(date +%F).json --force
 - **Attribution required.** The warnings are copyright-protected; if you republish
   any of them, do so unaltered, in full, and with the prescribed citation. See
   [DATA_LICENSE.md](DATA_LICENSE.md).
+- **A label gone from the whole feed is warned about.** `product`, `reason`,
+  `manufacturer` and `affectedStates` come from fixed German labels that every notice
+  carries (255 of 255 on 2026-10-06). When one of them is missing from every warning of
+  the feed as served (before `--since`/`--search`/`--limit`), stderr gets one
+  `warning: none of the N warnings in the feed has the description label "…"` line:
+  the portal has probably renamed it, the typed field is empty, and `--search` or a
+  filter on that field may miss recalls (the value is still in `fields` under its new
+  label). stdout and the exit code are unchanged.
 - **Feed freshness.** The channel advertises `ttl 60` (minutes). The data is live and
   changes without notice; a warning can be withdrawn upstream.
