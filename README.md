@@ -23,7 +23,7 @@ by federal state and product type, as clean JSON you can pipe straight into
   to write to disk.
 
 > Want to use this as a TypeScript library, or curious how it parses the RSS feeds
-> with zero dependencies? See **[DEVELOPING.md](DEVELOPING.md)**.
+> with zero dependencies? See **[DEVELOPING.md](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/blob/main/DEVELOPING.md)**.
 
 ## Install
 
@@ -65,7 +65,7 @@ lebensmittel warnings --search schokolade | jq -r '.[].title'
 | `types` | The valid `--type` product-type slugs (offline) |
 
 New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
-**[Glossary](GLOSSARY.md)** decodes every one.
+**[Glossary](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/blob/main/GLOSSARY.md)** decodes every one.
 
 ### `warnings` options
 
@@ -73,7 +73,7 @@ New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
 | --- | --- |
 | `--state <slug>` | Only warnings for one Bundesland — server-side filter. One of the 16 slugs from `lebensmittel states` (e.g. `bayern`, `nordrheinwestfalen`). An unknown slug is a usage error. |
 | `--type <slug>` | Only warnings for one product type — server-side filter. One of `lebensmittel`, `kosmetischemittel`, `bedarfsgegenstaende`, `mittelzumtaetowieren`, `babyundkinderprodukte`. |
-| `--since <YYYY-MM-DD>` | Only warnings whose `pubDate` is on or after this date, counted in German time (Europe/Berlin), client-side. A warning whose `pubDate` can't be read as a date is left out, and a note on stderr says how many. `pubDate` is often the time of the **last update**, not of first publication: an old notice that was updated comes back as new (see [Usage.md](Usage.md#narrow-by-date-product-name-and-count-client-side)). |
+| `--since <YYYY-MM-DD>` | Only warnings whose `pubDate` is on or after this date, counted in German time (Europe/Berlin), client-side. A warning whose `pubDate` can't be read as a date is left out, and a note on stderr says how many. `pubDate` is often the time of the **last update**, not of first publication: an old notice that was updated comes back as new (see [Usage.md](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/blob/main/Usage.md#narrow-by-date-product-name-and-count-client-side)). |
 | `--search <term>` | Only warnings whose **product name** (`title` or `product`) contains this text (client-side). Case, umlaut spelling (`käse`, `kaese` and `kase` all find "Käse"; `Erdnuss` finds "Erdnüsse"), `ß`/`ss`, accents and Unicode normalisation don't matter. It is still a substring match: `Tahini` does not find "Tahina", so search a stem (`Tahin`) before concluding there is no recall. |
 | `--limit <n>` | Return at most `n` warnings, in feed order (most recent first). |
 
@@ -176,10 +176,10 @@ Given **before or after** the command, e.g. `lebensmittel --compact warnings`:
 
 ## Learn more
 
-- **[SKILLS.md](SKILLS.md)** — Claude Code Agent Skills that drive this CLI.
-- **[Usage.md](Usage.md)** — full use-case-driven cookbook.
-- **[GLOSSARY.md](GLOSSARY.md)** — every domain term explained.
-- **[DEVELOPING.md](DEVELOPING.md)** — TypeScript library usage, the RSS parser, architecture, testing, CI.
+- **[SKILLS.md](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/blob/main/SKILLS.md)** — Claude Code Agent Skills that drive this CLI.
+- **[Usage.md](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/blob/main/Usage.md)** — full use-case-driven cookbook.
+- **[GLOSSARY.md](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/blob/main/GLOSSARY.md)** — every domain term explained.
+- **[DEVELOPING.md](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/blob/main/DEVELOPING.md)** — TypeScript library usage, the RSS parser, architecture, testing, CI.
 
 ## Data license
 
