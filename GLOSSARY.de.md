@@ -40,8 +40,8 @@ Listerien oder Salmonellen, die der Feed nicht nennt), *Rückstände und Kontami
 für eine erste Einordnung.
 
 **Hersteller / Inverkehrbringer (`manufacturer`).** Der Hersteller oder derjenige, der das Produkt
-in Verkehr gebracht hat. Der Feed enthält die vollständige Postanschrift; diese CLI fasst sie in
-einer Zeile zusammen.
+in Verkehr gebracht hat. Der Feed enthält die vollständige Postanschrift über mehrere Zeilen;
+diese CLI behält die Zeilenumbrüche (`\n`).
 
 **Betroffene Bundesländer nach derzeitigem Stand (`affectedStates`).** Die Liste der Länder, in
 denen das Produkt **nach derzeitigem Kenntnisstand** vertrieben wurde – sie wird im Lauf der Zeit
@@ -52,7 +52,8 @@ herausgegeben hat.
 
 **Chargennummer / Los-Kennzeichnung (`lotNumbers`).** Die Chargen- bzw. Loskennungen der
 betroffenen Einheiten – die Codes auf der Verpackung, an denen Sie erkennen, ob *Ihr* Exemplar
-betroffen ist.
+betroffen ist. Eine Meldung zu mehreren Produkten oder Chargen nennt oft eine pro Zeile; die
+Zeilenumbrüche bleiben erhalten (`\n`).
 
 **Haltbarkeit (`bestBefore`).** Angaben zur Haltbarkeit – ein *Mindesthaltbarkeitsdatum* (MHD)
 oder ein Verbrauchsdatum, ebenfalls zum Abgleich mit Ihrem Exemplar.

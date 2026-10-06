@@ -63,7 +63,9 @@ export interface Warning {
    * product-type-specific one) is still available. Keys are the German labels with
    * the trailing colon stripped, e.g. "Grund der Meldung", "Bildquelle". A label the
    * notice repeats (one lot number per product) keeps every distinct value, joined with
-   * `"; "`; the typed fields above carry the same joined text.
+   * `"; "`; the typed fields above carry the same joined text. A value keeps the
+   * notice's line breaks as `"\n"` (an address, one batch or product per line); other
+   * whitespace is collapsed and each line trimmed.
    */
   fields: Record<string, string>;
 

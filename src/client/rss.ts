@@ -352,6 +352,19 @@ export const REPEATED_LABEL_SEPARATOR = "; ";
 /** Tags that end a line: a bold run right after one (or at the start) is a label. */
 const LINE_BREAK_TAGS = new Set(["br", "p", "div", "li", "ul", "ol", "tr", "td", "table", "img", "hr"]);
 
+/**
+ * A description value as lines: CR LF and lone CR become LF, every other run of
+ * whitespace inside a line (tabs, non-breaking spaces) one space, each line trimmed,
+ * empty lines dropped. `"Firma GmbH\n  98646 Straufhain  "` → `"Firma GmbH\n98646 Straufhain"`.
+ */
+function toLines(text: string): string {
+  return text
+    .split(/\r\n?|\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => line !== "")
+    .join("\n");
+}
+
 /** `url` resolved against `base`, or `url` unchanged without a base or when it fails. */
 function resolveUrl(url: string, base: string | undefined): string {
   if (base === undefined) return url;
@@ -462,8 +475,9 @@ function attribute(raw: string, wanted: string): string | undefined {
  *   - collect every `<img src="…">` URL, resolved against `baseUrl` when given (a
  *     relative `src` is otherwise useless outside the portal's page);
  *   - let each bold label (`<b>` or `<strong>`, with or without attributes) own the
- *     text up to the next bold label, dropping the residual tags from that value
- *     and collapsing its whitespace. A bold run is a label only at the start of a
+ *     text up to the next bold label, dropping the residual tags from that value. The
+ *     value keeps its line breaks (the notice's own newlines, and a `<br>` or block tag
+ *     inside it) as `\n`; other whitespace is collapsed and each line trimmed. A bold run is a label only at the start of a
  *     line — the start of the description, or after a `<br>`, a block tag or an image,
  *     with only whitespace between (every label in the live feed is). A bold run
  *     inside a value (`L-1111 <b>sowie</b> L-2222`, `<b>Grund der Meldung:</b>
@@ -495,9 +509,10 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
 
   const finishValue = (): void => {
     if (value === undefined) return;
-    // Collapse all whitespace (incl. the manufacturer's embedded newlines) to a
-    // single space and trim; a repeated label keeps every distinct non-empty value.
-    const text = value.parts.join("").replace(/\s+/g, " ").trim();
+    // Keep the value's line breaks (a manufacturer's address, one product or batch per
+    // line), collapse the other whitespace within each line, trim every line and drop
+    // empty ones; a repeated label keeps every distinct non-empty value.
+    const text = toLines(value.parts.join(""));
     if (value.label === IMAGE_CREDIT_LABEL) {
       const image = images[value.image];
       if (image !== undefined && image.credit === undefined && text !== "") image.credit = text;
@@ -551,13 +566,15 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
         continue;
       }
     }
-    if (LINE_BREAK_TAGS.has(token.name)) {
+    const lineBreak = LINE_BREAK_TAGS.has(token.name);
+    if (lineBreak) {
       lineStart = true;
       emphasis = undefined; // an unclosed emphasis ends with its line
     }
-    // Any other tag separates words, like the whitespace it usually stands for.
+    // A line-break tag inside a value is a line break; any other tag separates words,
+    // like the whitespace it usually stands for.
     if (label) label.push(" ");
-    else if (value) value.parts.push(" ");
+    else if (value) value.parts.push(lineBreak ? "\n" : " ");
   }
   finishValue();
   return { fields, imageUrls, images };

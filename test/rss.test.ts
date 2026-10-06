@@ -79,13 +79,26 @@ test("parseDescription extracts the label→value field map", () => {
   assert.equal(fields["Haltbarkeit"], "17.08.2026; 22.08.2026");
 });
 
-test("parseDescription collapses the manufacturer's embedded newlines to one line", () => {
+test("parseDescription keeps the manufacturer's embedded newlines as line breaks (finding 02 Q3)", () => {
   const feed = parseRss(fx.feedXml);
   const { fields } = parseDescription(feed.items[0]!.description!);
   assert.equal(
     fields["Hersteller / Inverkehrbringer"],
-    "Sales & Service Aktuell GmbH Am Weißbach 5 98646 Straufhain",
+    "Sales & Service Aktuell GmbH\nAm Weißbach 5\n98646 Straufhain",
   );
+});
+
+test("parseDescription keeps one product per line: newlines and a <br> inside a value, CR LF, trimmed lines", () => {
+  const { fields } = parseDescription(
+    "<b>Chargennummer / Los-Kennzeichnung:</b> Lotnummer: L1  MHD: 13.06.2028\r\n  Lotnummer: L2\tMHD: 14.06.2028 \n\n" +
+      "<br/>Lotnummer: L3 MHD: 15.06.2028<br/><b>Haltbarkeit:</b>  13.06.2028 <br/>",
+  );
+  assert.equal(
+    fields["Chargennummer / Los-Kennzeichnung"],
+    "Lotnummer: L1 MHD: 13.06.2028\nLotnummer: L2 MHD: 14.06.2028\nLotnummer: L3 MHD: 15.06.2028",
+  );
+  // A value on one line stays one line (the trailing <br/> leaves no empty line).
+  assert.equal(fields["Haltbarkeit"], "13.06.2028");
 });
 
 test("parseDescription collects every image URL and decodes entities in the src", () => {

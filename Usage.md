@@ -242,6 +242,12 @@ lebensmittel warnings -o warnings-$(date +%F).json --force
 - **Attribution required.** The warnings are copyright-protected; if you republish
   any of them, do so unaltered, in full, and with the prescribed citation. See
   [DATA_LICENSE.md](DATA_LICENSE.md).
+- **Values keep their line breaks.** A notice often gives one batch or product per line
+  (`lotNumbers`, `bestBefore`, `product`) and the manufacturer's address over several
+  lines; the fields keep those breaks as `\n` (other whitespace collapsed, lines
+  trimmed). In `jq -r` output such a value spans several lines — indent them with
+  `gsub("\n"; "\n    ")` or join them with `gsub("\n"; " / ")` for one line per
+  recall. `--search` ignores them (whitespace is folded).
 - **A label gone from the whole feed is warned about.** `product`, `reason`,
   `manufacturer` and `affectedStates` come from fixed German labels that every notice
   carries (255 of 255 on 2026-10-06). When one of them is missing from every warning of

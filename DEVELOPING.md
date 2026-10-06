@@ -184,7 +184,7 @@ tokens.
 | `pubDate` | `<pubDate>` | RFC-822 string, as served |
 | `published` | derived | `pubDate` as ISO-8601 in UTC, read strictly by `parsePubDate` (absent if it isn't a known form) |
 | `reason` | "Grund der Meldung" | Why the recall was issued |
-| `manufacturer` | "Hersteller / Inverkehrbringer" | Whitespace-collapsed to one line |
+| `manufacturer` | "Hersteller / Inverkehrbringer" | The postal address over several lines (`\n`), as the notice gives it |
 | `affectedStates` | "Betroffene Bundesländer nach derzeitigem Stand" | Split into a `string[]` |
 | `lotNumbers` | "Chargennummer / Los-Kennzeichnung" | |
 | `bestBefore` | "Haltbarkeit" | |
@@ -236,7 +236,10 @@ tokens.
 into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
 (a relative `src` resolved against the notice's `link`, or the feed URL) and lets each
 bold label (`<b>` or `<strong>`, attributes allowed) own the text up to the next label,
-dropping residual tags and HTML comments and collapsing whitespace. A bold run is a
+dropping residual tags and HTML comments. A value keeps its line breaks — the notice's
+own newlines (an address, one batch or product per line: 244 of 255 live items have
+one) and a `<br>` or block tag inside it — as `\n`; other whitespace is collapsed to one
+space, each line trimmed and empty lines dropped (`toLines`). A bold run is a
 label only at the start of a line (the start, or after a `<br>`, a block tag or an
 image — where every label of the live feed sits); bold text inside a value
 (`L-1111 <b>sowie</b> L-2222`) is emphasis and stays in the value. A label the notice

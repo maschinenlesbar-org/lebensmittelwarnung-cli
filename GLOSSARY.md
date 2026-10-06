@@ -39,8 +39,8 @@ contaminants) and *Sonstige Gründe* (other). A warning can carry several, joine
 `, `. The single most useful field for triage.
 
 **Hersteller / Inverkehrbringer (`manufacturer`).** The manufacturer or the party
-that placed the product on the market. The feed embeds the full postal address; this
-CLI collapses it to one line.
+that placed the product on the market. The feed embeds the full postal address over
+several lines; this CLI keeps its line breaks (`\n`).
 
 **Betroffene Bundesländer nach derzeitigem Stand (`affectedStates`).** The list of
 Länder where the product was distributed **as currently known** — it is updated over
@@ -50,7 +50,8 @@ warnings whose `affectedStates` name that Land, whoever issued them.
 
 **Chargennummer / Los-Kennzeichnung (`lotNumbers`).** The batch / lot identifiers of
 the affected units — the codes on the packaging that tell you whether *your* item is
-in scope.
+in scope. A notice for several products or batches often gives one per line; the line
+breaks are kept (`\n`).
 
 **Haltbarkeit (`bestBefore`).** Durability information — a best-before
 (*Mindesthaltbarkeitsdatum*, MHD) or use-by date, again for matching your unit.

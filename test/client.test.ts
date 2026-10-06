@@ -32,7 +32,7 @@ test("warnings() projects the typed fields from the HTML description", async () 
   const [first] = await client.warnings();
   assert.equal(first!.title, "Räucherschmelzkäse-Zubereitung, Scheiben 175 Gramm");
   assert.equal(first!.reason, "Fremdkörper");
-  assert.equal(first!.manufacturer, "Sales & Service Aktuell GmbH Am Weißbach 5 98646 Straufhain");
+  assert.equal(first!.manufacturer, "Sales & Service Aktuell GmbH\nAm Weißbach 5\n98646 Straufhain");
   assert.equal(first!.packaging, "175 Gramm-Packung");
   assert.equal(first!.lotNumbers, "722641, 912641");
   assert.equal(first!.bestBefore, "17.08.2026; 22.08.2026");

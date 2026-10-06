@@ -277,9 +277,10 @@ export class LebensmittelwarnungClient {
       if (manufacturer) warning.manufacturer = manufacturer;
       const affected = fields[LABEL.affectedStates];
       if (affected) {
-        // A comma separates the Länder; a semicolon joins the lists of a repeated label.
+        // A comma separates the Länder; a semicolon joins the lists of a repeated label,
+        // and a line break may stand between them too.
         warning.affectedStates = affected
-          .split(/[,;]/)
+          .split(/[,;\n]/)
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
       }

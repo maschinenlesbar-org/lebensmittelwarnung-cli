@@ -51,8 +51,12 @@ lebensmittel warnings --limit 10                 # first N (feed order = most re
 
    ```bash
    lebensmittel warnings --search "beeren" --compact \
-     | jq -r '.[] | "\(.title)\n  Grund: \(.reason // "?")\n  Hersteller: \(.manufacturer // "?")\n  Charge: \(.lotNumbers // "—")\n  MHD: \(.bestBefore // "—")\n  \(.link)"'
+     | jq -r 'def ind: gsub("\n"; "\n    "); .[] | "\(.title // "?" | ind)\n  Grund: \(.reason // "?" | ind)\n  Hersteller: \(.manufacturer // "?" | ind)\n  Charge: \(.lotNumbers // "—" | ind)\n  MHD: \(.bestBefore // "—" | ind)\n  \(.link)"'
    ```
+
+   Values keep the notice's line breaks (`\n`: one batch or product per line, a
+   manufacturer's address over several lines); `ind` indents the continuation lines so
+   each recall stays one block.
 
    If `--search` returns `[]`, **widen before concluding "no recall"**: search every
    text field — reason, manufacturer, all `fields`, and the notice URL (its folder name
