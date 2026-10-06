@@ -13,6 +13,7 @@ import {
   limitProblem,
   nonBlankProblem,
 } from "../client/validate.js";
+import { DEFAULT_BASE_URL, cleartextProblem } from "../client/engine.js";
 
 /**
  * commander value-parser: a plain base-10 non-negative integer.
@@ -231,6 +232,11 @@ export interface ActionContext {
  * client construction. The callback receives a context (client + resolved global
  * options + this command's options) and the command's positional arguments.
  *
+ * Right before the client is built (so after the option checks and before the first
+ * request) it writes one `warning: <sentence>` line to stderr when the base URL is plain
+ * `http:` to a host other than loopback (cleartextProblem). Help, version and usage
+ * errors never reach that point, so they never warn.
+ *
  * Commander invokes actions as (arg1, ..., argN, options, command); we slice off
  * the trailing options object and command instance to recover the positionals.
  */
@@ -253,6 +259,8 @@ export function action(
     if (global.output !== undefined && global.force !== true && deps.io.fileExists(global.output)) {
       throw refuseOverwrite(global.output);
     }
+    const cleartext = cleartextProblem(global.baseUrl ?? DEFAULT_BASE_URL);
+    if (cleartext !== undefined) deps.io.err(`warning: ${cleartext}`);
     const client = deps.createClient(toEngineOptions(global));
     await fn({ client, global, opts: command.opts() }, positionals);
   };

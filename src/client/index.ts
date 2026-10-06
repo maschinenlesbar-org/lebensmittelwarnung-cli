@@ -11,6 +11,7 @@ export {
   MAX_RETRIES,
   MAX_RETRY_AFTER_MS,
   assertHeaderValue,
+  cleartextProblem,
   parseRetryAfter,
   validateBaseUrl,
 } from "./engine.js";

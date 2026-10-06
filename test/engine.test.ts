@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   RequestEngine,
   assertHeaderValue,
+  cleartextProblem,
   parseRetryAfter,
   validateBaseUrl,
   type EngineOptions,
@@ -368,4 +369,21 @@ test("baseUrlProblem names the reason without echoing the URL", () => {
   assert.equal(baseUrlProblem("https://u:secret@h/ "), "A base URL cannot have surrounding whitespace.");
   assert.equal(baseUrlProblem(" https://h"), "A base URL cannot have surrounding whitespace.");
   assert.equal(baseUrlProblem("https://h/a\tb"), "A base URL cannot contain control characters.");
+});
+
+test("cleartextProblem: exact wording, host with port, loopback range, never the secret", () => {
+  assert.equal(cleartextProblem("http://mirror.example:8080/api"), "requests to mirror.example:8080 are sent unencrypted (http:, not https:)");
+  assert.equal(
+    cleartextProblem("http://alice:pw@mirror.example"),
+    "the base URL's credentials are sent unencrypted to mirror.example (http:, not https:)",
+  );
+  assert.equal(
+    cleartextProblem("http://alice:pw@mirror.example", ["the API key"]),
+    "the API key and the base URL's credentials are sent unencrypted to mirror.example (http:, not https:)",
+  );
+  assert.equal(cleartextProblem("http://mirror.example", ["the login"]), "the login is sent unencrypted to mirror.example (http:, not https:)");
+  for (const url of ["https://alice:pw@mirror.example", "http://127.8.9.10", "http://localhost:1", "http://[::1]/", "not a url"]) {
+    assert.equal(cleartextProblem(url), undefined, url);
+  }
+  assert.notEqual(cleartextProblem("http://128.0.0.1"), undefined);
 });

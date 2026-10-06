@@ -386,7 +386,10 @@ npm test          # builds, then runs `node --test` over dist/test
   transport contract (deadline, size cap, header and body shapes, resets); `p6` the retry
   floor and the above-cap message; `p7` closed pipes and exit codes (runs the built bin);
   `p8-p9-p13` charset, RSS shape and wrong-typed input; `p10` unknown keys, slugs, value
-  types and repeated flags.
+  types and repeated flags. The follow-up round of 2026-10-06 added `p20`: a remote plain
+  `http:` base URL gets one `warning:` line on stderr from the library's
+  `cleartextProblem`, printed by `action()` in `shared.ts` right before the client is built
+  (no base-URL variable and no secret here, so those two cases are skipped).
 
 ## Continuous integration
 
