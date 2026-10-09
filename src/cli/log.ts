@@ -2,13 +2,13 @@
 // record with a timestamp, a level and a topic. Two formats, chosen with the global
 // `--log-format`:
 //
-//   text   2026-10-09T14:03:12.481Z WARN  [lebensmittel.http] the API key is sent unencrypted …
+//   text   2026-10-09T14:03:12.481Z WARN  [lebensmittel.http] requests to mirror.test are sent unencrypted …
 //   jsonl  {"ts":"2026-10-09T14:03:12.481Z","level":"WARN","topic":"lebensmittel.http","msg":"…"}
 //
 // The text form follows log4j's pattern (`%d %-5p [%c] %m`), with the time in UTC
 // ISO 8601. The topic is a dotted logger name: the program, then the area the record
 // comes from (`lebensmittel.cli`, `lebensmittel.api`, `lebensmittel.http`, `lebensmittel.output`). stdout carries data
-// only and is not touched; neither is `--help`/`--version`, nor the no-echo prompt.
+// only and is not touched; neither is `--help`/`--version`.
 
 import { cutText, toWellFormed } from "../client/errors.js";
 
