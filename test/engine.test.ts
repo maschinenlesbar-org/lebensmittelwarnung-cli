@@ -13,7 +13,9 @@ import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungParseError,
   LebensmittelwarnungValidationError,
+  cutText,
   redactUrl,
+  toWellFormed,
 } from "../src/client/errors.js";
 import { makeMockTransport, rssResponse, rawResponse } from "./helpers.js";
 import * as fx from "./fixtures.js";
@@ -405,4 +407,22 @@ test("defaultHeaders cannot override Accept/User-Agent in any case: the engine's
     ["Accept", "application/rss+xml, application/xml"],
     ["User-Agent", "lebensmittelwarnung-cli"],
   ]);
+});
+
+test("cutText never cuts inside a surrogate pair; toWellFormed replaces half a character", () => {
+  assert.equal(cutText("ab\u{1f600}cd", 3), "ab");
+  assert.equal(cutText("ab\u{1f600}cd", 4), "ab\u{1f600}");
+  assert.equal(cutText("short", 10), "short");
+  assert.equal(toWellFormed("a\ud83d b\ude00 \u{1f600}"), "a\ufffd b\ufffd \u{1f600}");
+});
+
+test("server text cut at 200 characters (a plain error body) keeps the message well-formed", async () => {
+  // 199 x "x" + an emoji: the old 200-unit slice kept only its high surrogate.
+  for (const body of ["x".repeat(199) + "\u{1f600}tail", "a" + "\u{1f600}".repeat(400)]) {
+    const e = new RequestEngine({ transport: makeMockTransport(() => rawResponse(body, "text/plain", 500)).transport, maxRetries: 0 });
+    const err = await e.getFeed("/feed.xml").catch((x: unknown) => x);
+    assert.ok(err instanceof LebensmittelwarnungApiError);
+    assert.equal(toWellFormed(err.message), err.message);
+    assert.match(err.message, /…$/);
+  }
 });

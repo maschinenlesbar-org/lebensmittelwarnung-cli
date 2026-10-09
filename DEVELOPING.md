@@ -365,7 +365,8 @@ extending `LebensmittelwarnungError`. A wrong-typed input is that validation err
 never a raw `TypeError`: a non-object query (`warnings("bayern")`, `warnings(null)`), a
 non-array list for `filterWarnings`, a `transport` or `sleep` that isn't a function.
 Echoed values and server text are cut at 500 characters in messages
-(`cutForMessage`); the error's properties keep the full value.
+(`cutForMessage`), a plain-text error body at 200, never inside a surrogate pair
+(`cutText`), so the message stays well-formed; the error's properties keep the full value.
 `test/conformance-p8-p9-p13-responses-and-errors.test.ts` checks the declared charset
 (P8), the RSS shape (P9) and twenty wrong-typed calls (P13).
 
@@ -473,7 +474,9 @@ and `msg`. A record is always one line: `formatLogRecord` runs `escapeForRecord`
 the message (text) or the whole JSON object (jsonl), which writes CR and LF as `\r`/`\n`,
 every other C0 control but TAB, DEL and C1 as `\u00XX`, and U+2028, U+2029 and the bidi
 controls as `\uXXXX`, so no text that reaches a record, by whatever path, can split it,
-forge another one or steer the terminal. The library's error messages fold a server's
+forge another one or steer the terminal. Before that a lone surrogate (half a
+character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellFormed`).
+The library's error messages fold a server's
 whitespace (`toApiError`) and strip its other controls (`sanitizeServerText`); the record
 escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`). The `Output error:` line `handleOutputErrors` writes when stdout itself fails and the bin shim's last-resort `Unexpected error:` stay plain. Code logs through `logOf(deps)` and never writes diagnostics
 with `io.err` directly. `run()` builds the logger from argv before commander parses it,

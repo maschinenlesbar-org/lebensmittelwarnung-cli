@@ -27,6 +27,7 @@ import {
   LebensmittelwarnungValidationError,
   credentialsIn,
   cutForMessage,
+  cutText,
   redactCredentials,
 } from "./errors.js";
 import { assertValid, baseUrlProblem, headerNameProblem, headerValueProblem, knownKeysProblem } from "./validate.js";
@@ -644,7 +645,7 @@ export class RequestEngine {
     let detail =
       snippet.length > 0 && !snippet.startsWith("<")
         ? snippet.length > 200
-          ? `${snippet.slice(0, 200)}…`
+          ? `${cutText(snippet, 200)}…`
           : snippet
         : undefined;
     // `detail` came from the response body and lands in an Error.message printed
