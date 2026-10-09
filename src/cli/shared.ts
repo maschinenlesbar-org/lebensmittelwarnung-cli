@@ -13,7 +13,7 @@ import {
   limitProblem,
   nonBlankProblem,
 } from "../client/validate.js";
-import { DEFAULT_BASE_URL, cleartextProblem } from "../client/engine.js";
+import { DEFAULT_BASE_URL, cleartextProblem, type RetryEvent } from "../client/engine.js";
 
 /**
  * commander value-parser: a plain base-10 non-negative integer.
@@ -233,6 +233,19 @@ export interface ActionContext {
   opts: Record<string, unknown>;
 }
 
+/** `HTTP 503 from host: retry 1 of 3 in 2 s` (host only; whole seconds, ms under 1 s). */
+export function retryMessage(event: RetryEvent): string {
+  let host: string;
+  try {
+    host = new URL(event.url).host;
+  } catch {
+    host = "the server";
+  }
+  const why = event.status === undefined ? "connection reset" : `HTTP ${event.status}`;
+  const wait = event.delayMs < 1000 ? `${event.delayMs} ms` : `${Math.round(event.delayMs / 1000)} s`;
+  return `${why} from ${host}: retry ${event.retry} of ${event.maxRetries} in ${wait}`;
+}
+
 /**
  * Wrap an async command action with consistent global-option resolution and
  * client construction. The callback receives a context (client + resolved global
@@ -267,7 +280,9 @@ export function action(
     }
     const cleartext = cleartextProblem(global.baseUrl ?? DEFAULT_BASE_URL);
     if (cleartext !== undefined) logOf(deps).warn("http", cleartext);
-    const client = deps.createClient(toEngineOptions(global));
+    const options = toEngineOptions(global);
+    options.onRetry = (event) => logOf(deps).warn("http", retryMessage(event));
+    const client = deps.createClient(options);
     await fn({ client, global, opts: command.opts() }, positionals);
   };
 }

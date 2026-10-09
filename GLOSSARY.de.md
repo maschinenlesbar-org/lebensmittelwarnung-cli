@@ -139,7 +139,7 @@ Bereiche: `cli` (Bedienfehler, Meldungen von commander, unerwartete Fehler, Node
 Antworten des Feeds und die Hinweise dazu: ein Fehlerstatus, der Hinweis bei einer
 Weiterleitung (3xx), eine fehlerhafte Antwort – die HTML-Seite des Portals, ein leerer Body,
 kein RSS –, die Warnung zu fehlenden Bezeichnungen, der Hinweis zu `--since`), `http` (die
-Verbindung, der Hinweis zur Größengrenze, die Klartext-Warnung) und `output` (die `-o`-Datei
+Verbindung, der Hinweis zur Größengrenze, die Klartext-Warnung, je Wiederholung eine WARN-Zeile vor dem Warten) und `output` (die `-o`-Datei
 und ein Schreibfehler auf stdout). Ein Eintrag ist immer eine Zeile; Steuerzeichen darin
 werden maskiert.
 

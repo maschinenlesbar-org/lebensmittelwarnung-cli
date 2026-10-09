@@ -135,6 +135,7 @@ characters is cut and ends in `… (N more characters)`:
 
 ```text
 2026-10-09T14:03:12.481Z WARN  [lebensmittel.http] requests to mirror.test are sent unencrypted (http:, not https:)
+2026-10-09T14:03:12.700Z WARN  [lebensmittel.http] HTTP 503 from www.lebensmittelwarnung.de: retry 1 of 2 in 200 ms
 2026-10-09T14:03:12.902Z INFO  [lebensmittel.output] Wrote 3808 bytes to recalls.json
 ```
 
@@ -201,7 +202,7 @@ that takes a value takes it once: a repeat (`--base-url A --base-url B`) is a us
 | `--base-url <url>` | API base URL (default `https://www.lebensmittelwarnung.de`; `http:`/`https:` only, no query `?` or fragment `#`, no surrounding whitespace; a literal `%` in a password is written `%25`). A `user:password@` in it is sent as Basic auth and shown as `***@` in error messages. A plain `http:` URL to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) logs one `WARN` record of `lebensmittel.http` (`requests to <host> are sent unencrypted (http:, not https:)`) on stderr before the first request (naming the URL's credentials instead when it carries any, never printing them); stdout and the exit code are unchanged |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` = none; at most `2147483647`). It bounds each attempt; the waits between retries come on top |
 | `--user-agent <ua>` | `User-Agent` header value (non-blank, Latin-1, no control characters; else exit `2`) |
-| `--max-retries <n>` | Retries for transient `429`/`503` responses and reset connections (0..10, default `2`); a refused connection, a DNS failure and a timeout are not retried. Each waits 200 ms × attempt, or the server's `Retry-After` (seconds or HTTP-date) when that is longer; a `Retry-After` above 30 s is not retried, and the error names the requested wait |
+| `--max-retries <n>` | Retries for transient `429`/`503` responses and reset connections (0..10, default `2`); a refused connection, a DNS failure and a timeout are not retried. Each waits 200 ms × attempt, or the server's `Retry-After` (seconds or HTTP-date) when that is longer; a `Retry-After` above 30 s is not retried, and the error names the requested wait. Each retry logs one WARN record of `lebensmittel.http` before it waits (`HTTP 503 from host: retry 1 of 3 in 2 s`) |
 | `--max-response-bytes <n>` | Cap response body size in bytes (`0` = unlimited; default 100 MiB) |
 
 ## Learn more
