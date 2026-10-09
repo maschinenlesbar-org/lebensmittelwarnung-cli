@@ -494,7 +494,11 @@ and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cu
 code point and ends in `… (N more characters)`. The library's error messages fold a server's
 whitespace (`toApiError`) and strip its other controls (`sanitizeServerText`); the record
 escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`). The `Output error:` line `handleOutputErrors` writes when stdout itself fails and the bin shim's last-resort `Unexpected error:` stay plain. Code logs through `logOf(deps)` and never writes diagnostics
-with `io.err` directly. `run()` builds the logger from argv before commander parses it,
+with `io.err` directly. `run()` builds the logger from argv before commander parses it
+(`logFormatFromArgv`, used only for the records of a parse error: it takes the first
+`--log-format`, the one `once()` keeps, and skips the value of the program's own value
+options, as commander does; a `preAction` hook then sets the format commander parsed,
+so `--user-agent --log-format=jsonl` logs text),
 so commander's own usage errors are records too: its `error: …` an ERROR of `cli` (a
 `(Did you mean …?)` line joined to it), the help it shows after one an INFO record per
 line, and a run with options but no command (or `help` with an unknown name) an ERROR

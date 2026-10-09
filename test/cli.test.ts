@@ -538,3 +538,27 @@ test("a run with options but no command, or help for an unknown name, logs an ER
     assert.deepEqual(cli.out, []);
   }
 });
+
+test("a parse error is logged in the format commander would have parsed (L6)", async () => {
+  const isJsonl = (line: string): boolean => line.startsWith("{");
+  const cases: [string[], boolean][] = [
+    // once() keeps the first --log-format and rejects the second.
+    [["--log-format", "jsonl", "--log-format", "text", "warnings"], true],
+    [["--log-format", "text", "--log-format", "jsonl", "warnings"], false],
+    // --log-format is --user-agent's (or -o's) value; "jsonl" is then an unknown command.
+    [["--user-agent", "--log-format", "jsonl", "warnings"], false],
+    [["-o", "--log-format", "jsonl", "warnings"], false],
+    // commander takes the program's --log-format out first; --search is left without its value.
+    [["warnings", "--search", "--log-format", "jsonl"], true],
+  ];
+  for (const [argv, jsonl] of cases) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(argv, cli.deps), 2, argv.join(" "));
+    assert.ok(cli.err.length > 0 && cli.err.every((line) => isJsonl(line) === jsonl), `${argv.join(" ")}:\n${cli.err.join("\n")}`);
+  }
+  // A run that commander parsed: --log-format=jsonl is the User-Agent, the log stays text.
+  const ua = makeCli(() => rawResponse("boom", "text/plain", 500));
+  assert.equal(await run(["--user-agent", "--log-format=jsonl", "warnings"], ua.deps), 1);
+  assert.equal(ua.mt.last().headers?.["User-Agent"], "--log-format=jsonl");
+  assert.ok(ua.err.length > 0 && ua.err.every((line) => !isJsonl(line)), ua.err.join("\n"));
+});
