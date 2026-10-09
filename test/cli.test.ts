@@ -587,3 +587,17 @@ test("every -o failure is an ERROR record of lebensmittel.output: a refusal exit
   assert.equal(await run(["-o", "out.json", "states"], race.deps), 2);
   assert.match(untimed(race.err.join("\n")), /^ERROR \[lebensmittel\.output\] Refusing to overwrite existing file "out\.json"/);
 });
+
+test("the -o failure drops Node's \", open '<path>'\" tail also when the path holds a line break", async () => {
+  for (const path of ["/nonexistent\nZZ/x", "/nonexistent\u2028ZZ/x", "/nonexistent\rZZ/x", "/nonexistent/x"]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    cli.deps.io.writeFile = (p) => {
+      throw Object.assign(new Error(`ENOENT: no such file or directory, open '${p}'`), { code: "ENOENT" });
+    };
+    assert.equal(await run(["-o", path, "states"], cli.deps), 1);
+    assert.equal(cli.err.length, 1, cli.err.join("\n"));
+    const msg = untimed(cli.err[0] as string);
+    assert.match(msg, /^ERROR \[lebensmittel\.output\] Could not write to \/nonexistent.*: ENOENT: no such file or directory$/);
+    assert.doesNotMatch(msg, /open '/);
+  }
+});
