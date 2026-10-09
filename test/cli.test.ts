@@ -500,7 +500,7 @@ test("an empty unfiltered feed or wrapped items exit 1 with the reason on stderr
   const empty = makeCli(() => rssResponse('<rss version="2.0"><channel><title>t</title></channel></rss>'));
   assert.equal(await run(["warnings", "--limit", "3"], empty.deps), 1);
   assert.deepEqual(empty.out, []);
-  assert.match(untimed(empty.err.join("\n")), /^ERROR \[lebensmittel\.cli\] The unfiltered feed .* with no <item> elements\./);
+  assert.match(untimed(empty.err.join("\n")), /^ERROR \[lebensmittel\.api\] The unfiltered feed .* with no <item> elements\./);
 
   const wrapped = makeCli(() =>
     rssResponse(

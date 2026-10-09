@@ -10,6 +10,7 @@ import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungError,
   LebensmittelwarnungNetworkError,
+  LebensmittelwarnungParseError,
   LebensmittelwarnungValidationError,
   credentialsIn,
   echoedCredentialForms,
@@ -280,9 +281,11 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
       return EXIT.NETWORK;
     }
     if (err instanceof LebensmittelwarnungError) {
-      // Includes LebensmittelwarnungParseError (e.g. the feed returned the HTML
-      // shell, or an empty body like the defunct legacy JSON API).
-      log.error("cli", err.message);
+      // A malformed answer (a LebensmittelwarnungParseError: the HTML shell, an empty
+      // body like the defunct legacy JSON API, no RSS, unterminated XML, an unknown
+      // charset, an empty unfiltered feed) is the API's answer as much as an error
+      // status is: `api`.
+      log.error(err instanceof LebensmittelwarnungParseError ? "api" : "cli", err.message);
       return EXIT.OTHER;
     }
     log.error("cli", `Unexpected error: ${err instanceof Error ? err.message : String(err)}`);

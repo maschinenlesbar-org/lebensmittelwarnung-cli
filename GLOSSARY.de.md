@@ -132,6 +132,17 @@ aus der Beschreibung gelesen werden, mit der deutschen Bezeichnung als Schlüsse
 Doppelpunkt entfernt). Eine Obermenge der typisierten Accessoren – alles, was die CLI nicht eigens
 modelliert, steht trotzdem hier.
 
+**Log-Eintrag (log record).** Jede Diagnosezeile, die die CLI nach stderr schreibt: ein
+Zeitstempel, eine Stufe (`ERROR`, `WARN`, `INFO`) und ein Thema `lebensmittel.<Bereich>`, als
+Text (im Stil von log4j) oder mit `--log-format jsonl` als ein JSON-Objekt pro Zeile. Die
+Bereiche: `cli` (Bedienfehler, Meldungen von commander, unerwartete Fehler), `api` (die
+Antworten des Feeds und die Hinweise dazu: ein Fehlerstatus, der Hinweis bei einer
+Weiterleitung (3xx), eine fehlerhafte Antwort – die HTML-Seite des Portals, ein leerer Body,
+kein RSS –, die Warnung zu fehlenden Bezeichnungen, der Hinweis zu `--since`), `http` (die
+Verbindung, der Hinweis zur Größengrenze, die Klartext-Warnung) und `output` (die `-o`-Datei
+und ein Schreibfehler auf stdout). Ein Eintrag ist immer eine Zeile; Steuerzeichen darin
+werden maskiert.
+
 **Alte JSON-API (außer Betrieb).** Die frühere JSON-API unter `megov.bayern.de` (dokumentiert im
 Projekt bundesAPI / bund.dev), die diese Daten früher lieferte. Seit dem Relaunch des Portals
 liefert sie einen leeren Body und wird **nicht** verwendet – diese CLI bindet die RSS-Feeds ein.
