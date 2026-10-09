@@ -135,7 +135,7 @@ modelliert, steht trotzdem hier.
 **Log-Eintrag (log record).** Jede Diagnosezeile, die die CLI nach stderr schreibt: ein
 Zeitstempel, eine Stufe (`ERROR`, `WARN`, `INFO`) und ein Thema `lebensmittel.<Bereich>`, als
 Text (im Stil von log4j) oder mit `--log-format jsonl` als ein JSON-Objekt pro Zeile. Die
-Bereiche: `cli` (Bedienfehler, Meldungen von commander, unerwartete Fehler), `api` (die
+Bereiche: `cli` (Bedienfehler, Meldungen von commander, unerwartete Fehler, Nodes eigene Prozesswarnungen), `api` (die
 Antworten des Feeds und die Hinweise dazu: ein Fehlerstatus, der Hinweis bei einer
 Weiterleitung (3xx), eine fehlerhafte Antwort – die HTML-Seite des Portals, ein leerer Body,
 kein RSS –, die Warnung zu fehlenden Bezeichnungen, der Hinweis zu `--since`), `http` (die

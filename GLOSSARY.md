@@ -132,7 +132,7 @@ of the typed accessors — anything the CLI doesn't model first-class is still h
 **Log record.** Every diagnostic line the CLI writes to stderr: a timestamp, a level
 (`ERROR`, `WARN`, `INFO`) and a topic `lebensmittel.<area>`, as text (log4j style) or with
 `--log-format jsonl` as one JSON object per line. The areas: `cli` (usage errors,
-commander's messages, unexpected errors), `api` (the feed's answers and the notes on them:
+commander's messages, unexpected errors, Node's own process warnings), `api` (the feed's answers and the notes on them:
 an error status, the 3xx hint, a malformed answer — the HTML shell, an empty body, no RSS
 —, the missing-label warning, the `--since` note), `http` (the connection, the size-cap
 hint, the cleartext warning) and `output` (the `-o` file and a failed write to stdout). A
