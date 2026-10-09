@@ -337,13 +337,17 @@ stdout and every record's message — commander's usage errors echo rejected val
 (`argument '…' is invalid`, `unknown command '…'`, `too many arguments … got 1: …`). The
 log replaces them in the *message*, before the record is cut and escaped, and writes it
 to the raw stderr: the frame (time, level, topic) is never touched, and a password with
-DEL, C1 or bidi characters is matched in its raw form. `test/conformance-p1-cli-redaction.test.ts`
+DEL, C1 or bidi characters is matched in its raw form. The forms a server echoes a
+userinfo back in are replaced too: the `Basic` value and the decoded `user:password` on
+stdout and stderr, the password alone (4 characters or more) on stderr only, since it may
+well occur in the data. `test/conformance-p1-cli-redaction.test.ts`
 checks ten passwords in seven URL shapes at nine argv positions.
 
 The library keeps them out of what a caller logs, too. The engine holds the base URL in
 a real `#private` field (so `console.log(client)`, `util.inspect` and `JSON.stringify`
-never show it) next to its userinfo, raw and percent-decoded, and scrubs that from
-error bodies (`LebensmittelwarnungApiError.body`/`detail`), transport error text and the
+never show it) next to its userinfo, raw and percent-decoded, and scrubs that, and the
+forms a server echoes it back in (the `Basic` value, the decoded `user:password`, the
+password alone from 4 characters: `echoedCredentialForms`), from error bodies (`LebensmittelwarnungApiError.body`/`detail`), transport error text and the
 `cause` chain. `LebensmittelwarnungApiError.url` is the request URL with its userinfo
 redacted. Whatever a custom transport throws (a string, fetch's `TypeError` naming the
 URL) reaches the caller as a `LebensmittelwarnungNetworkError` with the original,

@@ -426,3 +426,21 @@ test("server text cut at 200 characters (a plain error body) keeps the message w
     assert.match(err.message, /…$/);
   }
 });
+
+test("credentials a server echoes are scrubbed from the error: Basic, user:password, password (L13)", async () => {
+  // Node sends the pair UTF-8 encoded (the Authorization header it builds from the URL), so that is the form a server echoes.
+  const basic = Buffer.from("alice:pa ss-pw", "utf8").toString("base64");
+  const echo = `no: Basic ${basic} / alice:pa ss-pw / pa ss-pw`;
+  const e = new RequestEngine({
+    baseUrl: "https://alice:pa%20ss-pw@mirror.example",
+    maxRetries: 0,
+    transport: makeMockTransport(() => rawResponse(echo, "text/plain", 401)).transport,
+  });
+  const err = await e.getFeed("/feed.xml").catch((x: unknown) => x);
+  assert.ok(err instanceof LebensmittelwarnungApiError);
+  for (const form of [basic, "alice:pa ss-pw", "pa ss-pw"]) {
+    assert.ok(!err.message.includes(form), err.message);
+    assert.ok(!err.body.includes(form), err.body);
+  }
+  assert.match(err.message, /no: Basic \*\*\* \/ \*\*\* \/ \*\*\*/);
+});
