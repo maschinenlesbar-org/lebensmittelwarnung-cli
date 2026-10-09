@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { run } from "../src/cli/run.js";
 import { LebensmittelwarnungClient } from "../src/client/client.js";
-import { credentialsIn } from "../src/client/errors.js";
+import { LebensmittelwarnungError, credentialsIn } from "../src/client/errors.js";
 import type { CliDeps } from "../src/cli/io.js";
 import type { HttpRequest, HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, rssResponse, rawResponse, queryOf, untimed } from "./helpers.js";
@@ -319,7 +319,7 @@ test("-o refuses an existing file before any request; --force overwrites", async
   assert.equal(await run(["-o", "exists.json", "warnings"], cli.deps), 2);
   assert.equal(cli.mt.calls.length, 0);
   assert.equal(cli.files["exists.json"]!.toString(), "keep me");
-  assert.match(cli.err.join("\n"), /Refusing to overwrite existing file "exists.json"\. Pass --force/);
+  assert.match(untimed(cli.err.join("\n")), /^ERROR \[lebensmittel\.output\] Refusing to overwrite existing file "exists.json"\. Pass --force/);
 
   assert.equal(await run(["-o", "exists.json", "--force", "states"], cli.deps), 0);
   assert.match(cli.files["exists.json"]!.toString(), /bayern/);
@@ -561,4 +561,29 @@ test("a parse error is logged in the format commander would have parsed (L6)", a
   assert.equal(await run(["--user-agent", "--log-format=jsonl", "warnings"], ua.deps), 1);
   assert.equal(ua.mt.last().headers?.["User-Agent"], "--log-format=jsonl");
   assert.ok(ua.err.length > 0 && ua.err.every((line) => !isJsonl(line)), ua.err.join("\n"));
+});
+
+test("every -o failure is an ERROR record of lebensmittel.output: a refusal exits 2, a failed write 1 (L8)", async () => {
+  const thrown = [
+    new LebensmittelwarnungError('"out" is a directory; give a file path to --output.'),
+    Object.assign(new Error("EACCES: permission denied, open 'out.json'"), { code: "EACCES" }),
+    Object.assign(new Error("ENOENT: no such file or directory, open 'out.json'"), { code: "ENOENT" }),
+    "not an Error",
+  ];
+  for (const t of thrown) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    cli.deps.io.writeFile = () => {
+      throw t;
+    };
+    assert.equal(await run(["-o", "out.json", "states"], cli.deps), 1, String(t));
+    assert.match(untimed(cli.err.join("\n")), /^ERROR \[lebensmittel\.output\] /);
+    assert.doesNotMatch(cli.err.join("\n"), /Unexpected error/);
+  }
+  // The file that appeared during the request: the exclusive create refuses it (exit 2).
+  const race = makeCli(() => rssResponse(fx.feedXml));
+  race.deps.io.writeFile = () => {
+    throw Object.assign(new Error("EEXIST: file already exists, open 'out.json'"), { code: "EEXIST" });
+  };
+  assert.equal(await run(["-o", "out.json", "states"], race.deps), 2);
+  assert.match(untimed(race.err.join("\n")), /^ERROR \[lebensmittel\.output\] Refusing to overwrite existing file "out\.json"/);
 });

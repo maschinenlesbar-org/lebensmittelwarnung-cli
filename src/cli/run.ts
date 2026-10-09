@@ -4,7 +4,7 @@
 
 import { CommanderError, type Command } from "commander";
 import { buildProgram, defaultDeps } from "./program.js";
-import { logOf, type CliDeps } from "./io.js";
+import { OutputError, logOf, type CliDeps } from "./io.js";
 import { DEFAULT_LOG_FORMAT, createLogger, logFormatFromArgv, type LogFormat, type Logger } from "./log.js";
 import {
   LebensmittelwarnungApiError,
@@ -241,6 +241,11 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
       // single USAGE code (commander's own exitCode is 1, indistinguishable from
       // the catch-all).
       return err.exitCode === 0 ? 0 : EXIT.USAGE;
+    }
+    if (err instanceof OutputError) {
+      // An -o failure: the overwrite refusal is a usage error (2), any other failure 1.
+      log.error("output", err.message);
+      return err.usage ? EXIT.USAGE : EXIT.OTHER;
     }
     if (err instanceof LebensmittelwarnungValidationError) {
       log.error("cli", err.message);

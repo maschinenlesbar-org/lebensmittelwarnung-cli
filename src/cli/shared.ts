@@ -3,7 +3,7 @@
 
 import type { Command } from "commander";
 import { InvalidArgumentError, Option } from "commander";
-import { logOf, type CliDeps } from "./io.js";
+import { OutputError, logOf, type CliDeps } from "./io.js";
 import type { LebensmittelwarnungClientOptions } from "../client/client.js";
 import { LebensmittelwarnungError, LebensmittelwarnungValidationError } from "../client/errors.js";
 import {
@@ -174,9 +174,10 @@ export function escapeControlChars(json: string): string {
   return from === 0 ? json : result + json.slice(from);
 }
 
-function refuseOverwrite(path: string): LebensmittelwarnungValidationError {
-  return new LebensmittelwarnungValidationError(
+function refuseOverwrite(path: string): OutputError {
+  return new OutputError(
     `Refusing to overwrite existing file "${path}". Pass --force to overwrite, or choose a different --output path.`,
+    { usage: true },
   );
 }
 
@@ -184,8 +185,9 @@ function refuseOverwrite(path: string): LebensmittelwarnungValidationError {
  * Write bytes to the --output file, refusing to clobber an existing file — or to
  * write through a symlink, dangling or not — unless --force is set (no silent data
  * loss), and wrapping raw filesystem errors in a typed error instead of an untyped
- * "Unexpected error: ENOENT: …". The overwrite refusal is a usage condition (pass
- * --force or pick another path), so it exits 2 via LebensmittelwarnungValidationError.
+ * "Unexpected error: ENOENT: …". Every failure is an `OutputError`, logged under
+ * `lebensmittel.output`; the overwrite refusal is a usage condition (pass --force or
+ * pick another path), so it exits 2, any other failure 1.
  */
 function writeOutputFile(deps: CliDeps, global: GlobalOptions, path: string, data: Buffer): void {
   const force = global.force === true;
@@ -195,13 +197,15 @@ function writeOutputFile(deps: CliDeps, global: GlobalOptions, path: string, dat
     // dangling one) or a file that appeared since the check is refused too.
     deps.io.writeFile(path, data, force);
   } catch (err) {
-    if (err instanceof LebensmittelwarnungError) throw err;
+    if (err instanceof OutputError) throw err;
+    // The CliIO's own message ("… is a directory; give a file path to --output.").
+    if (err instanceof LebensmittelwarnungError) throw new OutputError(err.message, { cause: err });
     if (!force && (err as NodeJS.ErrnoException | undefined)?.code === "EEXIST") throw refuseOverwrite(path);
     // A bad --output path (missing directory, no permission) is a user error, not
     // an internal fault — surface it cleanly. Drop the `, open '<path>'` tail since
     // we already name the path ourselves.
     const reason = err instanceof Error ? err.message.replace(/,\s*open\s+'.*'$/, "") : String(err);
-    throw new LebensmittelwarnungError(`Could not write to ${path}: ${reason}`);
+    throw new OutputError(`Could not write to ${path}: ${reason}`, { cause: err });
   }
 }
 

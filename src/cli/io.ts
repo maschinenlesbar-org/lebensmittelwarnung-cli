@@ -6,6 +6,20 @@ import type { LebensmittelwarnungClient, LebensmittelwarnungClientOptions } from
 import { LebensmittelwarnungError } from "../client/errors.js";
 import { createLogger, type Logger } from "./log.js";
 
+/**
+ * Writing the output to the `-o` file failed or was refused: an existing file without
+ * `--force` (`usage`: the usage exit code, 2, as before), a directory, a missing
+ * directory, EACCES, … (exit 1). Logged as an ERROR of `lebensmittel.output`.
+ */
+export class OutputError extends LebensmittelwarnungError {
+  /** True for a refusal the user fixes with `--force` or another path (exit 2). */
+  readonly usage: boolean;
+  constructor(message: string, options?: { cause?: unknown; usage?: boolean }) {
+    super(message, options?.cause === undefined ? undefined : { cause: options.cause });
+    this.usage = options?.usage === true;
+  }
+}
+
 export interface CliIO {
   out(text: string): void;
   err(text: string): void;
