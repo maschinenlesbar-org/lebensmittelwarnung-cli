@@ -332,9 +332,12 @@ or not, with a prefix (`--base-url=…`) or without a scheme (`user:pw@host`), a
 `redactCredentials(text, list)` replaces each `secret@` with `***@`; `redactUrl` falls
 back to them for a value that doesn't parse. `run()` starts with
 `withRedactedOutput(deps, argv)`, which collects the credentials of every argument (and
-of the value part of `--opt=value`) and redacts every line printed on stdout and stderr
-— commander's usage errors echo rejected values (`argument '…' is invalid`, `unknown
-command '…'`, `too many arguments … got 1: …`). `test/conformance-p1-cli-redaction.test.ts`
+of the value part of `--opt=value`, `redactionFor`) and redacts every line printed on
+stdout and every record's message — commander's usage errors echo rejected values
+(`argument '…' is invalid`, `unknown command '…'`, `too many arguments … got 1: …`). The
+log replaces them in the *message*, before the record is cut and escaped, and writes it
+to the raw stderr: the frame (time, level, topic) is never touched, and a password with
+DEL, C1 or bidi characters is matched in its raw form. `test/conformance-p1-cli-redaction.test.ts`
 checks ten passwords in seven URL shapes at nine argv positions.
 
 The library keeps them out of what a caller logs, too. The engine holds the base URL in
@@ -485,7 +488,8 @@ code point and ends in `… (N more characters)`. The library's error messages f
 whitespace (`toApiError`) and strip its other controls (`sanitizeServerText`); the record
 escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`). The `Output error:` line `handleOutputErrors` writes when stdout itself fails and the bin shim's last-resort `Unexpected error:` stay plain. Code logs through `logOf(deps)` and never writes diagnostics
 with `io.err` directly. `run()` builds the logger from argv before commander parses it,
-so commander's own usage errors are records too, and on top of the redacted `io.err`, so
-a secret is kept out of the log in either format. `CliDeps.now` makes the timestamps
+so commander's own usage errors are records too, and with the run's redaction
+(`withRedactedOutput`), which replaces a secret in the message only, before it is
+escaped: the frame is never touched, and a secret is kept out of the log in either format. `CliDeps.now` makes the timestamps
 testable. stdout carries data only. Conformance test P23 checks all of this, and its
 body is shared across the *-cli repos.
