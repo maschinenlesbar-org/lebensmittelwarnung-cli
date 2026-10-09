@@ -398,6 +398,8 @@ npm test          # builds, then runs `node --test` over dist/test
   narrowing (`filterWarnings`, `berlinDay`) — mocked transport.
 - **`cli.test.ts`** — command parsing, the `--state`/`--type` choice validation, the
   `--limit`/`--since`/`--search` options, `--output`, and exit codes — mocked client.
+- **`log.test.ts`** — the record helpers of `src/cli/log.ts` on their own
+  (`escapeForRecord`, `formatLogRecord`); the CLI-level checks are P23's.
 - **`parity.test.ts`** — the same input through `run()` and through the library (via
   `parity()`) gives the same outcome.
 - **`validate.test.ts`** — `assertValid`, the `run.ts` mapping of
@@ -467,7 +469,13 @@ Every diagnostic line on stderr is a log record (`src/cli/log.ts`): a timestamp,
 (`ERROR`, `WARN`, `INFO`) and a topic, `lebensmittel.<area>`. `--log-format text` (the default)
 writes it log4j style, `<ISO 8601 UTC> <LEVEL padded to 5> [<topic>] <message>`;
 `--log-format jsonl` writes one JSON object per line with exactly `ts`, `level`, `topic`
-and `msg`. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`). The `Output error:` line `handleOutputErrors` writes when stdout itself fails and the bin shim's last-resort `Unexpected error:` stay plain. Code logs through `logOf(deps)` and never writes diagnostics
+and `msg`. A record is always one line: `formatLogRecord` runs `escapeForRecord` over
+the message (text) or the whole JSON object (jsonl), which writes CR and LF as `\r`/`\n`,
+every other C0 control but TAB, DEL and C1 as `\u00XX`, and U+2028, U+2029 and the bidi
+controls as `\uXXXX`, so no text that reaches a record, by whatever path, can split it,
+forge another one or steer the terminal. The library's error messages fold a server's
+whitespace (`toApiError`) and strip its other controls (`sanitizeServerText`); the record
+escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`). The `Output error:` line `handleOutputErrors` writes when stdout itself fails and the bin shim's last-resort `Unexpected error:` stay plain. Code logs through `logOf(deps)` and never writes diagnostics
 with `io.err` directly. `run()` builds the logger from argv before commander parses it,
 so commander's own usage errors are records too, and on top of the redacted `io.err`, so
 a secret is kept out of the log in either format. `CliDeps.now` makes the timestamps
