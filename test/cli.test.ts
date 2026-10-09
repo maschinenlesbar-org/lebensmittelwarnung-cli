@@ -525,3 +525,16 @@ test("an a:b@c argument (a search text, an -o path) is neither a credential in t
   assert.deepEqual(credentialsIn("run:2026-10-09@x"), []);
   assert.deepEqual(credentialsIn("https://alice:pw@host"), ["alice:pw"]);
 });
+
+test("a run with options but no command, or help for an unknown name, logs an ERROR first, then the help one INFO record per line (L5)", async () => {
+  for (const argv of [["--compact"], ["help", "nosuch"]]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(argv, cli.deps), 2, argv.join(" "));
+    const records = cli.err.map(untimed);
+    assert.equal(records[0], "ERROR [lebensmittel.cli] missing command: `lebensmittel <subcommand>`");
+    assert.ok(records.length > 3, records.join("\n"));
+    for (const record of records.slice(1)) assert.match(record, /^INFO  \[lebensmittel\.cli\] .*\S$/);
+    assert.ok(records.some((record) => /\] Usage: lebensmittel /.test(record)), records.join("\n"));
+    assert.deepEqual(cli.out, []);
+  }
+});
