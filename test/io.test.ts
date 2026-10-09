@@ -50,10 +50,11 @@ test("a directory as --output names the problem, with and without --force", () =
 
 import { EventEmitter } from "node:events";
 import { handleOutputErrors, type OutputStreams } from "../src/cli/io.js";
+import { createLogger } from "../src/cli/log.js";
 
 function fakeStreams() {
   const stdout = new EventEmitter();
-  const stderr = new EventEmitter();
+  const stderr = Object.assign(new EventEmitter(), { write: () => true });
   const exits: number[] = [];
   handleOutputErrors({ stdout, stderr } as unknown as OutputStreams, (code) => void exits.push(code));
   return { stdout, stderr, exits };
@@ -67,18 +68,39 @@ test("EPIPE on stdout (reader closed early, e.g. | head) exits 0 quietly", () =>
 
 test("another stdout error exits 1; stderr EPIPE is ignored (the run keeps its code), other stderr errors 1", () => {
   const s = fakeStreams();
-  const written: string[] = [];
-  const original = process.stderr.write.bind(process.stderr);
-  process.stderr.write = ((chunk: string) => (written.push(chunk), true)) as typeof process.stderr.write;
-  try {
-    s.stdout.emit("error", Object.assign(new Error("write ENOSPC"), { code: "ENOSPC" }));
-  } finally {
-    process.stderr.write = original;
-  }
-  assert.deepEqual(written, ["Output error: write ENOSPC\n"]);
+  s.stdout.emit("error", Object.assign(new Error("write ENOSPC"), { code: "ENOSPC" }));
   s.stderr.emit("error", Object.assign(new Error("write EPIPE"), { code: "EPIPE" }));
   s.stderr.emit("error", Object.assign(new Error("write EIO"), { code: "EIO" }));
   assert.deepEqual(s.exits, [1, 1]);
+});
+
+test("another stdout write error (a closed descriptor, a full disk) is an ERROR record of lebensmittel.output, in the run's format, and exits 1", () => {
+  // Only a reader that has gone is a success; EBADF, ENOSPC or EIO means the output is incomplete.
+  const stdout = new EventEmitter();
+  const written: string[] = [];
+  const stderr = Object.assign(new EventEmitter(), { write: (text: string) => written.push(text) > 0 });
+  const exits: number[] = [];
+  const records: string[] = [];
+  const log = createLogger({ format: "jsonl", write: (line) => records.push(line), now: () => new Date("2026-01-02T03:04:05.678Z") });
+  handleOutputErrors({ stdout, stderr } as unknown as OutputStreams, (code) => void exits.push(code), log);
+  stdout.emit("error", Object.assign(new Error("write EBADF"), { code: "EBADF" }));
+  assert.deepEqual(exits, [1]);
+  assert.deepEqual(records.map((line) => JSON.parse(line)), [
+    { ts: "2026-01-02T03:04:05.678Z", level: "ERROR", topic: "lebensmittel.output", msg: "Could not write to stdout: write EBADF" },
+  ]);
+  assert.deepEqual(written, []);
+});
+
+test("without a logger, a stdout write error is a text ERROR record on the streams' stderr", () => {
+  const stdout = new EventEmitter();
+  const written: string[] = [];
+  const stderr = Object.assign(new EventEmitter(), { write: (text: string) => written.push(text) > 0 });
+  const exits: number[] = [];
+  handleOutputErrors({ stdout, stderr } as unknown as OutputStreams, (code) => void exits.push(code));
+  stdout.emit("error", Object.assign(new Error("write EBADF"), { code: "EBADF" }));
+  assert.deepEqual(exits, [1]);
+  assert.equal(written.length, 1);
+  assert.match(written[0] ?? "", /^\S+Z ERROR \[lebensmittel\.output\] Could not write to stdout: write EBADF\n$/);
 });
 
 test("ENOTCONN (a socket whose reader has gone) is treated like EPIPE: stdout exits 0, stderr is ignored", () => {

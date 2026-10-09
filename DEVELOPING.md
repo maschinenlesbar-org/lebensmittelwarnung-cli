@@ -300,7 +300,8 @@ src/
 **Closed pipes.** The bin shim installs `handleOutputErrors()` (`io.ts`) before `run()`:
 an EPIPE on stdout (`| head`, a `jq` that exits early) exits 0 quietly; an EPIPE on
 stderr is ignored, so a failed run keeps its own exit code (`2>&1 | true` used to turn a
-usage error into 0); any other output error exits 1.
+usage error into 0); any other stdout error is an ERROR record of `lebensmittel.output`
+and exits 1.
 `test/conformance-p7-pipes-exit-codes.test.ts` runs the built bin for both.
 
 **Two seams make the whole thing testable in-process (no subprocesses):**
@@ -493,7 +494,7 @@ character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellF
 and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cut at a
 code point and ends in `… (N more characters)`. The library's error messages fold a server's
 whitespace (`toApiError`) and strip its other controls (`sanitizeServerText`); the record
-escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`). The `Output error:` line `handleOutputErrors` writes when stdout itself fails and the bin shim's last-resort `Unexpected error:` stay plain. Code logs through `logOf(deps)` and never writes diagnostics
+escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`, and a failed write to stdout). A failed write to stdout other than a closed pipe (`handleOutputErrors`, in the bin shim, outside `run()`) is an ERROR record of `lebensmittel.output` (`Could not write to stdout: …`), and the shim's last-resort `Unexpected error: …` an ERROR of `lebensmittel.cli`, both in the format argv asks for and redacted like the run's log (`processLogger`). Code logs through `logOf(deps)` and never writes diagnostics
 with `io.err` directly. `run()` builds the logger from argv before commander parses it
 (`logFormatFromArgv`, used only for the records of a parse error: it takes the first
 `--log-format`, the one `once()` keeps, and skips the value of the program's own value
