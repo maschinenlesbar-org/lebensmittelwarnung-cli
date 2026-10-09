@@ -4,7 +4,7 @@ import { run } from "../src/cli/run.js";
 import { LebensmittelwarnungClient } from "../src/client/client.js";
 import type { CliDeps } from "../src/cli/io.js";
 import type { HttpRequest, HttpResponse } from "../src/client/http.js";
-import { makeMockTransport, rssResponse, rawResponse, queryOf } from "./helpers.js";
+import { makeMockTransport, rssResponse, rawResponse, queryOf, untimed } from "./helpers.js";
 import * as fx from "./fixtures.js";
 
 function makeCli(responder: (req: HttpRequest) => HttpResponse) {
@@ -210,7 +210,7 @@ test("--output writes to a file and keeps stdout clean", async () => {
   await run(["--output", "/tmp/lmw.json", "warnings"], cli.deps);
   assert.equal(cli.out.length, 0);
   assert.ok(cli.files["/tmp/lmw.json"]);
-  assert.match(cli.err.join("\n"), /Wrote \d+ bytes/);
+  assert.match(untimed(cli.err.join("\n")), /^INFO  \[lebensmittel\.output\] Wrote \d+ bytes to \/tmp\/lmw\.json$/m);
 });
 
 test("a control character in --user-agent is rejected (exit 2), no request", async () => {
@@ -448,8 +448,8 @@ test("pubDate is read strictly; --since notes the warnings it left out (finding 
     ["Ohne Zone", "2026-10-01T22:30:00.000Z"],
     ["MESZ", "2026-10-02T14:52:00.000Z"],
   ]);
-  assert.deepEqual(cli.err, [
-    "Note: --since left out 1 warning whose pubDate could not be read as a date (run without --since to see them).",
+  assert.deepEqual(cli.err.map(untimed), [
+    "INFO  [lebensmittel.api] --since left out 1 warning whose pubDate could not be read as a date (run without --since to see them).",
   ]);
   // Without --since nothing is left out and nothing is noted; the unreadable one has no `published`.
   const all = makeCli(() => rssResponse(feed));
@@ -472,8 +472,8 @@ test("a description label the typed fields depend on, missing from every item, i
   const feed = `<rss version="2.0"><channel><title>t</title>${item(renamed)}${item(renamed)}</channel></rss>`;
   const cli = makeCli(() => rssResponse(feed));
   assert.equal(await run(["--compact", "warnings"], cli.deps), 0);
-  assert.deepEqual(cli.err, [
-    'warning: none of the 2 warnings in the feed has the description label "Produktbezeichnung/ -beschreibung"; ' +
+  assert.deepEqual(cli.err.map(untimed), [
+    'WARN  [lebensmittel.api] none of the 2 warnings in the feed has the description label "Produktbezeichnung/ -beschreibung"; ' +
       "a portal-side rename leaves the typed fields empty (the value may sit under another label in `fields`), " +
       "so filters on them may miss recalls.",
   ]);
@@ -499,7 +499,7 @@ test("an empty unfiltered feed or wrapped items exit 1 with the reason on stderr
   const empty = makeCli(() => rssResponse('<rss version="2.0"><channel><title>t</title></channel></rss>'));
   assert.equal(await run(["warnings", "--limit", "3"], empty.deps), 1);
   assert.deepEqual(empty.out, []);
-  assert.match(empty.err.join("\n"), /^Error: The unfiltered feed .* with no <item> elements\./);
+  assert.match(untimed(empty.err.join("\n")), /^ERROR \[lebensmittel\.cli\] The unfiltered feed .* with no <item> elements\./);
 
   const wrapped = makeCli(() =>
     rssResponse(

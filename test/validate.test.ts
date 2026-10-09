@@ -13,7 +13,7 @@ import { LebensmittelwarnungError, LebensmittelwarnungValidationError } from "..
 import { LebensmittelwarnungClient } from "../src/client/client.js";
 import { run } from "../src/cli/run.js";
 import type { CliDeps } from "../src/cli/io.js";
-import { parity, rssResponse } from "./helpers.js";
+import { parity, rssResponse, untimed } from "./helpers.js";
 import * as fx from "./fixtures.js";
 
 const nonBlank: Problem<string> = (v) => (v.trim() === "" ? "Expected a non-empty value." : undefined);
@@ -37,7 +37,7 @@ test("the validation layer is exported from the package root", () => {
   assert.equal(lib.LebensmittelwarnungValidationError, LebensmittelwarnungValidationError);
 });
 
-test("run() maps a LebensmittelwarnungValidationError raised in an action to exit 2, 'Error: <message>'", async () => {
+test("run() maps a LebensmittelwarnungValidationError raised in an action to exit 2 and an ERROR record", async () => {
   const out: string[] = [];
   const err: string[] = [];
   const deps: CliDeps = {
@@ -47,7 +47,7 @@ test("run() maps a LebensmittelwarnungValidationError raised in an action to exi
     },
   };
   assert.equal(await run(["warnings"], deps), 2);
-  assert.deepEqual(err, ["Error: Invalid thing: Expected a non-empty value."]);
+  assert.deepEqual(err.map(untimed), ["ERROR [lebensmittel.cli] Invalid thing: Expected a non-empty value."]);
   assert.deepEqual(out, []);
 });
 

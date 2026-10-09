@@ -120,7 +120,22 @@ is still there), and `rawDescription` keeps the original markup.
 Every command prints **JSON to stdout**; diagnostics go to stderr, so piping into
 `jq` stays clean. When a label the typed fields depend on (`product`, `reason`,
 `manufacturer`, `affectedStates`) is missing from every warning in the feed, a
-`warning:` line on stderr says so (a portal-side rename; the value is still in `fields`).
+`WARN` record on stderr says so (a portal-side rename; the value is still in `fields`).
+
+Each line on stderr is a **log record**: a timestamp (UTC), a level (`ERROR`, `WARN`,
+`INFO`) and a topic, the program and the area it comes from (`lebensmittel.cli` for usage
+errors, `lebensmittel.api` for the feed's answers and the notes on them, `lebensmittel.http`
+for the connection, `lebensmittel.output` for `-o`). By default it is written log4j style;
+`--log-format jsonl` writes one JSON object per line instead:
+
+```text
+2026-10-09T14:03:12.481Z WARN  [lebensmittel.http] requests to mirror.test are sent unencrypted (http:, not https:)
+2026-10-09T14:03:12.902Z INFO  [lebensmittel.output] Wrote 3808 bytes to recalls.json
+```
+
+```bash
+lebensmittel --log-format jsonl -o recalls.json warnings 2>log.jsonl   # {"ts":"…","level":"INFO","topic":"lebensmittel.output","msg":"Wrote … bytes to recalls.json"}
+```
 
 ```bash
 # Reasons, grouped and counted (a warning can carry several, joined with ", ")
@@ -175,9 +190,10 @@ that takes a value takes it once: a repeat (`--base-url A --base-url B`) is a us
 | `-V, --version` | Print the version number |
 | `-h, --help` | Show help for the program or a command |
 | `--compact` | Print JSON on a single line instead of pretty-printed |
+| `--log-format <format>` | How errors, warnings and notes are written to stderr: `text` (default; log4j style, `2026-10-09T14:03:12.481Z WARN  [lebensmittel.http] …`) or `jsonl` (one JSON object per line: `ts`, `level`, `topic`, `msg`). stdout is not affected |
 | `-o, --output <file>` | Write output to this file instead of stdout (`-` = stdout). An existing file is not overwritten (exit `2`, checked before any request) unless `--force` is given |
 | `--force` | Overwrite the `--output` file if it already exists (only with `-o`) |
-| `--base-url <url>` | API base URL (default `https://www.lebensmittelwarnung.de`; `http:`/`https:` only, no query `?` or fragment `#`, no surrounding whitespace; a literal `%` in a password is written `%25`). A `user:password@` in it is sent as Basic auth and shown as `***@` in error messages. A plain `http:` URL to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) prints one `warning: requests to <host> are sent unencrypted (http:, not https:)` line on stderr before the first request (naming the URL's credentials instead when it carries any, never printing them); stdout and the exit code are unchanged |
+| `--base-url <url>` | API base URL (default `https://www.lebensmittelwarnung.de`; `http:`/`https:` only, no query `?` or fragment `#`, no surrounding whitespace; a literal `%` in a password is written `%25`). A `user:password@` in it is sent as Basic auth and shown as `***@` in error messages. A plain `http:` URL to a host other than loopback (`localhost`, `127.0.0.0/8`, `::1`) logs one `WARN` record of `lebensmittel.http` (`requests to <host> are sent unencrypted (http:, not https:)`) on stderr before the first request (naming the URL's credentials instead when it carries any, never printing them); stdout and the exit code are unchanged |
 | `--timeout <ms>` | Time limit per request, reading the whole response included (default `30000`; `0` = none; at most `2147483647`). It bounds each attempt; the waits between retries come on top |
 | `--user-agent <ua>` | `User-Agent` header value (non-blank, Latin-1, no control characters; else exit `2`) |
 | `--max-retries <n>` | Retries for transient `429`/`503` responses and reset connections (0..10, default `2`); a refused connection, a DNS failure and a timeout are not retried. Each waits 200 ms × attempt, or the server's `Retry-After` (seconds or HTTP-date) when that is longer; a `Retry-After` above 30 s is not retried, and the error names the requested wait |

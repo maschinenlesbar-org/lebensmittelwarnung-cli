@@ -213,7 +213,7 @@ Every other header in `defaultHeaders` goes through unchanged.
 > `REQUIRED_LABELS` (product, reason, manufacturer, affected states — on every live item,
 > 255 of 255 on 2026-10-06) and `missingLabels(warnings)` detect such a rename: the
 > `warnings` command fetches the feed with only the server-side filters, checks it, prints
-> one `warning:` line on stderr when a required label is missing from every
+> one `WARN` record of `lebensmittel.api` on stderr when a required label is missing from every
 > item, and then narrows with `filterWarnings` (the same order `client.warnings()` uses).
 
 ## The RSS parser
@@ -288,7 +288,8 @@ src/
     validate.ts  # the Problem type + assertValid: input rules shared by library and CLI
     client.ts    # LebensmittelwarnungClient — warnings() + field projection
   cli/
-    io.ts        # injectable I/O seam (stdout/stderr/file)
+    io.ts        # injectable I/O seam (stdout/stderr/file), the logger and the clock
+    log.ts       # the stderr log: records with ts, level, topic; --log-format text|jsonl
     shared.ts    # option parsers (thin wrappers over the library's rules), global-option resolver, JSON renderer
     commands/    # warnings.ts — warnings / states / types
     program.ts   # assembles the commander program from injectable deps
@@ -378,7 +379,7 @@ throws `LebensmittelwarnungValidationError` with the message `Invalid <name>: <r
 before any request (a constructor throws; a method returning a promise rejects). The
 CLI's commander parsers turn the same reason into a usage error (exit 2), and `run.ts`
 maps a `LebensmittelwarnungValidationError` raised during an action to exit 2 too,
-printed as `Error: <message>`.
+logged as an `ERROR` record of `lebensmittel.cli`.
 
 ## Testing
 
@@ -411,11 +412,12 @@ npm test          # builds, then runs `node --test` over dist/test
   floor and the above-cap message; `p7` closed pipes and exit codes (runs the built bin);
   `p8-p9-p13` charset, RSS shape and wrong-typed input; `p10` unknown keys, slugs, value
   types and repeated flags. The follow-up round of 2026-10-06 added `p20`: a remote plain
-  `http:` base URL gets one `warning:` line on stderr from the library's
+  `http:` base URL gets one `WARN` record of `lebensmittel.http` on stderr from the library's
   `cleartextProblem`, printed by `action()` in `shared.ts` right before the client is built
   (no base-URL variable and no secret here, so those two cases are skipped), and `p21`:
   every relative link in `README.md` points to a file `package.json` `files` ships, since
-  npmjs.com shows the README; other documents are linked by their GitHub URL.
+  npmjs.com shows the README; other documents are linked by their GitHub URL. `p23`
+  (2026-10-09): every stderr line is a log record, `--log-format text|jsonl`.
 
 ## Continuous integration
 
@@ -458,3 +460,16 @@ npm run serve                        # http://127.0.0.1:4000/lebensmittelwarnung
 Dual-licensed under **[AGPL-3.0-or-later](LICENSE)** or a commercial license —
 see **[LICENSING.md](LICENSING.md)**. This project does **not** accept external
 code contributions; see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
+## The log on stderr
+
+Every diagnostic line on stderr is a log record (`src/cli/log.ts`): a timestamp, a level
+(`ERROR`, `WARN`, `INFO`) and a topic, `lebensmittel.<area>`. `--log-format text` (the default)
+writes it log4j style, `<ISO 8601 UTC> <LEVEL padded to 5> [<topic>] <message>`;
+`--log-format jsonl` writes one JSON object per line with exactly `ts`, `level`, `topic`
+and `msg`. The areas are `cli` (usage errors, commander's messages, unexpected errors, a feed that cannot be parsed), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning) and `output` (`-o`). The `Output error:` line `handleOutputErrors` writes when stdout itself fails and the bin shim's last-resort `Unexpected error:` stay plain. Code logs through `logOf(deps)` and never writes diagnostics
+with `io.err` directly. `run()` builds the logger from argv before commander parses it,
+so commander's own usage errors are records too, and on top of the redacted `io.err`, so
+a secret is kept out of the log in either format. `CliDeps.now` makes the timestamps
+testable. stdout carries data only. Conformance test P23 checks all of this, and its
+body is shared across the *-cli repos.

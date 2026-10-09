@@ -10,7 +10,7 @@
 // calendarDateProblem, nonBlankProblem), so the CLI and the library agree.
 
 import type { Command } from "commander";
-import type { CliDeps } from "../io.js";
+import { logOf, type CliDeps } from "../io.js";
 import type { StateSlug, TypeSlug, Warning, WarningsFilter, WarningsQuery } from "../../client/types.js";
 import { filterWarnings, missingLabels } from "../../client/client.js";
 import {
@@ -73,8 +73,9 @@ export function registerCommands(program: Command, deps: CliDeps): void {
         const all = await client.warnings(query);
         const missing = missingLabels(all);
         if (missing.length > 0) {
-          deps.io.err(
-            `warning: none of the ${all.length} warning${all.length === 1 ? "" : "s"} in the feed has the ` +
+          logOf(deps).warn(
+            "api",
+            `none of the ${all.length} warning${all.length === 1 ? "" : "s"} in the feed has the ` +
               `description label${missing.length === 1 ? "" : "s"} ${missing.map((l) => `"${l}"`).join(", ")}; ` +
               "a portal-side rename leaves the typed fields empty (the value may sit under another " +
               "label in `fields`), so filters on them may miss recalls.",
@@ -88,8 +89,9 @@ export function registerCommands(program: Command, deps: CliDeps): void {
         if (since !== undefined) {
           const unreadable = all.filter((w) => w.published === undefined).length;
           if (unreadable > 0) {
-            deps.io.err(
-              `Note: --since left out ${unreadable} warning${unreadable === 1 ? "" : "s"} whose pubDate ` +
+            logOf(deps).info(
+              "api",
+              `--since left out ${unreadable} warning${unreadable === 1 ? "" : "s"} whose pubDate ` +
                 "could not be read as a date (run without --since to see them).",
             );
           }

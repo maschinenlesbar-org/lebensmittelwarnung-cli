@@ -3,7 +3,7 @@
 
 import type { Command } from "commander";
 import { InvalidArgumentError, Option } from "commander";
-import type { CliDeps } from "./io.js";
+import { logOf, type CliDeps } from "./io.js";
 import type { LebensmittelwarnungClientOptions } from "../client/client.js";
 import { LebensmittelwarnungError, LebensmittelwarnungValidationError } from "../client/errors.js";
 import {
@@ -215,7 +215,7 @@ export function renderJson(deps: CliDeps, global: GlobalOptions, value: unknown)
   if (global.output !== undefined && global.output !== "-") {
     const data = Buffer.from(text + "\n", "utf8");
     writeOutputFile(deps, global, global.output, data);
-    deps.io.err(`Wrote ${data.length} bytes to ${global.output}`);
+    logOf(deps).info("output", `Wrote ${data.length} bytes to ${global.output}`);
   } else {
     deps.io.out(text);
   }
@@ -234,7 +234,7 @@ export interface ActionContext {
  * options + this command's options) and the command's positional arguments.
  *
  * Right before the client is built (so after the option checks and before the first
- * request) it writes one `warning: <sentence>` line to stderr when the base URL is plain
+ * request) it logs one warning (`lebensmittel.http`) when the base URL is plain
  * `http:` to a host other than loopback (cleartextProblem). Help, version and usage
  * errors never reach that point, so they never warn.
  *
@@ -261,7 +261,7 @@ export function action(
       throw refuseOverwrite(global.output);
     }
     const cleartext = cleartextProblem(global.baseUrl ?? DEFAULT_BASE_URL);
-    if (cleartext !== undefined) deps.io.err(`warning: ${cleartext}`);
+    if (cleartext !== undefined) logOf(deps).warn("http", cleartext);
     const client = deps.createClient(toEngineOptions(global));
     await fn({ client, global, opts: command.opts() }, positionals);
   };

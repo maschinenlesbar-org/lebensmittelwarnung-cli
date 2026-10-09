@@ -16,12 +16,13 @@ is a usage error (exit 2) before any request, rather than the last value silentl
 
 | Option | Description |
 |---|---|
-| `--base-url <url>` | API base URL (only `http:`/`https:` accepted; no query `?` or fragment `#`, no surrounding whitespace; a literal `%` in a password is written `%25`). A plain `http:` URL to a non-loopback host (not `localhost`, `127.0.0.0/8`, `::1`) gets one `warning: … sent unencrypted (http:, not https:)` line on stderr naming the host (and the URL's credentials, never printed); stdout and the exit code are unchanged |
+| `--base-url <url>` | API base URL (only `http:`/`https:` accepted; no query `?` or fragment `#`, no surrounding whitespace; a literal `%` in a password is written `%25`). A plain `http:` URL to a non-loopback host (not `localhost`, `127.0.0.0/8`, `::1`) gets one `WARN` record of `lebensmittel.http` (`… sent unencrypted (http:, not https:)`) on stderr naming the host (and the URL's credentials, never printed); stdout and the exit code are unchanged |
 | `--timeout <ms>` | time limit per request in ms, whole response included (0 = no timeout; at most 2147483647); it bounds each attempt, the waits between retries come on top |
 | `--user-agent <ua>` | User-Agent header value (non-blank, Latin-1, no control characters; else exit `2`) |
 | `--max-retries <n>` | retries for transient 429/503 responses and reset connections (0..10; each waits 200 ms × attempt, or a 429/503's `Retry-After` when that is longer, up to 30 s — a longer one is not retried and the error names the requested wait; refused connections, DNS failures and timeouts are not retried) |
 | `--max-response-bytes <n>` | cap the response body size in bytes (0 = unlimited; default 100 MiB) |
 | `--compact` | print JSON on a single line (for piping to `jq`) |
+| `--log-format <format>` | how errors, warnings and notes are written to stderr: `text` (default; log4j style, `2026-10-09T14:03:12.481Z WARN  [lebensmittel.http] …`) or `jsonl` (one JSON object per line: `ts`, `level`, `topic`, `msg`). stdout is not affected |
 | `-o, --output <file>` | write output to a file instead of stdout (`-` = stdout); refuses an existing file (exit `2`, before any request) |
 | `--force` | overwrite the `--output` file if it already exists (only with `-o`) |
 | `-V, --version` / `-h, --help` | version / help |
@@ -144,7 +145,7 @@ for those, see the recipes below).
 German time (Europe/Berlin), is that day or later. A `pubDate` without a time zone is
 read as German time, whatever the computer's own zone is; one that isn't a date the CLI
 knows (RFC 822 as the feed serves it, ISO 8601, `DD.MM.YYYY HH:MM`) leaves that warning
-out of `--since` with a note on stderr (`Note: --since left out 1 warning whose pubDate
+out of `--since` with a note on stderr (an `INFO` record, `--since left out 1 warning whose pubDate
 could not be read …`), never silently.
 
 > **`pubDate` is not always the first publication.** The portal re-stamps a notice when
@@ -255,7 +256,7 @@ lebensmittel warnings -o warnings-$(date +%F).json --force
   `manufacturer` and `affectedStates` come from fixed German labels that every notice
   carries (255 of 255 on 2026-10-06). When one of them is missing from every warning of
   the feed as served (before `--since`/`--search`/`--limit`), stderr gets one
-  `warning: none of the N warnings in the feed has the description label "…"` line:
+  `WARN` record, `none of the N warnings in the feed has the description label "…"`:
   the portal has probably renamed it, the typed field is empty, and `--search` or a
   filter on that field may miss recalls (the value is still in `fields` under its new
   label). stdout and the exit code are unchanged.
