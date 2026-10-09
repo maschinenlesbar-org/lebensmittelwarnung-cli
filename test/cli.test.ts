@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { run } from "../src/cli/run.js";
 import { LebensmittelwarnungClient } from "../src/client/client.js";
+import { credentialsIn } from "../src/client/errors.js";
 import type { CliDeps } from "../src/cli/io.js";
 import type { HttpRequest, HttpResponse } from "../src/client/http.js";
 import { makeMockTransport, rssResponse, rawResponse, queryOf, untimed } from "./helpers.js";
@@ -510,4 +511,17 @@ test("an empty unfiltered feed or wrapped items exit 1 with the reason on stderr
   assert.equal(await run(["warnings", "--state", "bayern"], wrapped.deps), 1);
   assert.deepEqual(wrapped.out, []);
   assert.match(wrapped.err.join("\n"), /Found 2 <item> elements .* \(2 inside <items>; 0 in place\)/);
+});
+
+test("an a:b@c argument (a search text, an -o path) is neither a credential in the log nor rewritten in the JSON on stdout (L14)", async () => {
+  const feed = '<rss version="2.0"><channel><title>t</title><item><title>Probe run:2026-10-09@x</title></item></channel></rss>';
+  const cli = makeCli(() => rssResponse(feed));
+  assert.equal(await run(["warnings", "--search", "run:2026-10-09@x"], cli.deps), 0);
+  assert.match(cli.out.join("\n"), /"title": "Probe run:2026-10-09@x"/);
+  const written = makeCli(() => rssResponse(feed));
+  assert.equal(await run(["-o", "run:2026-10-09@x.json", "warnings"], written.deps), 0);
+  assert.ok("run:2026-10-09@x.json" in written.files);
+  assert.match(written.err.join("\n"), /Wrote \d+ bytes to run:2026-10-09@x\.json/);
+  assert.deepEqual(credentialsIn("run:2026-10-09@x"), []);
+  assert.deepEqual(credentialsIn("https://alice:pw@host"), ["alice:pw"]);
 });

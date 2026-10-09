@@ -327,8 +327,10 @@ pointed hint to check `--base-url`. Credential headers are never sent cross-host
 (there are none here — the feed needs no auth).
 
 A `user:password@` in the base URL (a mirror behind a login) never reaches the CLI's
-output. `credentialsIn(value)` finds the exact userinfo of a URL-like value, parseable
-or not, with a prefix (`--base-url=…`) or without a scheme (`user:pw@host`), and
+output. `credentialsIn(value)` finds the exact userinfo of a URL, parseable or not; only
+a value that starts with a scheme counts, since a bare `a:b@c` is a search text, an `-o`
+file name or a User-Agent as often as a credential (the `--base-url` value is the
+exception: `run.ts` reads it as if it had a scheme, `BASE_URL_FLAGS`), and
 `redactCredentials(text, list)` replaces each `secret@` with `***@`; `redactUrl` falls
 back to them for a value that doesn't parse. `run()` starts with
 `withRedactedOutput(deps, argv)`, which collects the credentials of every argument (and
@@ -341,7 +343,8 @@ DEL, C1 or bidi characters is matched in its raw form. The forms a server echoes
 userinfo back in are replaced too: the `Basic` value and the decoded `user:password` on
 stdout and stderr, the password alone (4 characters or more) on stderr only, since it may
 well occur in the data. `test/conformance-p1-cli-redaction.test.ts`
-checks ten passwords in seven URL shapes at nine argv positions.
+checks ten passwords in seven URL shapes at nine argv positions (the schemeless shape as
+the `--base-url` value only).
 
 The library keeps them out of what a caller logs, too. The engine holds the base URL in
 a real `#private` field (so `console.log(client)`, `util.inspect` and `JSON.stringify`
