@@ -56,14 +56,14 @@ Verified live against the endpoints on 2026-07-13.
 
 ```bash
 npm install
-npm run build        # compiles TypeScript to dist/
+npm run build        # compiles every workspace (tsc -b) to its dist/
 ```
 
 Run the locally built CLI without a global install:
 
 ```bash
-node dist/src/cli/index.js --help
-# or, after `npm link`:
+node apps/cli/dist/src/cli/index.js --help    # or: npm start -- --help
+# or, after `npm link --workspace apps/cli`:
 lebensmittel --help
 ```
 
@@ -128,7 +128,7 @@ from `JSON.parse`) is a `LebensmittelwarnungValidationError` too (`Invalid query
 key "States"; expected one of state, type, since, search, limit.`) — it used to be
 ignored, and the whole unfiltered feed came back; so is an unknown client option
 (`timeout` for `timeoutMs`; the known ones are `ENGINE_OPTION_KEYS`).
-`test/conformance-p10-strict-filters.test.ts` checks unknown keys, unknown slugs, arrays
+`apps/cli/test/conformance-p10-strict-filters.test.ts` checks unknown keys, unknown slugs, arrays
 and NaN, and repeated `--state`/`--limit` flags. The global value options (`--base-url`,
 `--timeout`, `--user-agent`, `--max-retries`, `--max-response-bytes`, `-o`) go through the
 same `once()` wrapper, which counts occurrences in a closure (so a default value is not
@@ -156,7 +156,7 @@ them), and its body as a `Buffer`, any ArrayBuffer view (fetch's `Uint8Array`) o
 `ArrayBuffer`, from any realm. A reset connection (`ECONNRESET`, `EPIPE`, `ECONNABORTED`,
 undici's `UND_ERR_SOCKET`, anywhere in the `cause` chain) is retried like a 503; whatever a
 transport throws or returns that isn't a response becomes a
-`LebensmittelwarnungNetworkError`. `test/conformance-p5-transport-contract.test.ts` checks
+`LebensmittelwarnungNetworkError`. `apps/cli/test/conformance-p5-transport-contract.test.ts` checks
 this with a never-answering transport, `fetch` against a silent server, a 2 MiB body and
 every body and header shape.
 
@@ -165,13 +165,13 @@ is the floor: a `Retry-After` can make a wait longer, never shorter, so `Retry-A
 or a date in the past no longer sends the retries back to back. A `Retry-After` above
 `MAX_RETRY_AFTER_MS` (30 s) is not retried; the `LebensmittelwarnungApiError` says so,
 names the requested wait and carries it as `retryAfterMs`.
-`test/conformance-p6-retry-policy.test.ts` checks both.
+`apps/cli/test/conformance-p6-retry-policy.test.ts` checks both.
 Each retry is announced: the engine option `onRetry(event: RetryEvent)` (exported type:
 `{ retry` (1-based), `maxRetries`, `delayMs`, `status?` (absent for a reset), `url` (userinfo
 masked) `}`) is called once per retry right before the sleep, never when there is none, and
 a throw in it is swallowed. The CLI's `action()` sets it to log one `WARN` record of
 `lebensmittel.http`, `HTTP 503 from <host>: retry 1 of 3 in 2 s` (`retryMessage`; host only,
-whole seconds, ms under 1 s). Tests: `test/engine.test.ts`, `test/retry-log.test.ts`.
+whole seconds, ms under 1 s). Tests: `packages/client/test/engine.test.ts`, `apps/cli/test/retry-log.test.ts`.
 
 `userAgent` and every `defaultHeaders` value are checked in the constructor with the
 same rule as the CLI's `--user-agent` (`headerValueProblem`, also exported as
@@ -224,7 +224,7 @@ Every other header in `defaultHeaders` goes through unchanged.
 
 ## The RSS parser
 
-[`parseRss`](src/client/rss.ts) turns a feed document into `{ channel, items }`:
+[`parseRss`](packages/client/src/rss.ts) turns a feed document into `{ channel, items }`:
 
 - it is a single forward scan that finds every terminator with `indexOf`, so parsing
   time is **linear** in the body size whatever it contains (the earlier lazy-regex
@@ -250,7 +250,7 @@ Every other header in `defaultHeaders` goes through unchanged.
   so is a feed with more than 100 000 items (a DoS guard; the live feed has a few
   hundred).
 
-[`parseDescription`](src/client/rss.ts) then turns one item's HTML `<description>`
+[`parseDescription`](packages/client/src/rss.ts) then turns one item's HTML `<description>`
 into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
 (a relative `src` resolved against the notice's `link`, or the feed URL) and lets each
 bold label (`<b>` or `<strong>`, attributes allowed) own the text up to the next label,
@@ -264,8 +264,8 @@ image — where every label of the live feed sits); bold text inside a value
 repeats (a notice for two products gives a name and a lot number per product) keeps
 every distinct value, joined with `"; "` (`REPEATED_LABEL_SEPARATOR`), in `fields` and
 in the typed field; `affectedStates` is split on `,` and `;`.
-[`decodeEntities`](src/client/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
-`&euro;`, … in [`entities.ts`](src/client/entities.ts); `&nbsp;` gives U+00A0), and
+[`decodeEntities`](packages/client/src/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
+`&euro;`, … in [`entities.ts`](packages/client/src/entities.ts); `&nbsp;` gives U+00A0), and
 numeric (`&#228;` / `&#xE4;`) refs, rejecting surrogate-range code points; an unknown
 name is left as written. The engine decodes the body by the encoding it is declared
 in, in RFC 7303's order: a byte-order mark (UTF-8, UTF-16), then the Content-Type's
@@ -275,13 +275,50 @@ declared encoding become U+FFFD.
 
 It is deliberately **not** a general-purpose parser (no namespaces, DTDs, or full
 mixed-content reconstruction) — just enough for these shallow feeds, and exercised
-hard in [`test/rss.test.ts`](test/rss.test.ts).
+hard in [`packages/client/test/rss.test.ts`](packages/client/test/rss.test.ts).
 
 ## Architecture
 
+The repository is an **npm workspace** with two folders: `apps/` holds the programs it
+publishes, `packages/` the libraries they are built from.
+
 ```
-src/
-  client/
+package.json         # private workspace manifest: no version, never packed
+apps/cli/            # @maschinenlesbar.org/lebensmittelwarnung-cli — the published package
+  package.json       # its version, bin, files, bundleDependencies
+  src/index.ts       # library entry: re-exports @maschinenlesbar.org/lebensmittelwarnung-client
+  src/cli/           # the CLI (below)
+  test/              # CLI tests and every conformance-*.test.ts
+packages/client/     # @maschinenlesbar.org/lebensmittelwarnung-client — private, bundled into the CLI
+  src/               # the API client (below)
+  test/              # tests that only touch the client, + the transport helpers and fixtures
+tools/pack/          # prepack/postpack: bundle the client and commander into the tarball
+tools/bump.mjs       # version bump + commit + tag (npm run bump)
+tsconfig.docs.json   # TypeDoc only: the package entry, with the client read from its sources
+```
+
+- **The client is its own package** so a later MCP app can share it with the CLI. It is
+  never published on its own: `apps/cli`'s `prepack` copies it (and commander) into the
+  app's `node_modules`, and `bundleDependencies` ships it inside the tarball. The library
+  entry re-exports the client's `"."`, so `import { LebensmittelwarnungClient } from
+  "@maschinenlesbar.org/lebensmittelwarnung-cli"` is unchanged.
+- **The client's exports:** `"."` is the public library surface (`src/index.ts`);
+  `"./internal/*"` maps to any module (`…/lebensmittelwarnung-client/internal/engine`) for
+  what the CLI needs beyond that; `"./test/*"` reaches the client's test helpers and
+  fixtures from the CLI's tests (not bundled). Only `"."` is part of the library.
+- **Dependencies point one way:** the app depends on the client, the client on nothing
+  in the workspace.
+- **The version lives in `apps/cli/package.json`.** The root has none; a plain
+  `npm version` at the root is refused. Release with `npm run bump -- <patch|minor|major>`,
+  which bumps the app, commits (the bare version as the message) and tags `vX.Y.Z`.
+- **TypeScript:** `tsconfig.base.json` holds the compiler options; every workspace has a
+  `tsconfig.json` (`src/`) and a `tsconfig.test.json` (`test/`), and the root
+  `tsconfig.json`/`tsconfig.test.json` reference them, built with `tsc -b`.
+
+The client (`packages/client/src/`) and the CLI (`apps/cli/src/`):
+
+```
+packages/client/src/
     rss.ts       # dependency-free RSS parser + description/field extractor + entity decoder
     entities.ts  # the HTML 4 named character references
     enums.ts     # the state/type slug vocabularies + display names + guards
@@ -293,7 +330,8 @@ src/
     errors.ts    # LebensmittelwarnungError / …ApiError / …NetworkError / …ValidationError / …ParseError
     validate.ts  # the Problem type + assertValid: input rules shared by library and CLI
     client.ts    # LebensmittelwarnungClient — warnings() + field projection
-  cli/
+    index.ts     # the client's public surface (the library entry re-exports it)
+apps/cli/src/cli/
     io.ts        # injectable I/O seam (stdout/stderr/file), the logger and the clock
     log.ts       # the stderr log: records with ts, level, topic; --log-format text|jsonl
     shared.ts    # option parsers (thin wrappers over the library's rules), global-option resolver, JSON renderer
@@ -308,7 +346,7 @@ an EPIPE on stdout (`| head`, a `jq` that exits early) exits 0 quietly; an EPIPE
 stderr is ignored, so a failed run keeps its own exit code (`2>&1 | true` used to turn a
 usage error into 0); any other stdout error is an ERROR record of `lebensmittel.output`
 and exits 1.
-`test/conformance-p7-pipes-exit-codes.test.ts` runs the built bin for both.
+`apps/cli/test/conformance-p7-pipes-exit-codes.test.ts` runs the built bin for both.
 
 **Two seams make the whole thing testable in-process (no subprocesses):**
 `Transport` (the single HTTP function; tests inject a mock returning canned RSS)
@@ -349,7 +387,7 @@ to the raw stderr: the frame (time, level, topic) is never touched, and a passwo
 DEL, C1 or bidi characters is matched in its raw form. The forms a server echoes a
 userinfo back in are replaced too: the `Basic` value and the decoded `user:password` on
 stdout and stderr, the password alone (4 characters or more) on stderr only, since it may
-well occur in the data. `test/conformance-p1-cli-redaction.test.ts`
+well occur in the data. `apps/cli/test/conformance-p1-cli-redaction.test.ts`
 checks ten passwords in seven URL shapes at nine argv positions (the schemeless shape as
 the `--base-url` value only).
 
@@ -362,12 +400,12 @@ password alone from 4 characters: `echoedCredentialForms`), from error bodies (`
 redacted. Whatever a custom transport throws (a string, fetch's `TypeError` naming the
 URL) reaches the caller as a `LebensmittelwarnungNetworkError` with the original,
 scrubbed, as its `cause`. Relative image URLs of an item without a `<link>` are resolved
-against the feed URL without its userinfo. `test/conformance-p2-library-redaction.test.ts`
+against the feed URL without its userinfo. `apps/cli/test/conformance-p2-library-redaction.test.ts`
 checks the client, nine failing transports and five rejected base URLs.
 
 ### Error types
 
-[`errors.ts`](src/client/errors.ts): `LebensmittelwarnungApiError` (non-2xx, carries
+[`errors.ts`](packages/client/src/errors.ts): `LebensmittelwarnungApiError` (non-2xx, carries
 `status`/`detail`, with `isRetryable`/`isNotFound`), `LebensmittelwarnungNetworkError`
 (transport failure/timeout, and the default transport's per-hop scheme check; a bad
 configured `baseUrl` is a `LebensmittelwarnungValidationError` instead), `LebensmittelwarnungParseError` (the body was not RSS —
@@ -388,14 +426,14 @@ The other values the library quotes are bounded too (an unknown key at 60 charac
 charset at 100, a parser's reason at 500), so `err.message` stays bounded for a library
 caller; commander's echo of a typed value and the `-o` path in `Wrote N bytes to …` are
 left to the record's own cap.
-`test/conformance-p8-p9-p13-responses-and-errors.test.ts` checks the declared charset
+`apps/cli/test/conformance-p8-p9-p13-responses-and-errors.test.ts` checks the declared charset
 (P8), the RSS shape (P9) and twenty wrong-typed calls (P13).
 
 ### Input validation
 
 The library owns every rule about what a request may contain; the CLI calls the same
 functions instead of keeping its own copy. A rule is a pure, exported `Problem`
-([`validate.ts`](src/client/validate.ts)): it returns the reason a value is invalid, or
+([`validate.ts`](packages/client/src/validate.ts)): it returns the reason a value is invalid, or
 `undefined`. The library enforces it with `assertValid(name, value, problem)`, which
 throws `LebensmittelwarnungValidationError` with the message `Invalid <name>: <reason>`
 before any request (a constructor throws; a method returning a promise rejects). The
@@ -406,8 +444,15 @@ logged as an `ERROR` record of `lebensmittel.cli`.
 ## Testing
 
 ```bash
-npm test          # builds, then runs `node --test` over dist/test
+npm test          # builds, then runs `node --test` over each workspace's dist/test
+npm run coverage  # the same tests in one run, with a coverage report
+node --test apps/cli/dist/test/cli.test.js   # one file, after a build
 ```
+
+The client's tests are in `packages/client/test/` (`rss`, `query`, `http`, `engine`,
+`client`), with the transport helpers (`helpers.ts`, which `apps/cli/test/helpers.ts`
+re-exports next to the CLI's own helpers) and the canned feeds (`fixtures.ts`);
+everything that drives the CLI is in `apps/cli/test/`.
 
 - **`rss.test.ts`** — the RSS parser: channel-vs-item isolation, CDATA verbatim,
   entity decoding, the label→value extraction, image collection, edge cases.
@@ -420,14 +465,14 @@ npm test          # builds, then runs `node --test` over dist/test
   narrowing (`filterWarnings`, `berlinDay`) — mocked transport.
 - **`cli.test.ts`** — command parsing, the `--state`/`--type` choice validation, the
   `--limit`/`--since`/`--search` options, `--output`, and exit codes — mocked client.
-- **`log.test.ts`** — the record helpers of `src/cli/log.ts` on their own
+- **`log.test.ts`** — the record helpers of `apps/cli/src/cli/log.ts` on their own
   (`escapeForRecord`, `formatLogRecord`, `installWarningLog`); the CLI-level checks are
   P23's. `io.test.ts` tests `handleOutputErrors` and `stderrAfterStdout` with fake streams
   (a closed pipe, a stdout write error as a record, a record held behind stdout's backlog).
 - **`parity.test.ts`** — the same input through `run()` and through the library (via
   `parity()`) gives the same outcome.
 - **`validate.test.ts`** — `assertValid`, the `run.ts` mapping of
-  `LebensmittelwarnungValidationError`, and the `parity()` helper (`test/helpers.ts`),
+  `LebensmittelwarnungValidationError`, and the `parity()` helper (`apps/cli/test/helpers.ts`),
   which sends one input through `run()` and through the library on one recording mock
   transport so a test can assert both give the same outcome.
 - **`conformance-*.test.ts`** — the checks shared by every maschinenlesbar.org CLI (fix
@@ -449,10 +494,14 @@ npm test          # builds, then runs `node --test` over dist/test
 
 GitHub Actions workflows under `.github/workflows/`:
 
-- **ci.yml** — type-check, build and test on Node 22/24 for every push and PR.
-- **release.yml** — on a `v*` tag: verify the tag matches `package.json`, test,
-  `npm pack`, and create a GitHub Release with the tarball + CycloneDX SBOMs.
-- **publish.yml** — manual dispatch from the release tag (`gh workflow run publish.yml --ref vX.Y.Z`; the version is the tag's): publish to npm via OIDC **Trusted
+- **ci.yml** — type-check, build and test on Node 22/24 for every push and PR; then pack the
+  real tarball, check the pack left nothing behind, install it globally with the registry out
+  of reach and run the bin.
+- **release.yml** — on a `v*` tag (made by `npm run bump`): verify the tag matches
+  `apps/cli/package.json`, test, write the CycloneDX SBOMs (scoped to the `apps/cli`
+  workspace), then `npm pack --workspace apps/cli`, and create a GitHub Release with the
+  tarball + SBOMs.
+- **publish.yml** — manual dispatch from the release tag (`gh workflow run publish.yml --ref vX.Y.Z`; the version is the tag's): `npm publish --workspace apps/cli` via OIDC **Trusted
   Publishing** (no stored `NPM_TOKEN`) with provenance.
 - **docs.yml** — build the project website (`site/`, English and German) with the TypeDoc API docs
   under `/api/`, and deploy both to GitHub Pages on each `v*` tag.
@@ -470,8 +519,10 @@ and deployed by `docs.yml` together with the TypeDoc API reference under `/api/`
 comes from this repository: the README intro and quick start, the command tree of the built CLI
 (`site/scripts/cli-reference.mjs`), `Usage.md`, `GLOSSARY.md` and its German version
 `GLOSSARY.de.md`, the skills, and the skill examples in `EXAMPLE.md` and `EXAMPLE.de.md`. The
-only repo-specific files are `site/_config.yml` and `site/_data/project.yml` (the German intro
-and the access requirements); the rest of `site/` is identical in every maschinenlesbar.org
+only repo-specific files are `site/_config.yml` (which also says where the published manifest
+and the built program are: `manifest: apps/cli/package.json`, `program:
+apps/cli/dist/src/cli/program.js`) and `site/_data/project.yml` (the German intro and the
+access requirements); the rest of `site/` is identical in every maschinenlesbar.org
 CLI, so change it in all of them together. When the README intro changes, update the German
 intro in `site/_data/project.yml`.
 
@@ -489,7 +540,7 @@ code contributions; see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ## The log on stderr
 
-Every diagnostic line on stderr is a log record (`src/cli/log.ts`): a timestamp, a level
+Every diagnostic line on stderr is a log record (`apps/cli/src/cli/log.ts`): a timestamp, a level
 (`ERROR`, `WARN`, `INFO`) and a topic, `lebensmittel.<area>`. `--log-format text` (the default)
 writes it log4j style, `<ISO 8601 UTC> <LEVEL padded to 5> [<topic>] <message>`;
 `--log-format jsonl` writes one JSON object per line with exactly `ts`, `level`, `topic`
