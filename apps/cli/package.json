@@ -1,0 +1,70 @@
+{
+  "name": "@maschinenlesbar.org/lebensmittelwarnung-cli",
+  "version": "0.6.0",
+  "description": "TypeScript API client and CLI for the official lebensmittelwarnung.de product-warning feeds — food, cosmetics and consumer-product recalls (Rückrufe), filterable by federal state and product type",
+  "type": "module",
+  "bin": {
+    "lebensmittel": "dist/src/cli/index.js"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/src",
+    "!dist/src/**/*.map",
+    "LICENSING.md",
+    "CONTRIBUTING.md",
+    "DATA_LICENSE.md"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "prepack": "tsc -b ../../tsconfig.json && node ../../tools/pack/prepack.mjs",
+    "postpack": "node ../../tools/pack/postpack.mjs",
+    "test": "node --test $(node -p \"+process.versions.node.split('.')[0] >= 24 ? '--test-timeout=5000' : ''\") dist/test/*.test.js"
+  },
+  "keywords": [
+    "lebensmittelwarnung",
+    "rueckruf",
+    "recall",
+    "lebensmittel",
+    "verbraucherschutz",
+    "bvl",
+    "germany",
+    "rss",
+    "cli",
+    "api-client"
+  ],
+  "author": "Sebastian Schürmann <sebs@2xs.org>",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli.git",
+    "directory": "apps/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/issues"
+  },
+  "homepage": "https://maschinenlesbar-org.github.io/lebensmittelwarnung-cli/",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/sebs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@maschinenlesbar.org/lebensmittelwarnung-client": "0.0.1",
+    "commander": "15.0.0"
+  },
+  "bundleDependencies": [
+    "@maschinenlesbar.org/lebensmittelwarnung-client",
+    "commander"
+  ]
+}
