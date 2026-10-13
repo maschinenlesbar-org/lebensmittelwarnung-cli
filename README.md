@@ -4,7 +4,7 @@
 [![Release](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/actions/workflows/release.yml/badge.svg)](https://github.com/maschinenlesbar-org/lebensmittelwarnung-cli/actions/workflows/release.yml)
 [![npm](https://img.shields.io/npm/v/@maschinenlesbar.org/lebensmittelwarnung-cli)](https://www.npmjs.com/package/@maschinenlesbar.org/lebensmittelwarnung-cli)
 
-**Website:** [English](https://maschinenlesbar-org.github.io/lebensmittelwarnung-cli/) · [Deutsch](https://maschinenlesbar-org.github.io/lebensmittelwarnung-cli/de/) — command reference, guides and API docs
+**Website:** [English](https://maschinenlesbar.org/lebensmittelwarnung-cli/) · [Deutsch](https://maschinenlesbar.org/lebensmittelwarnung-cli/de/) — command reference, guides and API docs
 
 Check Germany's official **product-warning portal**
 ([lebensmittelwarnung.de](https://www.lebensmittelwarnung.de)) from your terminal.
