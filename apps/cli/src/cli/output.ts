@@ -3,7 +3,7 @@
 // controls escaped, a deep or huge answer printed (or refused) cleanly, `-o` never
 // overwriting a file by accident and never leaving half a file behind.
 
-import { OutputError, isDirectoryError, logOf, nodeFiles, refuseOverwrite, type CliDeps } from "./io.js";
+import { OutputError, isDirectoryError, logOf, nodeFiles, reasonOf, refuseOverwrite, type CliDeps } from "./io.js";
 import {
   LebensmittelwarnungError,
   LebensmittelwarnungValidationError,
@@ -41,10 +41,12 @@ export function escapeControlChars(json: string): string {
 
 /**
  * Check `-o` before any request, so a refused target costs none: `--force` without `-o` (a
- * LebensmittelwarnungValidationError), a directory, and an existing path (a dangling link
- * too) without `--force` (an OutputError of the usage kind) are usage errors, exit 2. `-o -`
- * is stdout. The write checks again: a file that appears during the request is not
- * overwritten either, but that is a write failure (exit 1), not a usage error.
+ * LebensmittelwarnungValidationError), a directory, an existing path (a dangling link too)
+ * without `--force`, and a file whose directory is missing or not writable (an OutputError of the
+ * usage kind) are usage errors, exit 2. A stream (`/dev/null`, a FIFO, `/dev/stdout`, `>(…)`)
+ * needs no `--force`: it is written in place, and nothing in it can be lost. `-o -` is stdout.
+ * The write checks again: a file that appears during the request is not overwritten either, but
+ * that is a write failure (exit 1), not a usage error.
  */
 export function checkOutputTarget(deps: CliDeps, options: OutputOptions): void {
   if (options.force === true && options.output === undefined) {
@@ -52,9 +54,13 @@ export function checkOutputTarget(deps: CliDeps, options: OutputOptions): void {
   }
   const path = fileOf(options);
   if (path === undefined) return;
-  const state = (deps.files ?? nodeFiles).state(path);
+  const files = deps.files ?? nodeFiles;
+  const state = files.state(path);
   if (state === "directory") throw isDirectoryError(path, true);
+  if (state === "stream") return;
   if (state === "exists" && options.force !== true) throw refuseOverwrite(path, true);
+  const problem = files.parentProblem(path, options.force === true);
+  if (problem !== undefined) throw new OutputError(problem, { usage: true });
 }
 
 /**
@@ -86,11 +92,10 @@ function writeFailure(path: string, force: boolean, err: unknown): OutputError {
   // A seam's own message ("… is a directory; give a file path to --output.").
   if (err instanceof LebensmittelwarnungError) return new OutputError(err.message, { cause: err });
   if (!force && (err as NodeJS.ErrnoException | undefined)?.code === "EEXIST") return refuseOverwrite(path, false);
-  // A bad --output path (missing directory, no permission, a full disk) is a user error, not
-  // an internal fault. Node's `, open '<path>'` tail is dropped: the path is named already,
-  // and the tail may name the temporary file. The `s` flag lets it span a line break.
-  const reason = err instanceof Error ? err.message.replace(/,\s*open\s+'.*'$/s, "") : String(err);
-  return new OutputError(`Could not write to "${cutForMessage(path)}": ${reason}`, { cause: err });
+  // A bad --output path (a directory removed meanwhile, no permission, a full disk) is a user
+  // error, not an internal fault. Node's `, open '<path>'` tail is dropped (`reasonOf`): the path
+  // is named already, and the tail may name the temporary file.
+  return new OutputError(`Could not write to "${cutForMessage(path)}": ${reasonOf(err)}`, { cause: err });
 }
 
 /** The `-o` file, or undefined for stdout (no `-o`, or `-o -`). */

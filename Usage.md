@@ -23,8 +23,8 @@ is a usage error (exit 2) before any request, rather than the last value silentl
 | `--max-response-bytes <n>` | cap the response body size in bytes (0 = unlimited; default 100 MiB) |
 | `--compact` | print JSON on a single line (for piping to `jq`) |
 | `--log-format <format>` | how errors, warnings and notes are written to stderr: `text` (default; log4j style, `2026-10-09T14:03:12.481Z WARN  [lebensmittel.http] …`) or `jsonl` (one JSON object per line: `ts`, `level`, `topic`, `msg`). stdout is not affected |
-| `-o, --output <file>` | write output to a file instead of stdout (`-` = stdout); refuses an existing file (a dangling link too) and a directory (exit `2`, before any request; one that appears during the request is refused at the write, exit `1`); written atomically, so a write cut short (a full disk) leaves the old file as it was and no half-written one (exit `1`, `Could not write to "<file>": …`) |
-| `--force` | overwrite the `--output` file if it already exists, keeping its mode; through a symlink, the file it points to (only with `-o`) |
+| `-o, --output <file>` | write output to a file instead of stdout (`-` = stdout); refuses an existing file (a dangling link too) unless `--force` is given, and a directory or a file whose directory is missing or not writable (exit `2`, before any request; one that appears during the request is refused at the write, exit `1`); the file is replaced only once complete, so a write cut short (a full disk) leaves the old file as it was and no half-written one (exit `1`, `Could not write to "<file>": …`), and an interrupted run (Ctrl-C, `SIGTERM`, `SIGHUP`: exit `130`, `143`, `129`) leaves no half-written or temporary file. A device, a FIFO or `/dev/stdout` is written in place, without `--force` |
+| `--force` | overwrite the `--output` file if it already exists, keeping its mode; through a symlink, the file it points to, which is created if the link dangles (only with `-o`) |
 | `-V, --version` / `-h, --help` | version / help |
 
 ## `warnings` — current product recalls
@@ -236,7 +236,7 @@ lebensmittel warnings -o warnings-$(date +%F).json --force
 | Code | Meaning |
 |---|---|
 | `0` | Success (also `--help` / `--version`) |
-| `2` | Bad usage / invalid argument (unknown `--state`/`--type`, bad `--since`/`--limit`, an existing `-o` file without `--force`, a directory as `-o`) |
+| `2` | Bad usage / invalid argument (unknown `--state`/`--type`, bad `--since`/`--limit`, an existing `-o` file without `--force`, a directory as `-o`, an `-o` file whose directory is missing or not writable) |
 | `4` | Not found (`404`) |
 | `6` | Network / transport failure (DNS, connection, timeout, size cap) |
 | `1` | Any other error — an `-o` write that fails (a file that appeared during the request, a full disk), non-RSS HTML shell, empty body, an unfiltered feed with no items, `<item>`s outside the channel, or a `3xx` redirect |

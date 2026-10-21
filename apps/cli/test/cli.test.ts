@@ -20,6 +20,7 @@ function makeCli(responder: (req: HttpRequest) => HttpResponse) {
     },
     files: {
       state: (p) => (p in files ? "exists" : "absent"),
+      parentProblem: () => undefined,
       write: (p, d, overwrite) => {
         if (!overwrite && p in files) {
           throw Object.assign(new Error(`EEXIST: file already exists, open '${p}'`), { code: "EEXIST" });
@@ -576,6 +577,7 @@ test("every -o failure is an ERROR record of lebensmittel.output; at the write, 
     const cli = makeCli(() => rssResponse(fx.feedXml));
     cli.deps.files = {
       state: () => "absent",
+      parentProblem: () => undefined,
       write: () => {
         throw t;
       },
@@ -589,6 +591,7 @@ test("every -o failure is an ERROR record of lebensmittel.output; at the write, 
   const race = makeCli(() => rssResponse(fx.feedXml));
   race.deps.files = {
     state: () => "absent",
+    parentProblem: () => undefined,
     write: () => {
       throw Object.assign(new Error("EEXIST: file already exists, open 'out.json'"), { code: "EEXIST" });
     },
@@ -602,6 +605,7 @@ test("the -o failure drops Node's \", open '<path>'\" tail also when the path ho
     const cli = makeCli(() => rssResponse(fx.feedXml));
     cli.deps.files = {
       state: () => "absent",
+      parentProblem: () => undefined,
       write: (p) => {
         throw Object.assign(new Error(`ENOENT: no such file or directory, open '${p}'`), { code: "ENOENT" });
       },

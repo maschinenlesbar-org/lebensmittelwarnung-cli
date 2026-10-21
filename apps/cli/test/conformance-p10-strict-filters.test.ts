@@ -73,7 +73,7 @@ const respond = (_req: HttpRequest): HttpResponse => ({
 });
 /** CliDeps for this repo. */
 const makeDeps = (io: Pick<CliDeps["io"], "out" | "err">, transport: (req: HttpRequest) => Promise<HttpResponse>): CliDeps => ({
-  io: { ...io }, files: { state: () => "absent", write: () => {} },
+  io: { ...io }, files: { state: () => "absent", parentProblem: () => undefined, write: () => {} },
   createClient: (opts) => new Client({ ...opts, transport }),
 });
 // --------------------------------------------------------------------------------------
