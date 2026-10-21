@@ -11,11 +11,13 @@ import { createLogger, type Logger } from "./log.js";
 
 /**
  * Writing the output failed or was refused: an existing `-o` file without `--force` or a
- * directory (`usage`: the usage exit code, 2), a missing directory, EACCES, a full disk, an
- * answer too deeply nested to print, … (exit 1). Logged as an ERROR of `lebensmittel.output`.
+ * directory, found before any request (`usage`: the usage exit code, 2); the same found at the
+ * write, after the request (a file or directory that appeared meanwhile), a missing directory,
+ * EACCES, a full disk, an answer too deeply nested to print, … (exit 1). Logged as an ERROR of
+ * `lebensmittel.output`.
  */
 export class OutputError extends LebensmittelwarnungError {
-  /** True for a refusal the user fixes with `--force` or another path (exit 2). */
+  /** True for a refusal before any request, which the user fixes with `--force` or another path (exit 2). */
   readonly usage: boolean;
   constructor(message: string, options?: { cause?: unknown; usage?: boolean }) {
     super(message, options?.cause === undefined ? undefined : { cause: options.cause });
@@ -51,24 +53,31 @@ export interface OutputFiles {
    * Write `data` to `path` atomically: the old file stays as it was until the new one is
    * complete. Without `overwrite` an existing path is refused, checked by an exclusive create
    * that closes the race with a file appearing meanwhile. A refusal, and a directory, throw
-   * an `OutputError` (`usage`); any other failure throws the file system's error, which
-   * `renderJson` reports as `Could not write to "<path>": <reason>`.
+   * an `OutputError` (not `usage`: the request was made, so it is a write failure, exit 1);
+   * any other failure throws the file system's error, which `renderJson` reports as
+   * `Could not write to "<path>": <reason>`.
    */
   write(path: string, data: Buffer, overwrite: boolean): void;
 }
 
-/** The refusal for an existing `-o` path without `--force` (a usage error, exit 2). */
-export function refuseOverwrite(path: string): OutputError {
+/**
+ * The refusal for an existing `-o` path without `--force`: a usage error (exit 2) when found
+ * before any request (`usage`), a write failure (exit 1) when the file appeared during it.
+ */
+export function refuseOverwrite(path: string, usage: boolean): OutputError {
   return new OutputError(
     `Refusing to overwrite existing file "${cutForMessage(path)}". Pass --force to overwrite, or choose a different --output path.`,
-    { usage: true },
+    { usage },
   );
 }
 
-/** The refusal for an `-o` path that is a directory, which `--force` can't fix (a usage error, exit 2). */
-export function isDirectoryError(path: string, cause?: unknown): OutputError {
+/**
+ * The refusal for an `-o` path that is a directory, which `--force` can't fix: a usage error
+ * (exit 2) when found before any request (`usage`), a write failure (exit 1) at the write.
+ */
+export function isDirectoryError(path: string, usage: boolean, cause?: unknown): OutputError {
   return new OutputError(`"${cutForMessage(path)}" is a directory; give a file path to --output.`, {
-    usage: true,
+    usage,
     ...(cause === undefined ? {} : { cause }),
   });
 }
@@ -90,7 +99,7 @@ export const nodeFiles: OutputFiles = {
     }
   },
   write(path, data, overwrite) {
-    if (nodeFiles.state(path) === "directory") throw isDirectoryError(path);
+    if (nodeFiles.state(path) === "directory") throw isDirectoryError(path, false);
     let claimed = false;
     try {
       // Without overwrite the name is claimed first with an exclusive create ("wx" =
@@ -106,8 +115,8 @@ export const nodeFiles: OutputFiles = {
       // the next run isn't refused for a file that holds half a result.
       if (claimed) rmSync(path, { force: true });
       const code = (cause as NodeJS.ErrnoException | undefined)?.code;
-      if (code === "EEXIST" && !claimed) throw refuseOverwrite(path);
-      if (code === "EISDIR") throw isDirectoryError(path, cause);
+      if (code === "EEXIST" && !claimed) throw refuseOverwrite(path, false);
+      if (code === "EISDIR") throw isDirectoryError(path, false, cause);
       throw cause;
     }
   },

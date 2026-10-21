@@ -327,12 +327,12 @@ test("-o refuses an existing file before any request; --force overwrites", async
   assert.match(cli.files["exists.json"]!.toString(), /bayern/);
 });
 
-test("a file that appears during the request is still not overwritten (exclusive create)", async () => {
+test("a file that appears during the request is still not overwritten (exclusive create), exit 1", async () => {
   const cli = makeCli(() => {
     cli.files["race.json"] = Buffer.from("theirs");
     return rssResponse(fx.feedXml);
   });
-  assert.equal(await run(["-o", "race.json", "warnings"], cli.deps), 2);
+  assert.equal(await run(["-o", "race.json", "warnings"], cli.deps), 1);
   assert.equal(cli.files["race.json"]!.toString(), "theirs");
 });
 
@@ -565,7 +565,7 @@ test("a parse error is logged in the format commander would have parsed (L6)", a
   assert.ok(ua.err.length > 0 && ua.err.every((line) => !isJsonl(line)), ua.err.join("\n"));
 });
 
-test("every -o failure is an ERROR record of lebensmittel.output: a refusal exits 2, a failed write 1 (L8)", async () => {
+test("every -o failure is an ERROR record of lebensmittel.output; at the write, after the request, it exits 1 (L8)", async () => {
   const thrown = [
     new LebensmittelwarnungError('"out" is a directory; give a file path to --output.'),
     Object.assign(new Error("EACCES: permission denied, open 'out.json'"), { code: "EACCES" }),
@@ -584,7 +584,8 @@ test("every -o failure is an ERROR record of lebensmittel.output: a refusal exit
     assert.match(untimed(cli.err.join("\n")), /^ERROR \[lebensmittel\.output\] /);
     assert.doesNotMatch(cli.err.join("\n"), /Unexpected error/);
   }
-  // The file that appeared during the request: the exclusive create refuses it (exit 2).
+  // The file that appeared during the request: the exclusive create refuses it. A write
+  // failure, not a usage error: the user typed nothing wrong, and the request was made (exit 1).
   const race = makeCli(() => rssResponse(fx.feedXml));
   race.deps.files = {
     state: () => "absent",
@@ -592,7 +593,7 @@ test("every -o failure is an ERROR record of lebensmittel.output: a refusal exit
       throw Object.assign(new Error("EEXIST: file already exists, open 'out.json'"), { code: "EEXIST" });
     },
   };
-  assert.equal(await run(["-o", "out.json", "states"], race.deps), 2);
+  assert.equal(await run(["-o", "out.json", "states"], race.deps), 1);
   assert.match(untimed(race.err.join("\n")), /^ERROR \[lebensmittel\.output\] Refusing to overwrite existing file "out\.json"/);
 });
 

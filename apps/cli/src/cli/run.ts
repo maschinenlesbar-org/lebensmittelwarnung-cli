@@ -244,7 +244,8 @@ export async function run(argv: string[], deps: CliDeps = defaultDeps): Promise<
       return err.exitCode === 0 ? 0 : EXIT.USAGE;
     }
     if (err instanceof OutputError) {
-      // An -o failure: the overwrite refusal is a usage error (2), any other failure 1.
+      // An -o failure: a refusal before any request is a usage error (2); at the write, after
+      // the request (a file that appeared meanwhile, a full disk), 1.
       log.error("output", err.message);
       return err.usage ? EXIT.USAGE : EXIT.OTHER;
     }

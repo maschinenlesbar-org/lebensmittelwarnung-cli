@@ -200,19 +200,34 @@ test("--force to a new path creates the file; over a dangling link it replaces t
   });
 });
 
-test("a file that appears during the request is not overwritten: the refusal, exit 2", async () => {
+test("a file that appears during the request is not overwritten: exit 1, an ERROR of the output area", async () => {
   await inTempDir(async (dir) => {
     const path = join(dir, "race.json");
     const cli = makeCli(() => {
       writeFileSync(path, "theirs");
       return rssResponse(fx.feedXml);
     });
-    assert.equal(await run(["-o", path, "warnings"], cli.deps), 2);
+    assert.equal(await run(["-o", path, "warnings"], cli.deps), 1);
     assert.equal(readFileSync(path, "utf8"), "theirs");
     assert.deepEqual(cli.err, [
       `ERROR [lebensmittel.output] Refusing to overwrite existing file "${path}". Pass --force to overwrite, or choose a different --output path.`,
     ]);
     assert.deepEqual(readdirSync(dir), ["race.json"]);
+  });
+});
+
+test("a directory that appears during the request is a write failure too: exit 1, an ERROR of the output area", async () => {
+  await inTempDir(async (dir) => {
+    for (const force of [false, true]) {
+      const path = join(dir, `race-dir-${force}`);
+      const cli = makeCli(() => {
+        mkdirSync(path);
+        return rssResponse(fx.feedXml);
+      });
+      assert.equal(await run(["-o", path, ...(force ? ["--force"] : []), "warnings"], cli.deps), 1, `force ${force}`);
+      assert.deepEqual(cli.err, [`ERROR [lebensmittel.output] "${path}" is a directory; give a file path to --output.`]);
+      assert.deepEqual(readdirSync(path), []);
+    }
   });
 });
 

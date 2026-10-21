@@ -20,7 +20,7 @@ test("state counts a dangling symlink, and a write without overwrite never follo
     const link = join(dir, "link.json");
     symlinkSync(target, link);
     assert.equal(nodeFiles.state(link), "exists");
-    assert.throws(() => nodeFiles.write(link, Buffer.from("x"), false), (err) => err instanceof OutputError && err.usage);
+    assert.throws(() => nodeFiles.write(link, Buffer.from("x"), false), (err) => err instanceof OutputError && !err.usage);
     assert.equal(existsSync(target), false);
   });
 });
@@ -31,7 +31,7 @@ test("write without overwrite refuses an existing file; with overwrite replaces 
     writeFileSync(path, "old");
     assert.throws(
       () => nodeFiles.write(path, Buffer.from("new"), false),
-      (err) => err instanceof OutputError && err.usage && /^Refusing to overwrite existing file /.test(err.message),
+      (err) => err instanceof OutputError && !err.usage && /^Refusing to overwrite existing file /.test(err.message),
     );
     assert.equal(readFileSync(path, "utf8"), "old");
     nodeFiles.write(path, Buffer.from("new"), true);
@@ -46,7 +46,7 @@ test("a directory as --output names the problem, with and without --force", () =
     for (const overwrite of [false, true]) {
       assert.throws(
         () => nodeFiles.write(dir, Buffer.from("x"), overwrite),
-        (err) => err instanceof OutputError && err.usage && /is a directory; give a file path to --output\./.test(err.message),
+        (err) => err instanceof OutputError && !err.usage && /is a directory; give a file path to --output\./.test(err.message),
       );
     }
   });

@@ -44,7 +44,7 @@ export function escapeControlChars(json: string): string {
  * LebensmittelwarnungValidationError), a directory, and an existing path (a dangling link
  * too) without `--force` (an OutputError of the usage kind) are usage errors, exit 2. `-o -`
  * is stdout. The write checks again: a file that appears during the request is not
- * overwritten either.
+ * overwritten either, but that is a write failure (exit 1), not a usage error.
  */
 export function checkOutputTarget(deps: CliDeps, options: OutputOptions): void {
   if (options.force === true && options.output === undefined) {
@@ -53,8 +53,8 @@ export function checkOutputTarget(deps: CliDeps, options: OutputOptions): void {
   const path = fileOf(options);
   if (path === undefined) return;
   const state = (deps.files ?? nodeFiles).state(path);
-  if (state === "directory") throw isDirectoryError(path);
-  if (state === "exists" && options.force !== true) throw refuseOverwrite(path);
+  if (state === "directory") throw isDirectoryError(path, true);
+  if (state === "exists" && options.force !== true) throw refuseOverwrite(path, true);
 }
 
 /**
@@ -63,8 +63,9 @@ export function checkOutputTarget(deps: CliDeps, options: OutputOptions): void {
  * stdout stays clean for a pipe). The file holds exactly what stdout would show, plus a
  * newline, and is written atomically (`OutputFiles.write`): without `--force` an existing
  * file is never replaced, with it the old file stays whole until the new one is complete.
- * Every failure is an `OutputError`, an ERROR record of `lebensmittel.output`: a refusal
- * exits 2, any other failure 1, `Could not write to "<path>": <reason>`.
+ * Every failure is an `OutputError`, an ERROR record of `lebensmittel.output`, exit 1: the
+ * request was made, so a file or directory that appeared meanwhile is a write failure too;
+ * any other failure reads `Could not write to "<path>": <reason>`.
  */
 export function renderJson(deps: CliDeps, options: OutputOptions, value: unknown): void {
   const text = escapeControlChars(stringifyJson(value, options.compact === true));
@@ -84,7 +85,7 @@ function writeFailure(path: string, force: boolean, err: unknown): OutputError {
   if (err instanceof OutputError) return err;
   // A seam's own message ("… is a directory; give a file path to --output.").
   if (err instanceof LebensmittelwarnungError) return new OutputError(err.message, { cause: err });
-  if (!force && (err as NodeJS.ErrnoException | undefined)?.code === "EEXIST") return refuseOverwrite(path);
+  if (!force && (err as NodeJS.ErrnoException | undefined)?.code === "EEXIST") return refuseOverwrite(path, false);
   // A bad --output path (missing directory, no permission, a full disk) is a user error, not
   // an internal fault. Node's `, open '<path>'` tail is dropped: the path is named already,
   // and the tail may name the temporary file. The `s` flag lets it span a line break.
