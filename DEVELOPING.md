@@ -445,8 +445,10 @@ pointed hint to check `--base-url`. Credential headers are never sent cross-host
 
 A `user:password@` in the base URL (a mirror behind a login) never reaches the CLI's
 output. `credentialsIn(value)` finds the exact userinfo of a URL, parseable or not; only
-a value that starts with a scheme counts, since a bare `a:b@c` is a search text, an `-o`
-file name or a User-Agent as often as a credential (the `--base-url` value is the
+a URL with a scheme counts, since a bare `a:b@c` is a search text, an `-o`
+file name or a User-Agent as often as a credential. Such a URL is found wherever it starts in an
+argument (`urlsWithin`: padded, after a dash, inside a `--search` phrase), and its userinfo is
+replaced as typed, terminal-escaped, JSON-quoted and percent-encoded (the `--base-url` value is the
 exception: `run.ts` reads it as if it had a scheme, `BASE_URL_FLAGS`), and
 `redactCredentials(text, list)` replaces each `secret@` with `***@`; `redactUrl` falls
 back to them for a value that doesn't parse. `run()` starts with

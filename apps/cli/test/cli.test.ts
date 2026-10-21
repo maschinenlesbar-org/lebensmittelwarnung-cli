@@ -631,3 +631,31 @@ test("the -o failure drops Node's \", open '<path>'\" tail also when the path ho
     assert.doesNotMatch(msg, /open '/);
   }
 });
+
+// T15 of the 2026-10-21 fix round (the class of jobsuche-cli 28be809): a URL with a password
+// inside an argument, padded, after a dash or mid-phrase, was not found by the redaction (it read
+// a URL at the start of an argument only), so the password reached stderr in the messages that
+// quote the value.
+test("a password in a URL inside any argument is redacted on stderr, in every message that quotes it (T15)", async () => {
+  const url = "https://bob:s3cretpw@host.example/";
+  const argvs = [
+    ["warnings", "--search", ` ${url}\u200b`],
+    ["warnings", "--search", `K\u00e4se ${url}\u0000`],
+    ["warnings", "--state", ` ${url}`],
+    ["warnings", "--type", `x${url}`],
+    ["warnings", "-o", ` -${url}`],
+    ["-o", `nodir/x ${url}/out.json`, "warnings"],
+    ["--user-agent", `ua ${url}\u0001`, "warnings"],
+    [`--user-agent=ua ${url}\u0001`, "warnings"],
+    ["warnings", `extra ${url}`],
+    [`x${url}`],
+  ];
+  for (const argv of argvs) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    cli.deps.files = undefined;
+    await run(argv, cli.deps);
+    const err = cli.err.join("\n");
+    assert.ok(err.length > 0, JSON.stringify(argv));
+    assert.doesNotMatch(err, /s3cretpw|bob%3As3/, `${JSON.stringify(argv)}: ${err}`);
+  }
+});
