@@ -366,7 +366,10 @@ ERROR record of `lebensmittel.output`) that suggests `--compact`, not "Maximum c
 size exceeded". `--compact` takes V8's fast path, the only one that prints very deep
 nesting on Node 26, unless the answer holds a string or key of 64 Mi characters or more
 (`holdsHugeString`): on such a string the fast path aborts Node 26, and the path with an
-empty gap prints the same text. `apps/cli/test/output.test.ts` pins both.
+empty gap prints the same text. `apps/cli/test/output.test.ts` pins both. The printed
+JSON, on stdout and in the `-o` file, escapes what `JSON.stringify` leaves raw although a
+terminal acts on it: DEL, C1 (U+0080–U+009F) and the bidi controls (`isBidiControl`:
+U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), so a U+202E prints as `\u202e`.
 
 **Two seams make the whole thing testable in-process (no subprocesses):**
 `Transport` (the single HTTP function; tests inject a mock returning canned RSS)

@@ -20,6 +20,7 @@ export {
   MAX_RETRY_AFTER_MS,
   assertHeaderValue,
   cleartextProblem,
+  isBidiControl,
   parseRetryAfter,
   validateBaseUrl,
 } from "./engine.js";

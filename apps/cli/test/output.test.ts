@@ -57,3 +57,19 @@ test("--compact takes the gap path only for an answer holding a huge string, the
   assert.deepEqual(calls.map((args) => (args.length >= 3 ? args[2] : "none")), ["", "none", "", "", 2]);
   assert.deepEqual(out, ['"stub"', '"stub"', '"stub"', '"stub"', '"stub"']);
 });
+
+test("printed JSON escapes DEL, C1 and the bidi controls, pretty and compact (K10)", () => {
+  // JSON.stringify leaves them raw, and a terminal acts on them: U+202E reverses the text
+  // after it, U+009B is the 8-bit CSI. Server data, so they are escaped; the JSON is the same.
+  const value = [{ title: "Käse \u202eevil\u202c \u2066x\u2069 \u200f\u061c \u007f\u009b end" }];
+  for (const compact of [false, true]) {
+    const { deps, out } = makeDeps();
+    renderJson(deps, { compact }, value);
+    const text = out.join("\n");
+    assert.match(text, /\\u202e/);
+    for (const raw of ["\u202e", "\u202c", "\u2066", "\u2069", "\u200f", "\u061c", "\u007f", "\u009b"]) {
+      assert.ok(!text.includes(raw), `U+${raw.charCodeAt(0).toString(16)} printed raw`);
+    }
+    assert.deepEqual(JSON.parse(text), value);
+  }
+});
