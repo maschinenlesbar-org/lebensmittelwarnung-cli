@@ -14,7 +14,7 @@ import {
   nonBlankProblem,
 } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/validate";
 import { DEFAULT_BASE_URL, cleartextProblem, type RetryEvent } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/engine";
-import { cutForMessage } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
+import { quoteValue } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
 
 /**
  * commander value-parser: a plain base-10 non-negative integer.
@@ -91,7 +91,7 @@ export function parseOutputPath(value: string): string {
   parseNonEmpty(value);
   if (value !== "-" && value.startsWith("-")) {
     throw new InvalidArgumentError(
-      `looks like a missing value — ${JSON.stringify(cutForMessage(value))} is the next option, consumed because ` +
+      `looks like a missing value — ${quoteValue(value)} is the next option, consumed because ` +
         "this one was left without a value. For a file whose name starts with a dash, write ./-name.",
     );
   }

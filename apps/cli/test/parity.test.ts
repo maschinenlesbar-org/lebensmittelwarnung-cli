@@ -160,3 +160,27 @@ test("base URL: an accepted value gives the same request on both sides", async (
     assert.deepEqual(cli.requests, lib.requests, url);
   }
 });
+
+// ---- D10: a refusal quotes the value visibly ----
+
+test("a refused --state/--type shows an invisible or control character escaped on both sides, never raw (D10)", async () => {
+  for (const [option, key, value] of [
+    ["--state", "state", "bay\u200bern"],
+    ["--type", "type", "lebens\u00admittel"],
+    ["--state", "state", "\u202ebayern"],
+    ["--state", "state", "bayern\u2028"],
+  ] as const) {
+    const o = await parity(["warnings", option, value], (t) =>
+      new LebensmittelwarnungClient({ transport: t }).warnings({ [key]: value } as WarningsQuery));
+    const ch = [...value].find((c) => /[\p{Cf}\p{Zl}]/u.test(c)) ?? "";
+    const escape = `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`;
+    assert.equal(o.cli.code, 2, `${option} ${JSON.stringify(value)}`);
+    assert.deepEqual(o.cli.requests, []);
+    assert.ok(o.cli.err.includes(escape), `${JSON.stringify(value)}: the CLI's refusal doesn't show ${escape}: ${o.cli.err}`);
+    assert.ok(!o.cli.err.includes(ch), `${JSON.stringify(value)}: the CLI's refusal shows the character raw`);
+    assert.equal(o.lib.ok, false);
+    const message = o.lib.ok ? "" : (o.lib.error as Error).message;
+    assert.ok(message.includes(escape), `${JSON.stringify(value)}: the library's refusal doesn't show ${escape}: ${message}`);
+    assert.ok(!message.includes(ch), `${JSON.stringify(value)}: the library's refusal shows the character raw`);
+  }
+});

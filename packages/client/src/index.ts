@@ -61,6 +61,7 @@ export {
   redactUrl,
   cutForMessage,
   MAX_MESSAGE_VALUE_LENGTH,
+  quoteValue,
   credentialsIn,
   redactCredentials,
 } from "./errors.js";

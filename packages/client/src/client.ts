@@ -16,7 +16,7 @@
 import { RequestEngine, type EngineOptions } from "./engine.js";
 import { parseDescription, type ReplacementTally } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
-import { LebensmittelwarnungParseError, LebensmittelwarnungValidationError, cutForMessage } from "./errors.js";
+import { LebensmittelwarnungParseError, LebensmittelwarnungValidationError, cutForMessage, quoteValue } from "./errors.js";
 import { berlinDay, parsePubDate } from "./dates.js";
 import { assertValid, calendarDateProblem, knownKeysProblem, limitProblem, nonBlankProblem } from "./validate.js";
 import type { Warning, WarningsFilter, WarningsQuery } from "./types.js";
@@ -93,10 +93,10 @@ function resolveBase(link: string | undefined, feedUrl: string): string {
   }
 }
 
+/** The refusal of a value; a string is quoted visibly (`quoteValue`: an invisible character shows as `\u200b`). */
 function invalid(name: string, expected: string, got: unknown): LebensmittelwarnungValidationError {
-  return new LebensmittelwarnungValidationError(
-    `Invalid ${name}: expected ${expected}, got ${cutForMessage(String(JSON.stringify(got)))}.`,
-  );
+  const shown = typeof got === "string" ? quoteValue(got) : cutForMessage(String(JSON.stringify(got)));
+  return new LebensmittelwarnungValidationError(`Invalid ${name}: expected ${expected}, got ${shown}.`);
 }
 
 /** The checked form of a {@link WarningsFilter}: a trimmed day, the folded needles. */

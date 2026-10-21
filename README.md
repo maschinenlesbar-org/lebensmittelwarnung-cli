@@ -134,7 +134,8 @@ short, by a full disk or a file-size limit, exits `1`, never `0`). By default it
 `--log-format jsonl` writes one JSON object per line instead. A record is always one line:
 a line break, a control character or a bidi control in a message (a server's text, a value
 you typed) is written as an escape (`\n`, `\u001b`, `\u202e`), so it can neither split a
-record nor forge another one, nor steer the terminal; a message longer than 4000
+record nor forge another one, nor steer the terminal (a refused value you typed shows an
+invisible character, such as a zero-width space, as `\u200b`); a message longer than 4000
 characters is cut and ends in `… (N more characters)`:
 
 ```text

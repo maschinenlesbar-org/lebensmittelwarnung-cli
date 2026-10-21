@@ -491,7 +491,11 @@ expected an integer from 0 to 2147483647, got NaN.` — `maxRetries` 0..`MAX_RET
 extending `LebensmittelwarnungError`. A wrong-typed input is that validation error too,
 never a raw `TypeError`: a non-object query (`warnings("bayern")`, `warnings(null)`), a
 non-array list for `filterWarnings`, a `transport` or `sleep` that isn't a function.
-Echoed values and server text are cut at 500 characters in messages
+A refused value is quoted visibly (`quoteValue`, exported): as JSON, with DEL, C1, U+2028/2029
+and every format character (a zero-width space, a soft hyphen, a bidi control) escaped, so
+`Invalid state: expected one of …, got "bay\u200bern".` says what is wrong; the CLI escapes
+commander's own echo of a rejected value the same way (`escapeCommanderError`). Echoed values
+and server text are cut at 500 characters in messages
 (`cutForMessage`), a plain-text error body at 200, never inside a surrogate pair
 (`cutText`), so the message stays well-formed; the error's properties keep the full value.
 The other values the library quotes are bounded too (an unknown key at 60 characters, a
