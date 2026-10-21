@@ -14,6 +14,7 @@ import {
   nonBlankProblem,
 } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/validate";
 import { DEFAULT_BASE_URL, cleartextProblem, type RetryEvent } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/engine";
+import { cutForMessage } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
 
 /**
  * commander value-parser: a plain base-10 non-negative integer.
@@ -79,9 +80,22 @@ export function choiceOption(flags: string, description: string, choices: readon
  * is a usage error: `-o ""` used to print to stdout silently and `-o " "` created a
  * file named " ". `-` is kept as is and means stdout (see {@link action}), the
  * usual convention, rather than a file named "-".
+ *
+ * Any other dash-leading value is refused as the next option: `lebensmittel warnings -o
+ * --compact` wrote a pretty-printed file named "--compact" with exit 0, since commander hands a
+ * value option the next argument whatever it looks like. commander gives the parser the same
+ * string for `-o -x` and `--output=-x`, so a file whose name starts with a dash is written as
+ * `./-x`.
  */
 export function parseOutputPath(value: string): string {
-  return parseNonEmpty(value);
+  parseNonEmpty(value);
+  if (value !== "-" && value.startsWith("-")) {
+    throw new InvalidArgumentError(
+      `looks like a missing value — ${JSON.stringify(cutForMessage(value))} is the next option, consumed because ` +
+        "this one was left without a value. For a file whose name starts with a dash, write ./-name.",
+    );
+  }
+  return value;
 }
 
 /**

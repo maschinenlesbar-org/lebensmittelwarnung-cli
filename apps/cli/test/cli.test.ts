@@ -308,6 +308,20 @@ test("-o with a blank or whitespace path is a usage error (exit 2), no request, 
   }
 });
 
+test("-o refuses the next option as its file name, before any request; ./-name writes a dash-leading file (T13)", async () => {
+  for (const argv of [["warnings", "-o", "--compact"], ["--output=-v", "warnings"], ["-o", "--force", "states"]]) {
+    const cli = makeCli(() => rssResponse(fx.feedXml));
+    assert.equal(await run(argv, cli.deps), 2, argv.join(" "));
+    assert.equal(cli.mt.calls.length, 0, argv.join(" "));
+    assert.deepEqual(Object.keys(cli.files), [], argv.join(" "));
+    assert.match(cli.err.join("\n"), /looks like a missing value — "-[-a-z]+" is the next option/, argv.join(" "));
+    assert.match(cli.err.join("\n"), /\.\/-name/, argv.join(" "));
+  }
+  const cli = makeCli(() => rssResponse(fx.feedXml));
+  assert.equal(await run(["-o", "./-v.json", "warnings"], cli.deps), 0);
+  assert.deepEqual(Object.keys(cli.files), ["./-v.json"]);
+});
+
 test("-o - prints to stdout like no -o (no file, no Wrote note)", async () => {
   const cli = makeCli(() => rssResponse(fx.feedXml));
   assert.equal(await run(["--compact", "--output=-", "warnings"], cli.deps), 0);
