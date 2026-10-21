@@ -321,6 +321,14 @@ export function parseRss(xml: string): RssFeed {
   return { channel, items };
 }
 
+/**
+ * Set `fields[label]` as an own, enumerable entry. The label is the feed's text: an assignment
+ * with the label `__proto__` would call Object.prototype's setter instead, and the field was lost.
+ */
+function setField(fields: Record<string, string>, label: string, value: string): void {
+  Object.defineProperty(fields, label, { value, enumerable: true, writable: true, configurable: true });
+}
+
 /** The structured result of parsing one item's HTML `<description>`. */
 export interface ParsedDescription {
   /** Every `<b>Label:</b> value` pair, keyed by the (trailing-colon-stripped) label. */
@@ -521,8 +529,8 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
       const values = seen.get(value.label) ?? [];
       if (!values.includes(text)) values.push(text);
       seen.set(value.label, values);
-      fields[value.label] = values.join(REPEATED_LABEL_SEPARATOR);
-    } else if (!Object.hasOwn(fields, value.label)) fields[value.label] = "";
+      setField(fields, value.label, values.join(REPEATED_LABEL_SEPARATOR));
+    } else if (!Object.hasOwn(fields, value.label)) setField(fields, value.label, "");
     value = undefined;
   };
 

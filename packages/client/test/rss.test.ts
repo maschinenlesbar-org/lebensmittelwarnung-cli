@@ -266,3 +266,11 @@ test("parseRss throws on <item> elements it would not read (an <items> wrapper, 
   // An <item> in an item's description is text, not an element; items in place are fine.
   assert.equal(parseRss("<rss><channel><item><description><![CDATA[<item>x</item>]]></description></item></channel></rss>").items.length, 1);
 });
+
+test("a label named __proto__ is an ordinary field, never the prototype of fields (T12)", () => {
+  const { fields } = parseDescription("<b>__proto__:</b> Wert<br/><b>constructor:</b> c<br/><b>Grund der Meldung:</b> g");
+  assert.equal(Object.getPrototypeOf(fields), Object.prototype);
+  assert.deepEqual(Object.keys(fields), ["__proto__", "constructor", "Grund der Meldung"]);
+  assert.equal(Object.getOwnPropertyDescriptor(fields, "__proto__")?.value, "Wert");
+  assert.equal(JSON.stringify(fields), '{"__proto__":"Wert","constructor":"c","Grund der Meldung":"g"}');
+});

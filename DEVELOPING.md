@@ -217,7 +217,7 @@ Every other header in `defaultHeaders` goes through unchanged.
 | `packaging` | "Verpackungseinheit" | |
 | `imageUrls` | `<img src>` | Every image in the description, in order |
 | `images` | `<img src>` + "Bildquelle" | The same images as `{ url, credit? }`, each with the credit caption that follows it (`fields.Bildquelle` keeps only the last) |
-| `fields` | all `<b>Label:</b> value` pairs | The complete label→value map (superset) |
+| `fields` | all `<b>Label:</b> value` pairs | The complete label→value map (superset); every label is an own entry, `__proto__` too |
 | `rawDescription` | `<description>` | The original HTML, verbatim |
 
 > **Maintenance:** the typed accessors map fixed German labels (in `client.ts`'s

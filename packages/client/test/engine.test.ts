@@ -573,3 +573,16 @@ test("a reset retried to the end says how often it was retried (K3)", async () =
     message: "GET https://www.lebensmittelwarnung.de/feed.xml failed: socket hang up (after 2 retries)",
   });
 });
+
+test("a header named __proto__ is an ordinary header, never the prototype of the headers read (T12)", async () => {
+  // A JavaScript transport's headers from JSON.parse carry `__proto__` as an own key. Copied into
+  // a plain object, it became the record's prototype, and its `content-type` decided the charset.
+  const headers = JSON.parse('{"__proto__": {"content-type": "text/xml; charset=iso-8859-1"}}') as Record<string, string>;
+  const body = Buffer.from('<?xml version="1.0"?><rss><channel><item><title>Käse</title></item></channel></rss>', "utf8");
+  const e = new RequestEngine({ transport: async () => ({ status: 200, headers, body }) });
+  const feed = await e.getFeed("/feed.xml");
+  assert.equal(feed.items[0]?.title, "Käse");
+  const map = new Map([["__proto__", "x"]]);
+  const viaMap = new RequestEngine({ transport: async () => ({ status: 200, headers: map as unknown as Record<string, string>, body }) });
+  assert.equal((await viaMap.getFeed("/feed.xml")).items[0]?.title, "Käse");
+});

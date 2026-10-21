@@ -294,18 +294,20 @@ function bodyBytes(value: unknown): Buffer | undefined {
  * custom one may write `Retry-After` in any case: the engine then saw no Retry-After and
  * retried after its own short backoff, inside the server's window. Such an object
  * (anything with `get` and `forEach`, a `Headers` or a `Map`) is copied into a record; a
- * plain record gets its names lower-cased.
+ * plain record gets its names lower-cased. Both records have no prototype, so a header named
+ * `__proto__` (an own key of a transport's object from JSON.parse) is an entry like any other,
+ * never the record's prototype, whose entries would then read as headers the answer didn't send.
  */
 function plainHeaders(headers: object): Record<string, string | string[] | undefined> {
   const h = headers as { get?: unknown; forEach?: unknown };
   if (typeof h.get === "function" && typeof h.forEach === "function") {
-    const record: Record<string, string> = {};
+    const record: Record<string, string> = Object.create(null) as Record<string, string>;
     (h.forEach as (cb: (value: unknown, name: unknown) => void) => void).call(headers, (value, name) => {
       record[String(name).toLowerCase()] = String(value);
     });
     return record;
   }
-  const record: Record<string, string | string[] | undefined> = {};
+  const record = Object.create(null) as Record<string, string | string[] | undefined>;
   for (const [name, value] of Object.entries(headers as Record<string, string | string[] | undefined>)) {
     record[name.toLowerCase()] = value;
   }
