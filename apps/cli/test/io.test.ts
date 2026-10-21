@@ -1,10 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defaultIO } from "../src/cli/io.js";
-import { LebensmittelwarnungError } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
+import { OutputError, nodeFiles } from "../src/cli/io.js";
 
 function withTempDir(fn: (dir: string) => void): void {
   const dir = mkdtempSync(join(tmpdir(), "lmw-io-"));
@@ -15,34 +14,39 @@ function withTempDir(fn: (dir: string) => void): void {
   }
 }
 
-test("fileExists counts a dangling symlink, and an exclusive write never follows it", () => {
+test("state counts a dangling symlink, and a write without overwrite never follows it", () => {
   withTempDir((dir) => {
     const target = join(dir, "target.json");
     const link = join(dir, "link.json");
     symlinkSync(target, link);
-    assert.equal(defaultIO.fileExists(link), true);
-    assert.throws(() => defaultIO.writeFile(link, Buffer.from("x"), false), { code: "EEXIST" });
+    assert.equal(nodeFiles.state(link), "exists");
+    assert.throws(() => nodeFiles.write(link, Buffer.from("x"), false), (err) => err instanceof OutputError && err.usage);
     assert.equal(existsSync(target), false);
   });
 });
 
-test("writeFile without overwrite refuses an existing file; with overwrite replaces it", () => {
+test("write without overwrite refuses an existing file; with overwrite replaces it", () => {
   withTempDir((dir) => {
     const path = join(dir, "out.json");
     writeFileSync(path, "old");
-    assert.throws(() => defaultIO.writeFile(path, Buffer.from("new"), false), { code: "EEXIST" });
-    defaultIO.writeFile(path, Buffer.from("new"), true);
+    assert.throws(
+      () => nodeFiles.write(path, Buffer.from("new"), false),
+      (err) => err instanceof OutputError && err.usage && /^Refusing to overwrite existing file /.test(err.message),
+    );
+    assert.equal(readFileSync(path, "utf8"), "old");
+    nodeFiles.write(path, Buffer.from("new"), true);
     assert.equal(readFileSync(path, "utf8"), "new");
+    assert.deepEqual(readdirSync(dir), ["out.json"]);
   });
 });
 
 test("a directory as --output names the problem, with and without --force", () => {
   withTempDir((dir) => {
-    assert.equal(defaultIO.fileExists(dir), false); // not "refusing to overwrite": --force would not help
+    assert.equal(nodeFiles.state(dir), "directory"); // not "refusing to overwrite": --force would not help
     for (const overwrite of [false, true]) {
       assert.throws(
-        () => defaultIO.writeFile(dir, Buffer.from("x"), overwrite),
-        (err) => err instanceof LebensmittelwarnungError && /is a directory; give a file path to --output\./.test(err.message),
+        () => nodeFiles.write(dir, Buffer.from("x"), overwrite),
+        (err) => err instanceof OutputError && err.usage && /is a directory; give a file path to --output\./.test(err.message),
       );
     }
   });

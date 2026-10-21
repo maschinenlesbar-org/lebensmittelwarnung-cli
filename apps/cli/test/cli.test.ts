@@ -17,13 +17,15 @@ function makeCli(responder: (req: HttpRequest) => HttpResponse) {
     io: {
       out: (s) => out.push(s),
       err: (s) => err.push(s),
-      writeFile: (p, d, overwrite) => {
+    },
+    files: {
+      state: (p) => (p in files ? "exists" : "absent"),
+      write: (p, d, overwrite) => {
         if (!overwrite && p in files) {
           throw Object.assign(new Error(`EEXIST: file already exists, open '${p}'`), { code: "EEXIST" });
         }
         files[p] = d;
       },
-      fileExists: (p) => p in files,
     },
     createClient: (opts) => new LebensmittelwarnungClient({ ...opts, transport: mt.transport }),
   };
@@ -572,8 +574,11 @@ test("every -o failure is an ERROR record of lebensmittel.output: a refusal exit
   ];
   for (const t of thrown) {
     const cli = makeCli(() => rssResponse(fx.feedXml));
-    cli.deps.io.writeFile = () => {
-      throw t;
+    cli.deps.files = {
+      state: () => "absent",
+      write: () => {
+        throw t;
+      },
     };
     assert.equal(await run(["-o", "out.json", "states"], cli.deps), 1, String(t));
     assert.match(untimed(cli.err.join("\n")), /^ERROR \[lebensmittel\.output\] /);
@@ -581,8 +586,11 @@ test("every -o failure is an ERROR record of lebensmittel.output: a refusal exit
   }
   // The file that appeared during the request: the exclusive create refuses it (exit 2).
   const race = makeCli(() => rssResponse(fx.feedXml));
-  race.deps.io.writeFile = () => {
-    throw Object.assign(new Error("EEXIST: file already exists, open 'out.json'"), { code: "EEXIST" });
+  race.deps.files = {
+    state: () => "absent",
+    write: () => {
+      throw Object.assign(new Error("EEXIST: file already exists, open 'out.json'"), { code: "EEXIST" });
+    },
   };
   assert.equal(await run(["-o", "out.json", "states"], race.deps), 2);
   assert.match(untimed(race.err.join("\n")), /^ERROR \[lebensmittel\.output\] Refusing to overwrite existing file "out\.json"/);
@@ -591,13 +599,16 @@ test("every -o failure is an ERROR record of lebensmittel.output: a refusal exit
 test("the -o failure drops Node's \", open '<path>'\" tail also when the path holds a line break", async () => {
   for (const path of ["/nonexistent\nZZ/x", "/nonexistent\u2028ZZ/x", "/nonexistent\rZZ/x", "/nonexistent/x"]) {
     const cli = makeCli(() => rssResponse(fx.feedXml));
-    cli.deps.io.writeFile = (p) => {
-      throw Object.assign(new Error(`ENOENT: no such file or directory, open '${p}'`), { code: "ENOENT" });
+    cli.deps.files = {
+      state: () => "absent",
+      write: (p) => {
+        throw Object.assign(new Error(`ENOENT: no such file or directory, open '${p}'`), { code: "ENOENT" });
+      },
     };
     assert.equal(await run(["-o", path, "states"], cli.deps), 1);
     assert.equal(cli.err.length, 1, cli.err.join("\n"));
     const msg = untimed(cli.err[0] as string);
-    assert.match(msg, /^ERROR \[lebensmittel\.output\] Could not write to \/nonexistent.*: ENOENT: no such file or directory$/);
+    assert.match(msg, /^ERROR \[lebensmittel\.output\] Could not write to "\/nonexistent.*": ENOENT: no such file or directory$/);
     assert.doesNotMatch(msg, /open '/);
   }
 });

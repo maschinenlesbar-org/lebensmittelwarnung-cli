@@ -4,9 +4,8 @@
 import type { Command } from "commander";
 import { InvalidArgumentError, Option } from "commander";
 import { logOf, type CliDeps } from "./io.js";
-import { refuseOverwrite } from "./output.js";
+import { checkOutputTarget } from "./output.js";
 import type { LebensmittelwarnungClientOptions } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/client";
-import { LebensmittelwarnungValidationError } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
 import {
   baseUrlProblem,
   calendarDateProblem,
@@ -196,17 +195,11 @@ export function action(
     const command = args[args.length - 1] as Command;
     const positionals = args.slice(0, Math.max(0, args.length - 2)) as string[];
     const global = command.optsWithGlobals() as GlobalOptions;
-    // --force only lets -o overwrite a file; on its own it would be ignored.
-    if (global.force === true && global.output === undefined) {
-      throw new LebensmittelwarnungValidationError("--force needs --output (it only allows overwriting the -o file).");
-    }
+    // -o is checked before any request, so nothing is fetched (or waited for) in vain:
+    // --force without -o, a directory, an existing file without --force.
+    checkOutputTarget(deps, global);
     // `-o -` means stdout: from here on it is the same as no -o.
     if (global.output === "-") delete global.output;
-    // Refuse an existing --output file before any request, so nothing is fetched (or
-    // waited for) in vain. writeOutputFile checks again with an exclusive create.
-    if (global.output !== undefined && global.force !== true && deps.io.fileExists(global.output)) {
-      throw refuseOverwrite(global.output);
-    }
     const cleartext = cleartextProblem(global.baseUrl ?? DEFAULT_BASE_URL);
     if (cleartext !== undefined) logOf(deps).warn("http", cleartext);
     const options = toEngineOptions(global);

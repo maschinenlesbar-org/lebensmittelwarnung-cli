@@ -1,10 +1,14 @@
 // The output sink: everything the CLI writes as data, to stdout or to the `-o` file. One
 // place for the rules the maschinenlesbar.org CLIs learned one bug at a time: terminal
 // controls escaped, a deep or huge answer printed (or refused) cleanly, `-o` never
-// overwriting a file by accident.
+// overwriting a file by accident and never leaving half a file behind.
 
-import { OutputError, logOf, type CliDeps } from "./io.js";
-import { LebensmittelwarnungError } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
+import { OutputError, isDirectoryError, logOf, nodeFiles, refuseOverwrite, type CliDeps } from "./io.js";
+import {
+  LebensmittelwarnungError,
+  LebensmittelwarnungValidationError,
+  cutForMessage,
+} from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
 import { isBidiControl } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/engine";
 
 /** The global options that decide where and how a result is written. */
@@ -35,56 +39,62 @@ export function escapeControlChars(json: string): string {
   return from === 0 ? json : result + json.slice(from);
 }
 
-export function refuseOverwrite(path: string): OutputError {
-  return new OutputError(
-    `Refusing to overwrite existing file "${path}". Pass --force to overwrite, or choose a different --output path.`,
-    { usage: true },
-  );
+/**
+ * Check `-o` before any request, so a refused target costs none: `--force` without `-o` (a
+ * LebensmittelwarnungValidationError), a directory, and an existing path (a dangling link
+ * too) without `--force` (an OutputError of the usage kind) are usage errors, exit 2. `-o -`
+ * is stdout. The write checks again: a file that appears during the request is not
+ * overwritten either.
+ */
+export function checkOutputTarget(deps: CliDeps, options: OutputOptions): void {
+  if (options.force === true && options.output === undefined) {
+    throw new LebensmittelwarnungValidationError("--force needs --output (it only allows overwriting the -o file).");
+  }
+  const path = fileOf(options);
+  if (path === undefined) return;
+  const state = (deps.files ?? nodeFiles).state(path);
+  if (state === "directory") throw isDirectoryError(path);
+  if (state === "exists" && options.force !== true) throw refuseOverwrite(path);
 }
 
 /**
- * Write bytes to the --output file, refusing to clobber an existing file — or to
- * write through a symlink, dangling or not — unless --force is set (no silent data
- * loss), and wrapping raw filesystem errors in a typed error instead of an untyped
- * "Unexpected error: ENOENT: …". Every failure is an `OutputError`, logged under
- * `lebensmittel.output`; the overwrite refusal is a usage condition (pass --force or
- * pick another path), so it exits 2, any other failure 1.
+ * Write a JSON result: pretty by default, compact with `--compact`, to stdout or to the `-o`
+ * file (with an INFO record of `lebensmittel.output` saying how many bytes went where, so
+ * stdout stays clean for a pipe). The file holds exactly what stdout would show, plus a
+ * newline, and is written atomically (`OutputFiles.write`): without `--force` an existing
+ * file is never replaced, with it the old file stays whole until the new one is complete.
+ * Every failure is an `OutputError`, an ERROR record of `lebensmittel.output`: a refusal
+ * exits 2, any other failure 1, `Could not write to "<path>": <reason>`.
  */
-function writeOutputFile(deps: CliDeps, global: OutputOptions, path: string, data: Buffer): void {
-  const force = global.force === true;
-  if (!force && deps.io.fileExists(path)) throw refuseOverwrite(path);
+export function renderJson(deps: CliDeps, options: OutputOptions, value: unknown): void {
+  const text = escapeControlChars(stringifyJson(value, options.compact === true));
+  const path = fileOf(options);
+  if (path === undefined) return deps.io.out(text);
+  const data = Buffer.from(`${text}\n`, "utf8");
   try {
-    // Without --force the write is an exclusive create, so a symlink (even a
-    // dangling one) or a file that appeared since the check is refused too.
-    deps.io.writeFile(path, data, force);
+    (deps.files ?? nodeFiles).write(path, data, options.force === true);
   } catch (err) {
-    if (err instanceof OutputError) throw err;
-    // The CliIO's own message ("… is a directory; give a file path to --output.").
-    if (err instanceof LebensmittelwarnungError) throw new OutputError(err.message, { cause: err });
-    if (!force && (err as NodeJS.ErrnoException | undefined)?.code === "EEXIST") throw refuseOverwrite(path);
-    // A bad --output path (missing directory, no permission) is a user error, not
-    // an internal fault — surface it cleanly. Drop the `, open '<path>'` tail since
-    // we already name the path ourselves; the `s` flag lets it span a path with a line
-    // break in it.
-    const reason = err instanceof Error ? err.message.replace(/,\s*open\s+'.*'$/s, "") : String(err);
-    throw new OutputError(`Could not write to ${path}: ${reason}`, { cause: err });
+    throw writeFailure(path, options.force === true, err);
   }
+  logOf(deps).info("output", `Wrote ${data.length} bytes to ${path}`);
 }
 
-/**
- * Render a JSON value, pretty by default and compact with --compact. Writes to the
- * file given by --output (with a short stderr confirmation so stdout stays clean
- * for piping), or to stdout otherwise (also for `-o -`).
- */
-export function renderJson(deps: CliDeps, global: OutputOptions, value: unknown): void {
-  const text = escapeControlChars(stringifyJson(value, global.compact === true));
-  if (global.output !== undefined && global.output !== "-") {
-    const data = Buffer.from(text + "\n", "utf8");
-    writeOutputFile(deps, global, global.output, data);
-    logOf(deps).info("output", `Wrote ${data.length} bytes to ${global.output}`);
-  } else {
-    deps.io.out(text);
-  }
+/** What a failed `OutputFiles.write` is reported as. */
+function writeFailure(path: string, force: boolean, err: unknown): OutputError {
+  if (err instanceof OutputError) return err;
+  // A seam's own message ("… is a directory; give a file path to --output.").
+  if (err instanceof LebensmittelwarnungError) return new OutputError(err.message, { cause: err });
+  if (!force && (err as NodeJS.ErrnoException | undefined)?.code === "EEXIST") return refuseOverwrite(path);
+  // A bad --output path (missing directory, no permission, a full disk) is a user error, not
+  // an internal fault. Node's `, open '<path>'` tail is dropped: the path is named already,
+  // and the tail may name the temporary file. The `s` flag lets it span a line break.
+  const reason = err instanceof Error ? err.message.replace(/,\s*open\s+'.*'$/s, "") : String(err);
+  return new OutputError(`Could not write to "${cutForMessage(path)}": ${reason}`, { cause: err });
+}
+
+/** The `-o` file, or undefined for stdout (no `-o`, or `-o -`). */
+function fileOf(options: OutputOptions): string | undefined {
+  return options.output === undefined || options.output === "-" ? undefined : options.output;
 }
 
 /**

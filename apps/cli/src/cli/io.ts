@@ -1,15 +1,18 @@
-// I/O seam for the CLI. Everything the CLI writes goes through a CliIO object so
-// tests can capture output instead of hitting the real stdout/stderr/filesystem.
+// I/O seam for the CLI. Everything the CLI writes goes through a CliIO object, and the
+// `-o` file through OutputFiles, so tests can capture output instead of hitting the real
+// stdout/stderr and file system.
 
-import { lstatSync, statSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { chmodSync, closeSync, lstatSync, openSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import type { LebensmittelwarnungClient, LebensmittelwarnungClientOptions } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/client";
-import { LebensmittelwarnungError } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
+import { LebensmittelwarnungError, cutForMessage } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
 import { createLogger, type Logger } from "./log.js";
 
 /**
- * Writing the output to the `-o` file failed or was refused: an existing file without
- * `--force` (`usage`: the usage exit code, 2, as before), a directory, a missing
- * directory, EACCES, … (exit 1). Logged as an ERROR of `lebensmittel.output`.
+ * Writing the output failed or was refused: an existing `-o` file without `--force` or a
+ * directory (`usage`: the usage exit code, 2), a missing directory, EACCES, a full disk, an
+ * answer too deeply nested to print, … (exit 1). Logged as an ERROR of `lebensmittel.output`.
  */
 export class OutputError extends LebensmittelwarnungError {
   /** True for a refusal the user fixes with `--force` or another path (exit 2). */
@@ -23,18 +26,6 @@ export class OutputError extends LebensmittelwarnungError {
 export interface CliIO {
   out(text: string): void;
   err(text: string): void;
-  /**
-   * Persist bytes to a file (for --output). Without `overwrite` the file must not
-   * exist yet (exclusive create): anything at `path` — a file, or a symlink, even a
-   * dangling one — makes it throw an `EEXIST` error instead of writing through it.
-   */
-  writeFile(path: string, data: Buffer, overwrite: boolean): void;
-  /**
-   * True if a filesystem entry that --force would overwrite already exists at `path`
-   * (the --force guard); a dangling symlink counts. A directory does not: --force
-   * cannot help there, so the write reports it as a directory instead.
-   */
-  fileExists(path: string): boolean;
 }
 
 export interface CliDeps {
@@ -48,6 +39,113 @@ export interface CliDeps {
   log?: Logger;
   /** The clock the log's timestamps come from. Unset, the real one. */
   now?: () => Date;
+  /** Where `-o` writes. Unset, the real file system (`nodeFiles`). */
+  files?: OutputFiles;
+}
+
+/** The file seam for `-o` (output.ts). */
+export interface OutputFiles {
+  /** What is at `path`: nothing, a directory, or anything else (a file, a link: a dangling one too). */
+  state(path: string): "absent" | "directory" | "exists";
+  /**
+   * Write `data` to `path` atomically: the old file stays as it was until the new one is
+   * complete. Without `overwrite` an existing path is refused, checked by an exclusive create
+   * that closes the race with a file appearing meanwhile. A refusal, and a directory, throw
+   * an `OutputError` (`usage`); any other failure throws the file system's error, which
+   * `renderJson` reports as `Could not write to "<path>": <reason>`.
+   */
+  write(path: string, data: Buffer, overwrite: boolean): void;
+}
+
+/** The refusal for an existing `-o` path without `--force` (a usage error, exit 2). */
+export function refuseOverwrite(path: string): OutputError {
+  return new OutputError(
+    `Refusing to overwrite existing file "${cutForMessage(path)}". Pass --force to overwrite, or choose a different --output path.`,
+    { usage: true },
+  );
+}
+
+/** The refusal for an `-o` path that is a directory, which `--force` can't fix (a usage error, exit 2). */
+export function isDirectoryError(path: string, cause?: unknown): OutputError {
+  return new OutputError(`"${cutForMessage(path)}" is a directory; give a file path to --output.`, {
+    usage: true,
+    ...(cause === undefined ? {} : { cause }),
+  });
+}
+
+/** The real file system for `-o`. */
+export const nodeFiles: OutputFiles = {
+  state(path) {
+    try {
+      return statSync(path).isDirectory() ? "directory" : "exists";
+    } catch {
+      // statSync follows a link; a dangling one is still something an exclusive create
+      // refuses, so lstat decides between "exists" and "absent".
+      try {
+        lstatSync(path);
+        return "exists";
+      } catch {
+        return "absent";
+      }
+    }
+  },
+  write(path, data, overwrite) {
+    if (nodeFiles.state(path) === "directory") throw isDirectoryError(path);
+    let claimed = false;
+    try {
+      // Without overwrite the name is claimed first with an exclusive create ("wx" =
+      // O_CREAT|O_EXCL), which fails for any existing path: a dangling link too, since it
+      // never follows one.
+      if (!overwrite) {
+        closeSync(openSync(path, "wx"));
+        claimed = true;
+      }
+      replaceFile(overwrite ? throughLinks(path) : path, data);
+    } catch (cause) {
+      // A write cut short (a full disk, a quota) leaves no file under the new name either, so
+      // the next run isn't refused for a file that holds half a result.
+      if (claimed) rmSync(path, { force: true });
+      const code = (cause as NodeJS.ErrnoException | undefined)?.code;
+      if (code === "EEXIST" && !claimed) throw refuseOverwrite(path);
+      if (code === "EISDIR") throw isDirectoryError(path, cause);
+      throw cause;
+    }
+  },
+};
+
+/**
+ * Replace `target` with `data` atomically: a temporary file beside it, created exclusively,
+ * renamed over it. A write cut short (a full disk, a killed process) leaves the old file as it
+ * was, never half of the new one. An existing file's mode is kept.
+ */
+function replaceFile(target: string, data: Buffer): void {
+  const temporary = join(dirname(target), `.${basename(target)}.${process.pid}-${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    writeFileSync(temporary, data, { flag: "wx" });
+    const mode = modeOf(target);
+    if (mode !== undefined) chmodSync(temporary, mode);
+    renameSync(temporary, target);
+  } catch (err) {
+    rmSync(temporary, { force: true });
+    throw err;
+  }
+}
+
+function modeOf(path: string): number | undefined {
+  try {
+    return statSync(path).mode & 0o7777;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The file a path names, through any symlinks, so --force writes where a link points. */
+function throughLinks(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
 }
 
 /** The deps' logger, or one that writes text records through `io.err`. */
@@ -91,14 +189,6 @@ export function handleOutputErrors(
   streams.stderr.on("error", (err: NodeJS.ErrnoException) => {
     if (!readerGone(err)) exit(1);
   });
-}
-
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
 }
 
 /** True for the write errors that mean the reader has gone: EPIPE, or ENOTCONN on a socket. */
@@ -152,27 +242,4 @@ export const defaultIO: CliIO = {
   out: (text) => process.stdout.write(text + "\n"),
   // A record never lands inside the data when both streams share a pipe.
   err: stderrLine,
-  // "wx" = O_CREAT|O_EXCL: never follows a symlink planted at `path` and closes the
-  // gap between the fileExists check and the write.
-  writeFile: (path, data, overwrite) => {
-    try {
-      writeFileSync(path, data, { flag: overwrite ? "w" : "wx" });
-    } catch (cause) {
-      const code = (cause as NodeJS.ErrnoException | undefined)?.code;
-      // `wx` answers EEXIST and `w` EISDIR for a directory; --force cannot help there.
-      if ((code === "EEXIST" || code === "EISDIR") && isDirectory(path)) {
-        throw new LebensmittelwarnungError(`"${path}" is a directory; give a file path to --output.`, { cause });
-      }
-      throw cause;
-    }
-  },
-  // lstat, not existsSync: existsSync follows a symlink and reports a dangling one
-  // as absent, so -o would create a file wherever the link points.
-  fileExists: (path) => {
-    try {
-      return !lstatSync(path).isDirectory();
-    } catch {
-      return false;
-    }
-  },
 };

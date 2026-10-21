@@ -60,10 +60,12 @@ export async function parity(
     io: {
       out: (s) => out.push(s),
       err: (s) => err.push(s),
-      writeFile: () => {
+    },
+    files: {
+      state: () => "absent",
+      write: () => {
         throw new Error("parity(): the CLI tried to write a file");
       },
-      fileExists: () => false,
     },
     createClient: (opts) => defaultDeps.createClient({ ...opts, transport: mt.transport }),
   };

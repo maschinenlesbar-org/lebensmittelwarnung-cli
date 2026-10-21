@@ -346,7 +346,7 @@ apps/cli/src/cli/
     io.ts        # injectable I/O seam (stdout/stderr/file), the logger and the clock
     log.ts       # the stderr log: records with ts, level, topic; --log-format text|jsonl
     shared.ts    # option parsers (thin wrappers over the library's rules), global-option resolver
-    output.ts    # the JSON renderer: stdout or the -o file, control characters escaped
+    output.ts    # the JSON renderer: stdout or the -o file (checkOutputTarget), control characters escaped
     commands/    # warnings.ts — warnings / states / types
     program.ts   # assembles the commander program from injectable deps
     run.ts       # parses argv -> exit code (no process.exit; testable)
@@ -359,6 +359,17 @@ stderr is ignored, so a failed run keeps its own exit code (`2>&1 | true` used t
 usage error into 0); any other stdout error is an ERROR record of `lebensmittel.output`
 and exits 1.
 `apps/cli/test/conformance-p7-pipes-exit-codes.test.ts` runs the built bin for both.
+
+**The `-o` file.** `action()` calls `checkOutputTarget` before any request: `--force`
+without `-o`, a directory, and an existing path (a dangling link too) without `--force` are
+usage errors (exit 2), so a refused target costs no request; `-o -` is stdout. The write
+goes through `CliDeps.files` (`OutputFiles`; unset, `nodeFiles`, the real file system) and
+is atomic: without `--force` the name is claimed with an exclusive create (so a file that
+appears during the request is refused too, exit 2), then a temporary file beside the target
+is written and renamed over it; the old file's mode is kept, `--force` writes through a
+symlink to the file it points to (a dangling link is replaced by the file), and on a failure
+neither the temporary file nor the claimed name is left. `apps/cli/test/output.test.ts`
+runs these against real files; conformance test P26 cuts a write short under `ulimit -f`.
 
 **Rendering.** `renderJson` (`output.ts`) prints pretty JSON, or one line with
 `--compact`. An answer nested too deeply to pretty-print is an `OutputError` (exit 1, an
@@ -581,7 +592,7 @@ character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellF
 and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cut at a
 code point and ends in `… (N more characters)`. The library's error messages fold a server's
 whitespace (`toApiError`) and strip its other controls (`sanitizeServerText`); the record
-escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, a malformed answer — a `LebensmittelwarnungParseError`: the HTML shell, an empty body, no RSS, unterminated XML, an unknown charset, an empty unfiltered feed —, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning, one WARN per retry before it waits) and `output` (`Wrote N bytes` after `-o`, any failure to write that file or the refusal to overwrite it — an `OutputError`, exit 1, or 2 for the refusal — and a failed write to stdout). A failed write to stdout other than a closed pipe (`handleOutputErrors`, in the bin shim, outside `run()`) is an ERROR record of `lebensmittel.output` (`Could not write to stdout: …`), and the shim's last-resort `Unexpected error: …` an ERROR of `lebensmittel.cli`, both in the format argv asks for and redacted like the run's log (`processLogger`), and so are Node's own process warnings (`NODE_TLS_REJECT_UNAUTHORIZED=0`), WARN records of `lebensmittel.cli`: the shim installs `installWarningLog`, which removes Node's default `warning` listener and logs `(node) <name>: <message>`. In `defaultDeps` a record waits for stdout (`stderrAfterStdout`): it is held while stdout has a backlog and written, in order, once it is gone, so with `2>&1 |` and a slow reader it never lands inside the data. Code logs through `logOf(deps)` and never writes diagnostics
+escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, a malformed answer — a `LebensmittelwarnungParseError`: the HTML shell, an empty body, no RSS, unterminated XML, an unknown charset, an empty unfiltered feed —, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning, one WARN per retry before it waits) and `output` (`Wrote N bytes` after `-o`, any failure to write that file, `Could not write to "<path>": <reason>`, or the refusal of an existing file or a directory — an `OutputError`, exit 1, or 2 for the refusal — and a failed write to stdout). A failed write to stdout other than a closed pipe (`handleOutputErrors`, in the bin shim, outside `run()`) is an ERROR record of `lebensmittel.output` (`Could not write to stdout: …`), and the shim's last-resort `Unexpected error: …` an ERROR of `lebensmittel.cli`, both in the format argv asks for and redacted like the run's log (`processLogger`), and so are Node's own process warnings (`NODE_TLS_REJECT_UNAUTHORIZED=0`), WARN records of `lebensmittel.cli`: the shim installs `installWarningLog`, which removes Node's default `warning` listener and logs `(node) <name>: <message>`. In `defaultDeps` a record waits for stdout (`stderrAfterStdout`): it is held while stdout has a backlog and written, in order, once it is gone, so with `2>&1 |` and a slow reader it never lands inside the data. Code logs through `logOf(deps)` and never writes diagnostics
 with `io.err` directly. `run()` builds the logger from argv before commander parses it
 (`logFormatFromArgv`, used only for the records of a parse error: it takes the first
 `--log-format`, the one `once()` keeps, and skips the value of the program's own value

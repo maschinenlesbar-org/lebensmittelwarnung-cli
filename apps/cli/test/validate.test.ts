@@ -41,7 +41,7 @@ test("run() maps a LebensmittelwarnungValidationError raised in an action to exi
   const out: string[] = [];
   const err: string[] = [];
   const deps: CliDeps = {
-    io: { out: (s) => out.push(s), err: (s) => err.push(s), writeFile: () => {}, fileExists: () => false },
+    io: { out: (s) => out.push(s), err: (s) => err.push(s) }, files: { state: () => "absent", write: () => {} },
     createClient: () => {
       throw new LebensmittelwarnungValidationError("Invalid thing: Expected a non-empty value.");
     },
