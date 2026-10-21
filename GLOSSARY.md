@@ -134,9 +134,13 @@ of the typed accessors — anything the CLI doesn't model first-class is still h
 `--log-format jsonl` as one JSON object per line. The areas: `cli` (usage errors,
 commander's messages, unexpected errors, Node's own process warnings), `api` (the feed's answers and the notes on them:
 an error status, the 3xx hint, a malformed answer — the HTML shell, an empty body, no RSS
-—, the missing-label warning, the `--since` note), `http` (the connection, the size-cap
+—, the missing-label warning, the `--since` note, replaced text), `http` (the connection, the size-cap
 hint, the cleartext warning, one WARN per retry before it waits) and `output` (the `-o` file and a failed write to stdout). A
 record is always one line; control characters in it are escaped.
+
+**Replaced text.** Bytes of the feed that are not valid in its charset, and half characters
+(a reference to a lone surrogate, `&#xD800;`), are replaced with U+FFFD and reported in one
+`WARN` record of `lebensmittel.api` with the count and the request; the run still succeeds.
 
 **Legacy JSON API (defunct).** The old `megov.bayern.de` JSON API (documented in the
 bundesAPI / bund.dev project) that used to serve this data. It has returned an empty

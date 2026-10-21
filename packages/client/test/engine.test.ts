@@ -586,3 +586,35 @@ test("a header named __proto__ is an ordinary header, never the prototype of the
   const viaMap = new RequestEngine({ transport: async () => ({ status: 200, headers: map as unknown as Record<string, string>, body }) });
   assert.equal((await viaMap.getFeed("/feed.xml")).items[0]?.title, "Käse");
 });
+
+test("text that is not valid is replaced with U+FFFD and reported through onWarning, never silently (D2)", async () => {
+  const feed = (title: string): string => `<rss><channel><item><title>${title}</title></item></channel></rss>`;
+  const cases: Array<[string, Buffer, string, string, string]> = [
+    ["invalid UTF-8", Buffer.concat([Buffer.from(feed("a\u0000b").split("\u0000")[0]!), Buffer.from([0xff, 0xfe]), Buffer.from(feed("a\u0000b").split("\u0000")[1]!)]),
+      "text/xml; charset=utf-8", "a\ufffd\ufffdb", "2 characters of the answer were"],
+    ["U+FFFD the server sent is not counted", Buffer.concat([Buffer.from(feed("\ufffd\u0000").split("\u0000")[0]!), Buffer.from([0xc3]), Buffer.from(feed("\ufffd\u0000").split("\u0000")[1]!)]),
+      "text/xml; charset=utf-8", "\ufffd\ufffd", "1 character of the answer was"],
+    ["a lone surrogate reference", Buffer.from(feed("K&#xD800;se")), "text/xml; charset=utf-8", "K\ufffdse", "1 character of the answer was"],
+    ["an unpaired UTF-16 surrogate", Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(feed("a\ud800b"), "utf16le")]), "text/xml", "a\ufffdb", "1 character of the answer was"],
+  ];
+  for (const [label, body, contentType, title, count] of cases) {
+    const warnings: string[] = [];
+    const e = new RequestEngine({
+      baseUrl: "https://u:secret@feed.test",
+      transport: async () => ({ status: 200, headers: { "content-type": contentType }, body }),
+      onWarning: (message) => warnings.push(message),
+    });
+    const got = await e.getFeed("/feed.xml", { state: "bayern" });
+    assert.equal(got.items[0]?.title, title, label);
+    assert.deepEqual(warnings, [
+      `GET https://***@feed.test/feed.xml?state=bayern: ${count} not valid text (invalid bytes or a lone surrogate) and replaced with U+FFFD.`,
+    ], label);
+  }
+  // Valid text: no warning. A throwing onWarning never fails the request; it must be a function.
+  const quiet: string[] = [];
+  await new RequestEngine({ transport: async () => rssResponse(feed("Käse")), onWarning: (m) => quiet.push(m) }).getFeed("/f.xml");
+  assert.deepEqual(quiet, []);
+  const throwing = new RequestEngine({ transport: async () => rssResponse(feed("K&#xD800;se")), onWarning: () => { throw new Error("x"); } });
+  assert.equal((await throwing.getFeed("/f.xml")).items[0]?.title, "K\ufffdse");
+  assert.throws(() => new RequestEngine({ onWarning: "x" as never }), LebensmittelwarnungValidationError);
+});

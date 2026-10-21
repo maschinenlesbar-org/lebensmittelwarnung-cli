@@ -121,6 +121,9 @@ Every command prints **JSON to stdout**; diagnostics go to stderr, so piping int
 `jq` stays clean. When a label the typed fields depend on (`product`, `reason`,
 `manufacturer`, `affectedStates`) is missing from every warning in the feed, a
 `WARN` record on stderr says so (a portal-side rename; the value is still in `fields`).
+Text in the feed is never changed silently: bytes that are not valid in its charset and half
+characters (a reference to a lone surrogate) are replaced with U+FFFD, so the output stays
+readable for `jq`, and a `WARN` record of `lebensmittel.api` says how many.
 
 Each line on stderr is a **log record**: a timestamp (UTC), a level (`ERROR`, `WARN`,
 `INFO`) and a topic, the program and the area it comes from (`lebensmittel.cli` for usage

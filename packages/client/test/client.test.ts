@@ -321,3 +321,18 @@ test("an empty unfiltered feed is an error, an empty --state/--type feed is not 
   assert.deepEqual(await c.warnings({ state: "bremen" }), []);
   assert.deepEqual(await c.warnings({ type: "kosmetischemittel" }), []);
 });
+
+test("warnings() reports the characters replaced in the whole answer, descriptions included, in one warning (D2)", async () => {
+  const body =
+    "<rss><channel><item><title>K&#xD800;se</title><description><![CDATA[<b>Produktbezeichnung/ -beschreibung:</b> K&#xDC00;se " +
+    "&#xD83D;&#xDE00;<br/><b>Grund der Meldung:</b> a&#xD800;b]]></description></item></channel></rss>";
+  const warnings: string[] = [];
+  const mt = makeMockTransport(() => rssResponse(body));
+  const c = new LebensmittelwarnungClient({ transport: mt.transport, onWarning: (m) => warnings.push(m) });
+  const [w] = await c.warnings();
+  assert.equal(w?.title, "K\ufffdse");
+  assert.equal(w?.product, "K\ufffdse \u{1f600}");
+  assert.equal(w?.reason, "a\ufffdb");
+  assert.equal(warnings.length, 1, warnings.join("\n"));
+  assert.match(warnings[0]!, /^GET https:\/\/www\.lebensmittelwarnung\.de\/\S+: 3 characters of the answer were not valid text/);
+});

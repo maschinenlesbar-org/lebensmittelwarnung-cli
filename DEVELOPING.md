@@ -143,6 +143,7 @@ new LebensmittelwarnungClient({
   maxRetries: 3, // 429/503 and resets; linear backoff, or a longer Retry-After (<= 30 s; longer: no retry)
   maxResponseBytes: 100 << 20, // the default (100 MiB); set to 0 for no limit
   userAgent: "my-app/1.0",
+  onWarning: (message) => console.warn(message), // text replaced with U+FFFD (see the RSS parser)
   transport: customTransport,
 });
 ```
@@ -274,12 +275,19 @@ every distinct value, joined with `"; "` (`REPEATED_LABEL_SEPARATOR`), in `field
 in the typed field; `affectedStates` is split on `,` and `;`.
 [`decodeEntities`](packages/client/src/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
 `&euro;`, … in [`entities.ts`](packages/client/src/entities.ts); `&nbsp;` gives U+00A0), and
-numeric (`&#228;` / `&#xE4;`) refs, rejecting surrogate-range code points; an unknown
-name is left as written. The engine decodes the body by the encoding it is declared
+numeric (`&#228;` / `&#xE4;`) refs; a pair of surrogate references (`&#xD83D;&#xDE00;`) is the
+character it encodes, a lone one becomes U+FFFD, counted (`ReplacementTally`); an unknown
+name or a reference past U+10FFFF is left as written. The engine decodes the body by the encoding it is declared
 in, in RFC 7303's order: a byte-order mark (UTF-8, UTF-16), then the Content-Type's
 `charset`, then the XML declaration's `encoding`, else UTF-8. An encoding Node's
 `TextDecoder` doesn't know is a `LebensmittelwarnungParseError`; bytes invalid in the
-declared encoding become U+FFFD.
+declared encoding become U+FFFD, counted (a fatal decode first, then a replacing one; for
+UTF-8 the U+FFFD the server sent are not counted). Text is never changed silently: the engine
+option `onWarning(message)` is told once per answer, `GET <url>: N characters of the answer
+were not valid text (invalid bytes or a lone surrogate) and replaced with U+FFFD.` (`getFeed`
+after the feed; `client.warnings()` after the descriptions too, through `readFeed` and
+`reportReplaced`); a throw in it is swallowed, and the CLI logs it as a `WARN` record of
+`lebensmittel.api`. One bad character never sinks a whole answer.
 
 It is deliberately **not** a general-purpose parser (no namespaces, DTDs, or full
 mixed-content reconstruction) — just enough for these shallow feeds, and exercised
@@ -554,7 +562,8 @@ everything that drives the CLI is in `apps/cli/test/`.
   temporary one, stdout cut short is an error, streams are written in place, a signal leaves
   nothing behind; runs the built bin). The fix round of 2026-10-21 added `p27` (a big or odd
   answer is printed or refused in one clean record within memory: DEL characters under a small
-  heap; the large flat answer is skipped, the feed being RSS text). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
+  heap; a lone surrogate reference or invalid bytes are U+FFFD with one WARN; the large flat
+  answer is skipped, the feed being RSS text). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
   to the kit's shape for P24 and P25.
 
 ## Continuous integration
@@ -625,7 +634,7 @@ character, which jq rejects, stopping the whole stream) becomes U+FFFD (`toWellF
 and a message longer than `MAX_RECORD_MESSAGE` (4000 characters, exported) is cut at a
 code point and ends in `… (N more characters)`. The library's error messages fold a server's
 whitespace (`toApiError`) and strip its other controls (`sanitizeServerText`); the record
-escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, a malformed answer — a `LebensmittelwarnungParseError`: the HTML shell, an empty body, no RSS, unterminated XML, an unknown charset, an empty unfiltered feed —, the missing-label warning, the `--since` note), `http` (the connection, the size-cap hint, the cleartext warning, one WARN per retry before it waits) and `output` (`Wrote N bytes` after `-o`, any failure to write that file, `Could not write to "<path>": <reason>`, or the refusal of an existing file, a directory or a file whose directory can't take it, `Cannot write to "<path>": …` — an `OutputError`, exit 1, or 2 for a refusal before any request — and a failed write to stdout). A failed write to stdout other than a closed pipe (`handleOutputErrors`, in the bin shim, outside `run()`) is an ERROR record of `lebensmittel.output` (`Could not write to stdout: …`), and the shim's last-resort `Unexpected error: …` an ERROR of `lebensmittel.cli`, both in the format argv asks for and redacted like the run's log (`processLogger`), and so are Node's own process warnings (`NODE_TLS_REJECT_UNAUTHORIZED=0`), WARN records of `lebensmittel.cli`: the shim installs `installWarningLog`, which removes Node's default `warning` listener and logs `(node) <name>: <message>`. In `defaultDeps` a record waits for stdout (`stderrAfterStdout`): it is held while stdout has a backlog and written, in order, once it is gone, so with `2>&1 |` and a slow reader it never lands inside the data. Code logs through `logOf(deps)` and never writes diagnostics
+escapes whatever is left, and what a user typed. The areas are `cli` (usage errors, commander's messages, unexpected errors), `api` (the API's answers and the notes on them: HTTP errors and the 3xx hint, a malformed answer — a `LebensmittelwarnungParseError`: the HTML shell, an empty body, no RSS, unterminated XML, an unknown charset, an empty unfiltered feed —, the missing-label warning, the `--since` note, text replaced with U+FFFD), `http` (the connection, the size-cap hint, the cleartext warning, one WARN per retry before it waits) and `output` (`Wrote N bytes` after `-o`, any failure to write that file, `Could not write to "<path>": <reason>`, or the refusal of an existing file, a directory or a file whose directory can't take it, `Cannot write to "<path>": …` — an `OutputError`, exit 1, or 2 for a refusal before any request — and a failed write to stdout). A failed write to stdout other than a closed pipe (`handleOutputErrors`, in the bin shim, outside `run()`) is an ERROR record of `lebensmittel.output` (`Could not write to stdout: …`), and the shim's last-resort `Unexpected error: …` an ERROR of `lebensmittel.cli`, both in the format argv asks for and redacted like the run's log (`processLogger`), and so are Node's own process warnings (`NODE_TLS_REJECT_UNAUTHORIZED=0`), WARN records of `lebensmittel.cli`: the shim installs `installWarningLog`, which removes Node's default `warning` listener and logs `(node) <name>: <message>`. In `defaultDeps` a record waits for stdout (`stderrAfterStdout`): it is held while stdout has a backlog and written, in order, once it is gone, so with `2>&1 |` and a slow reader it never lands inside the data. Code logs through `logOf(deps)` and never writes diagnostics
 with `io.err` directly. `run()` builds the logger from argv before commander parses it
 (`logFormatFromArgv`, used only for the records of a parse error: it takes the first
 `--log-format`, the one `once()` keeps, and skips the value of the program's own value

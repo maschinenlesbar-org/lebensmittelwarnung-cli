@@ -14,7 +14,7 @@
 //   await c.warnings({ since: "2026-09-01", search: "bio", limit: 5 }); // client-side
 
 import { RequestEngine, type EngineOptions } from "./engine.js";
-import { parseDescription } from "./rss.js";
+import { parseDescription, type ReplacementTally } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
 import { LebensmittelwarnungParseError, LebensmittelwarnungValidationError, cutForMessage } from "./errors.js";
 import { berlinDay, parsePubDate } from "./dates.js";
@@ -240,7 +240,11 @@ export class LebensmittelwarnungClient {
     if (query.state !== undefined) params["state"] = query.state;
     if (query.type !== undefined) params["type"] = query.type;
 
-    const feed = await this.engine.getFeed(FEED_PATH, params);
+    // The text is never changed silently: what the engine replaced with U+FFFD (invalid bytes,
+    // a lone surrogate reference in an item leaf) and what the descriptions replaced is
+    // reported once, in one warning (`onWarning`), after the whole answer is decoded.
+    const { feed, replaced } = await this.engine.readFeed(FEED_PATH, params);
+    const tally: ReplacementTally = { replaced };
     // The all-Germany feed lists every active notice and goes back years (255 items on
     // 2026-10-06); empty, it is a failing portal, not "no recalls". A --state/--type
     // feed may well be empty.
@@ -256,7 +260,7 @@ export class LebensmittelwarnungClient {
     const warnings = feed.items.map((item) => {
       // Relative image URLs resolve against the notice page (or the feed itself).
       const base = resolveBase(item.link, feedUrl);
-      const { fields, imageUrls, images } = parseDescription(item.description ?? "", base);
+      const { fields, imageUrls, images } = parseDescription(item.description ?? "", base, tally);
       const warning: Warning = { fields };
       // The product name. The feed's `<title>` is used as served unless it is an
       // unrendered template (see isUnrenderedTitle); then the description's
@@ -296,6 +300,7 @@ export class LebensmittelwarnungClient {
 
       return warning;
     });
+    this.engine.reportReplaced(FEED_PATH, params, tally.replaced);
     return applyFilter(warnings, filter);
   }
 }

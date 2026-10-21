@@ -22,19 +22,28 @@ import type { AddressInfo } from "node:net";
 /** The built bin, relative to this compiled test file (dist/test/…). */
 const BIN = fileURLToPath(new URL("../src/cli/index.js", import.meta.url));
 /** `parity` as in P24 (this repo's `kitParity` maps its own helper to that shape); `rawResponse(body, contentType)`. */
+import { kitParity as parity, rawResponse } from "./helpers.js";
+import { LebensmittelwarnungClient as Client } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/client";
 import { test as nodeTest } from "node:test";
 /** CLI argv (after the global options) for a call whose answer carries a free-form value, and the same call in the library. */
 const call = ["warnings"];
+const lib = (client: Client): Promise<unknown> => client.warnings();
 /**
  * The raw 2xx body with `json` as that value. The feed is RSS, and every value is an element's
  * text, so `json` must be a JSON string literal: it becomes the one warning's `<title>`, with
  * each `\uXXXX` escape written as the XML reference `&#xXXXX;` (a lone surrogate one too, the
- * XML form of a lone surrogate) and any other character as it is.
+ * XML form of a lone surrogate) and any other character as it is. The description carries the
+ * four labels the CLI checks, so the only WARN is the one under test.
  */
+const LABELS =
+  "<b>Produktbezeichnung/ -beschreibung:</b> p<br/><b>Grund der Meldung:</b> r<br/>" +
+  "<b>Hersteller / Inverkehrbringer:</b> m<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Bayern";
 const bodyWith = (json: string): string =>
-  `<rss version="2.0"><channel><item><title>${json.slice(1, -1).replace(/\\u([0-9a-fA-F]{4})/g, "&#x$1;")}</title></item></channel></rss>`;
+  `<rss version="2.0"><channel><item><title>${json.slice(1, -1).replace(/\\u([0-9a-fA-F]{4})/g, "&#x$1;")}</title>` +
+  `<description><![CDATA[${LABELS}]]></description></item></channel></rss>`;
 /** The value from the CLI's printed result and from the library's. */
 const fromCli = (out: string): unknown => (JSON.parse(out) as Array<{ title?: unknown }>)[0]?.title;
+const fromLib = (value: unknown): unknown => (value as Array<{ title?: unknown }>)[0]?.title;
 /** The log program, as in `WARN [<bin>.api]`. */
 const PROGRAM = "lebensmittel";
 /** The exit code of a failed output in this repo (most repos use 1). */
@@ -42,7 +51,7 @@ const OUTPUT_EXIT = 1;
 /**
  * The large flat answer can't apply: its value is an array of 8 M numbers, and a feed value is
  * an element's text; the walk without an allocation per value is the same code as the kit's
- * (`holdsHugeString`, output.ts). The text cases (D2) come with the engine's U+FFFD warning.
+ * (`holdsHugeString`, output.ts).
  */
 const NOT_JSON = "the feed is RSS: a value is an element's text, never an array of numbers";
 const test = (name: string, options: { timeout?: number } | (() => Promise<void>), fn?: () => Promise<void>): void => {
@@ -121,4 +130,32 @@ test("P27: an answer that escaped would pass V8's longest string is an ERROR rec
   assert.equal(run.code, OUTPUT_EXIT, run.stderr.slice(0, 500));
   assert.equal(run.stdout.length, 0);
   assert.match(run.stderr, new RegExp(`ERROR \\[${PROGRAM}\\.output\\] The answer is too large to print`), run.stderr.slice(0, 500));
+});
+
+/** The body with the string value `a<bytes>b`, the bytes as they are. */
+const withBytes = (bytes: number[]): Buffer => {
+  const [head = "", tail = ""] = bodyWith('"a\u0000b"').split("\u0000");
+  return Buffer.concat([Buffer.from(head), Buffer.from(bytes), Buffer.from(tail)]);
+};
+
+const WELL_FORMED = (text: string): boolean => !/[\ud800-\udfff]/u.test(text) && !/\\u[dD][89abAB][0-9a-fA-F]{2}(?!\\u[dD][c-fC-F])/.test(text);
+
+test("P27: a lone surrogate or invalid bytes are replaced with U+FFFD and reported, never silent or fatal", async () => {
+  const cases: Array<[string, Buffer, string, number]> = [
+    ["a lone high surrogate", Buffer.from(bodyWith('"a\\ud800b"')), "a\ufffdb", 1],
+    ["a lone low surrogate and a pair", Buffer.from(bodyWith('"\\udc00\\ud83d\\ude00"')), "\ufffd\u{1f600}", 1],
+    ["invalid UTF-8", withBytes([0xff, 0xfe]), "a\ufffd\ufffdb", 2],
+  ];
+  for (const [label, body, expected, count] of cases) {
+    const o = await parity(call, (t) => lib(new Client({ transport: t })), () => rawResponse(body, "application/json"));
+    assert.equal(o.cli.code, 0, `${label}: ${o.cli.err}`);
+    assert.ok(WELL_FORMED(o.cli.out), `${label}: ${o.cli.out}`);
+    assert.equal(fromCli(o.cli.out), expected, label);
+    const warn = new RegExp(
+      `^WARN  \\[${PROGRAM}\\.api\\] GET \\S+: ${count} characters? of the answer (was|were) not valid text .*replaced with U\\+FFFD\\.$`,
+    );
+    assert.match(o.cli.err, warn, `${label}: ${o.cli.err}`);
+    assert.equal(o.lib.ok, true, `${label}: ${o.lib.error?.message}`);
+    assert.equal(fromLib(o.lib.value), expected, label);
+  }
 });

@@ -19,8 +19,24 @@ test("decodeEntities decodes HTML named references (the description is HTML)", (
   assert.equal(decodeEntities("&frac12; kg, 20&deg;C, m&sup2;"), "½ kg, 20°C, m²");
 });
 
-test("decodeEntities does not decode a surrogate-range code point", () => {
-  assert.equal(decodeEntities("&#xD800;"), "&#xD800;");
+test("decodeEntities joins a surrogate pair of references and replaces a lone one with U+FFFD, counted (D2)", () => {
+  const tally = { replaced: 0 };
+  assert.equal(decodeEntities("&#xD83D;&#xDE00; &#55357;&#56832;", tally), "\u{1f600} \u{1f600}");
+  assert.equal(tally.replaced, 0);
+  assert.equal(decodeEntities("a&#xD800;b &#xDC00; &#xD83D;x &#xD83D;&#xD83D;&#xDE00;", tally), "a\ufffdb \ufffd \ufffdx \ufffd\u{1f600}");
+  assert.equal(tally.replaced, 4);
+  // Without a tally the text is the same; a reference past U+10FFFF stays text.
+  assert.equal(decodeEntities("&#xD800;&#x110000;"), "\ufffd&#x110000;");
+});
+
+test("parseRss and parseDescription count the lone surrogate references they replace (D2)", () => {
+  const tally = { replaced: 0 };
+  const feed = parseRss("<rss><channel><item><title>K&#xD800;se</title><description><![CDATA[<b>Grund der Meldung:</b> a&#xDC00;b<img src='x&#xD800;.png'>]]></description></item></channel></rss>", tally);
+  assert.equal(feed.items[0]?.title, "K\ufffdse");
+  assert.equal(tally.replaced, 1);
+  const parsed = parseDescription(feed.items[0]?.description ?? "", "https://h/", tally);
+  assert.equal(parsed.fields["Grund der Meldung"], "a\ufffdb");
+  assert.equal(tally.replaced, 3);
 });
 
 test("parseRss reads channel metadata (not an item's title)", () => {

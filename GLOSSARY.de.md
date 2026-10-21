@@ -138,10 +138,15 @@ Text (im Stil von log4j) oder mit `--log-format jsonl` als ein JSON-Objekt pro Z
 Bereiche: `cli` (Bedienfehler, Meldungen von commander, unerwartete Fehler, Nodes eigene Prozesswarnungen), `api` (die
 Antworten des Feeds und die Hinweise dazu: ein Fehlerstatus, der Hinweis bei einer
 Weiterleitung (3xx), eine fehlerhafte Antwort – die HTML-Seite des Portals, ein leerer Body,
-kein RSS –, die Warnung zu fehlenden Bezeichnungen, der Hinweis zu `--since`), `http` (die
+kein RSS –, die Warnung zu fehlenden Bezeichnungen, der Hinweis zu `--since`, ersetzter Text), `http` (die
 Verbindung, der Hinweis zur Größengrenze, die Klartext-Warnung, je Wiederholung eine WARN-Zeile vor dem Warten) und `output` (die `-o`-Datei
 und ein Schreibfehler auf stdout). Ein Eintrag ist immer eine Zeile; Steuerzeichen darin
 werden maskiert.
+
+**Ersetzter Text.** Bytes des Feeds, die in seinem Zeichensatz ungültig sind, und halbe
+Zeichen (ein Verweis auf ein einzelnes Surrogat, `&#xD800;`) werden durch U+FFFD ersetzt und in
+einem `WARN`-Eintrag von `lebensmittel.api` mit Anzahl und Anfrage gemeldet; der Lauf gelingt
+trotzdem.
 
 **Alte JSON-API (außer Betrieb).** Die frühere JSON-API unter `megov.bayern.de` (dokumentiert im
 Projekt bundesAPI / bund.dev), die diese Daten früher lieferte. Seit dem Relaunch des Portals

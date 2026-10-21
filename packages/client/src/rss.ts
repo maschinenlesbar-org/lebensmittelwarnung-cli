@@ -49,16 +49,39 @@ export interface RssFeed {
   items: RawRssItem[];
 }
 
+/** How many characters of a text were not valid and became U+FFFD (a lone surrogate reference). */
+export interface ReplacementTally {
+  replaced: number;
+}
+
+/** A numeric character reference at the start of a text: `&#xD83D;`, `&#56832;`. */
+const NUMERIC_REFERENCE = /^&#(?:[xX]([0-9a-fA-F]+)|([0-9]+));/;
+
+/** The code point of a numeric reference's body (`#x1F600`, `#128512`). */
+function codeOf(body: string): number {
+  const hex = body[1] === "x" || body[1] === "X";
+  return hex ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+}
+
 /**
  * Decode the five predefined XML entities, numeric (`&#NN;` / `&#xNN;`) refs and the
  * HTML 4 named references (`&auml;`, `&ndash;`, `&euro;`, … — the description is
  * HTML).
+ *
+ * A reference to a UTF-16 surrogate (U+D800–U+DFFF) is not a character. Two in a row, a high
+ * one then a low one (`&#xD83D;&#xDE00;`, as a writer that escapes UTF-16 units emits an
+ * emoji), are the character they encode; a lone one becomes U+FFFD and is counted in `tally`,
+ * so the text stays well-formed (`jq` rejects a lone surrogate, and with it the whole output)
+ * and the change is never silent. A reference past U+10FFFF and an unknown name are left as
+ * they are.
  */
-export function decodeEntities(text: string): string {
+export function decodeEntities(text: string, tally: ReplacementTally = { replaced: 0 }): string {
   // Hex (`#x…`) and decimal (`#…`) forms use separate character classes so a
   // malformed decimal ref that contains hex letters (`&#1F;`) does NOT match the
   // decimal branch and get truncated at the first non-digit by `parseInt(…, 10)`.
-  return text.replace(/&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g, (whole, body: string) => {
+  let consumed = -1; // the offset of a low-surrogate reference already joined to its high one
+  return text.replace(/&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g, (whole, body: string, offset: number) => {
+    if (offset === consumed) return "";
     switch (body) {
       case "amp":
         return "&";
@@ -71,17 +94,24 @@ export function decodeEntities(text: string): string {
       case "apos":
         return "'";
       case "nbsp":
-        return " ";
+        return "\u00a0";
     }
     const named = HTML_ENTITIES.get(body);
     if (named !== undefined) return String.fromCodePoint(named);
     if (body[0] === "#") {
-      const hex = body[1] === "x" || body[1] === "X";
-      const code = hex ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
-      // Reject out-of-range and UTF-16 surrogate-range (0xD800–0xDFFF) code points:
-      // decoding a lone surrogate would yield an ill-formed string. Leave the
-      // original reference untouched instead.
-      if (Number.isFinite(code) && code >= 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)) {
+      const code = codeOf(body);
+      if (code >= 0xd800 && code <= 0xdfff) {
+        const after = offset + whole.length;
+        const next = code <= 0xdbff ? NUMERIC_REFERENCE.exec(text.slice(after, after + 16)) : null;
+        const low = next === null ? undefined : codeOf(`#${next[1] !== undefined ? `x${next[1]}` : next[2]}`);
+        if (low !== undefined && low >= 0xdc00 && low <= 0xdfff) {
+          consumed = after;
+          return String.fromCharCode(code, low);
+        }
+        tally.replaced += 1;
+        return "\ufffd";
+      }
+      if (Number.isFinite(code) && code >= 0 && code <= 0x10ffff) {
         try {
           return String.fromCodePoint(code);
         } catch {
@@ -89,7 +119,8 @@ export function decodeEntities(text: string): string {
         }
       }
     }
-    // Unknown named entity: leave it untouched rather than dropping information.
+    // Unknown named entity, or a reference past U+10FFFF: leave it untouched rather than
+    // dropping information.
     return whole;
   });
 }
@@ -151,9 +182,10 @@ interface Leaf {
  * in the size of the body, whatever it contains. Only the direct children of the
  * first `<channel>` and of its `<item>`s are read; a leaf's text is its decoded text
  * plus its CDATA sections verbatim, and markup inside a leaf is kept as written.
- * Element names match case-insensitively. The first occurrence of a leaf wins.
+ * Element names match case-insensitively. The first occurrence of a leaf wins. A reference to
+ * a lone surrogate becomes U+FFFD, counted in `tally` (see {@link decodeEntities}).
  */
-export function parseRss(xml: string): RssFeed {
+export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 }): RssFeed {
   const stack: string[] = [];
   const items: RawRssItem[] = [];
   let channel: RssChannel | undefined;
@@ -189,7 +221,7 @@ export function parseRss(xml: string): RssFeed {
     if (xml[i] !== "<") {
       const next = xml.indexOf("<", i);
       const end = next === -1 ? n : next;
-      if (leaf) leaf.parts.push(decodeEntities(xml.slice(i, end)));
+      if (leaf) leaf.parts.push(decodeEntities(xml.slice(i, end), tally));
       i = end;
     } else if (xml.startsWith("<![CDATA[", i)) {
       const end = endOf(xml, "]]>", i + 9, "CDATA section");
@@ -444,7 +476,7 @@ function tokenizeHtml(html: string): HtmlToken[] {
 }
 
 /** Read one attribute's value from a tag's raw attribute text (linear scan). */
-function attribute(raw: string, wanted: string): string | undefined {
+function attribute(raw: string, wanted: string, tally: ReplacementTally): string | undefined {
   let i = 0;
   while (i < raw.length) {
     NAME.lastIndex = i;
@@ -470,7 +502,7 @@ function attribute(raw: string, wanted: string): string | undefined {
       while (i < raw.length && !/\s/.test(raw[i]!)) i += 1;
       value = raw.slice(from, i);
     }
-    if (m[0].toLowerCase() === wanted) return decodeEntities(value.trim());
+    if (m[0].toLowerCase() === wanted) return decodeEntities(value.trim(), tally);
   }
   return undefined;
 }
@@ -499,9 +531,10 @@ function attribute(raw: string, wanted: string): string | undefined {
  * one per image) repeats too, so `images` also pairs each image with the credit that
  * follows it. The raw description stays available on the item for anyone who needs more.
  *
- * One forward scan over the fragment, so the cost is linear in its length.
+ * One forward scan over the fragment, so the cost is linear in its length. A reference to a
+ * lone surrogate becomes U+FFFD, counted in `tally` (see {@link decodeEntities}).
  */
-export function parseDescription(html: string, baseUrl?: string): ParsedDescription {
+export function parseDescription(html: string, baseUrl?: string, tally: ReplacementTally = { replaced: 0 }): ParsedDescription {
   const imageUrls: string[] = [];
   const images: DescriptionImage[] = [];
   const fields: Record<string, string> = {};
@@ -536,14 +569,14 @@ export function parseDescription(html: string, baseUrl?: string): ParsedDescript
 
   for (const token of tokenizeHtml(html)) {
     if (token.kind === "text") {
-      const text = decodeEntities(token.text);
+      const text = decodeEntities(token.text, tally);
       if (label) label.push(text);
       else if (value) value.parts.push(text);
       if (text.trim() !== "") lineStart = false;
       continue;
     }
     if (token.name === "img" && !token.close) {
-      const raw = attribute(token.attrs, "src");
+      const raw = attribute(token.attrs, "src", tally);
       const src = raw ? resolveUrl(raw, baseUrl) : raw;
       if (src) {
         imageUrls.push(src);

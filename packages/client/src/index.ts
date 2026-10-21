@@ -42,7 +42,7 @@ export {
 } from "./validate.js";
 export type { Problem } from "./validate.js";
 export { parseRss, parseDescription, decodeEntities } from "./rss.js";
-export type { RssFeed, RssChannel, RawRssItem, ParsedDescription, DescriptionImage } from "./rss.js";
+export type { RssFeed, RssChannel, RawRssItem, ParsedDescription, DescriptionImage, ReplacementTally } from "./rss.js";
 export {
   STATE_SLUGS,
   STATE_NAMES,

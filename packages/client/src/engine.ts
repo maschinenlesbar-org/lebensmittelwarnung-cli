@@ -18,7 +18,7 @@ import {
   type Transport,
 } from "./http.js";
 import { buildQueryString, type QueryParams } from "./query.js";
-import { parseRss, type RssFeed } from "./rss.js";
+import { parseRss, type ReplacementTally, type RssFeed } from "./rss.js";
 import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungError,
@@ -47,6 +47,7 @@ export const ENGINE_OPTION_KEYS = [
   "maxResponseBytes",
   "sleep",
   "onRetry",
+  "onWarning",
 ] as const;
 
 export const DEFAULT_BASE_URL = "https://www.lebensmittelwarnung.de";
@@ -127,6 +128,15 @@ export interface EngineOptions {
    * and reset connection; never when there is no retry. A throw is swallowed.
    */
   onRetry?: ((event: RetryEvent) => void) | undefined;
+  /**
+   * Called with a one-line warning about an answer the engine delivered changed: characters
+   * that were not valid text — bytes invalid in the declared (or default UTF-8) encoding, or a
+   * reference to a lone surrogate (`&#xD800;`) — replaced with U+FFFD. The message names the
+   * request and the count (`GET <url>: 2 characters of the answer were not valid text …`), once
+   * per answer. Without it the replacement is silent. A throw is swallowed. The CLI logs it as a
+   * `WARN` record of `lebensmittel.api`.
+   */
+  onWarning?: ((message: string) => void) | undefined;
 }
 
 /** What `EngineOptions.onRetry` is told about one retry. */
@@ -382,10 +392,12 @@ export function cleartextProblem(baseUrl: string, secrets: readonly string[] = [
  * The Content-Type used to be ignored, so a Latin-1 body declared only there was read as
  * UTF-8: thousands of U+FFFD, and the label `Betroffene Bundesländer …` no longer matched,
  * so every warning lost `affectedStates`. An encoding TextDecoder doesn't know is a
- * LebensmittelwarnungParseError rather than mojibake. (Bytes that are invalid in the
- * declared encoding become U+FFFD, as everywhere in the WHATWG decoders.)
+ * LebensmittelwarnungParseError rather than mojibake. Bytes that are invalid in the declared
+ * encoding become U+FFFD, as everywhere in the WHATWG decoders, and are counted (`replaced`):
+ * the body is decoded with a fatal decoder first, and only on its failure with replacement,
+ * counting the U+FFFD that added (for UTF-8 exactly: those the server sent are subtracted).
  */
-function decodeXml(body: Buffer, contentType: string, path: string): string {
+function decodeXml(body: Buffer, contentType: string, path: string): { text: string; replaced: number } {
   let charset: string | undefined;
   if (body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf) charset = "utf-8";
   else if (body[0] === 0xff && body[1] === 0xfe) charset = "utf-16le";
@@ -395,13 +407,37 @@ function decodeXml(body: Buffer, contentType: string, path: string): string {
   charset ??= "utf-8";
   let decoder: TextDecoder;
   try {
-    decoder = new TextDecoder(charset);
+    decoder = new TextDecoder(charset, { fatal: true });
   } catch {
     throw new LebensmittelwarnungParseError(
       `Unsupported response charset "${sanitizeServerText(charset).slice(0, 100)}" from ${path}.`,
     );
   }
-  return decoder.decode(body);
+  try {
+    return { text: decoder.decode(body), replaced: 0 };
+  } catch {
+    // Not valid in the encoding: decode with replacement, and count what was replaced.
+    const text = new TextDecoder(decoder.encoding).decode(body);
+    const sent = decoder.encoding === "utf-8" ? countBytes(body, REPLACEMENT_UTF8) : 0;
+    return { text, replaced: countChar(text, 0xfffd) - sent };
+  }
+}
+
+/** U+FFFD in UTF-8. */
+const REPLACEMENT_UTF8 = Buffer.from([0xef, 0xbf, 0xbd]);
+
+/** How often `needle` occurs in `body`. */
+function countBytes(body: Buffer, needle: Buffer): number {
+  let n = 0;
+  for (let at = body.indexOf(needle); at !== -1; at = body.indexOf(needle, at + needle.length)) n++;
+  return n;
+}
+
+/** How often the UTF-16 unit `code` occurs in `text`. */
+function countChar(text: string, code: number): number {
+  let n = 0;
+  for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === code) n++;
+  return n;
 }
 
 /**
@@ -450,6 +486,7 @@ export class RequestEngine {
   private readonly maxResponseBytes: number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly onRetry: ((event: RetryEvent) => void) | undefined;
+  private readonly onWarning: ((message: string) => void) | undefined;
 
   constructor(options: EngineOptions = {}) {
     // A misspelled option (`timeout`, `maxRetry`) was ignored and its default used.
@@ -485,6 +522,26 @@ export class RequestEngine {
     this.sleep = functionOption("sleep", options.sleep, realSleep);
     this.onRetry =
       options.onRetry === undefined ? undefined : functionOption("onRetry", options.onRetry, () => {});
+    this.onWarning =
+      options.onWarning === undefined ? undefined : functionOption("onWarning", options.onWarning, () => {});
+  }
+
+  /**
+   * Tell `onWarning` that `replaced` characters of the answer to `path`/`query` were not valid
+   * text and became U+FFFD; nothing when there were none. A throwing callback never breaks the
+   * request. {@link getFeed} calls it; a caller of {@link readFeed} that decodes more of the
+   * answer (the client's descriptions) calls it once with the whole count.
+   */
+  reportReplaced(path: string, query: QueryParams | undefined, replaced: number): void {
+    if (replaced <= 0) return;
+    const message =
+      `GET ${cutForMessage(redactUrl(this.buildUrl(path, query)))}: ${replaced} ${replaced === 1 ? "character" : "characters"} ` +
+      `of the answer ${replaced === 1 ? "was" : "were"} not valid text (invalid bytes or a lone surrogate) and replaced with U+FFFD.`;
+    try {
+      this.onWarning?.(message);
+    } catch {
+      // a logging hook is no reason to fail the request
+    }
   }
 
   /** Tell `onRetry` about a retry, then wait. A throwing callback never breaks the request. */
@@ -687,8 +744,20 @@ export class RequestEngine {
    *     names it explicitly.
    */
   async getFeed(path: string, query?: QueryParams): Promise<RssFeed> {
+    const { feed, replaced } = await this.readFeed(path, query);
+    this.reportReplaced(path, query, replaced);
+    return feed;
+  }
+
+  /**
+   * {@link getFeed} without the warning: the feed, and how many characters of it were not valid
+   * text and became U+FFFD (invalid bytes, references to a lone surrogate in the item leaves).
+   * The text is never changed silently: the caller reports the count with
+   * {@link reportReplaced}, once it has decoded the rest of the answer.
+   */
+  async readFeed(path: string, query?: QueryParams): Promise<{ feed: RssFeed; replaced: number }> {
     const res = await this.request(path, query);
-    const text = decodeXml(res.data, res.contentType, path);
+    const { text, replaced: badBytes } = decodeXml(res.data, res.contentType, path);
     const head = text.trimStart().slice(0, 200).toLowerCase();
     if (head.startsWith("<!doctype html") || head.startsWith("<html")) {
       throw new LebensmittelwarnungParseError(
@@ -701,8 +770,10 @@ export class RequestEngine {
           "megov.bayern.de is defunct and returns an empty body; this client uses the RSS feeds.)",
       );
     }
+    const tally: ReplacementTally = { replaced: 0 };
+    let feed: RssFeed;
     try {
-      return parseRss(text);
+      feed = parseRss(text, tally);
     } catch (cause) {
       // Name the parser's reason (run.ts prints only the message, never `cause`).
       const reason = cause instanceof Error ? `: ${cutForMessage(sanitizeServerText(cause.message))}` : "";
@@ -710,6 +781,7 @@ export class RequestEngine {
         cause: this.scrubCause(cause),
       });
     }
+    return { feed, replaced: badBytes + tally.replaced };
   }
 
   private toApiError(url: string, status: number, body: Buffer, retryAfterMs?: number): LebensmittelwarnungApiError {
