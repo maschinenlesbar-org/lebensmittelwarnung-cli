@@ -60,7 +60,7 @@ test("getFeed on an empty body names the defunct legacy JSON API in the hint", a
     () => e.getFeed("/feed.xml"),
     (err) =>
       err instanceof LebensmittelwarnungParseError &&
-      /Empty response/.test(err.message) &&
+      /empty response/.test(err.message) &&
       /legacy JSON API/.test(err.message),
   );
 });
@@ -292,7 +292,7 @@ test("an unknown Content-Type charset is a parse error", async () => {
   const mt = makeMockTransport(() => rawResponse("<rss><channel></channel></rss>", "text/xml; charset=x-bogus"));
   await assert.rejects(
     () => new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml"),
-    (err) => err instanceof LebensmittelwarnungParseError && /Unsupported response charset "x-bogus"/.test(err.message),
+    (err) => err instanceof LebensmittelwarnungParseError && /unsupported response charset "x-bogus"/.test(err.message),
   );
 });
 
@@ -301,7 +301,7 @@ test("an unknown declared encoding is a parse error, not mojibake", async () => 
   const mt = makeMockTransport(() => rawResponse(xml, "text/xml"));
   await assert.rejects(
     () => new RequestEngine({ transport: mt.transport }).getFeed("/feed.xml"),
-    (err) => err instanceof LebensmittelwarnungParseError && err.message === 'Unsupported response charset "x-bogus" from /feed.xml.',
+    (err) => err instanceof LebensmittelwarnungParseError && err.message === 'GET https://www.lebensmittelwarnung.de/feed.xml: unsupported response charset "x-bogus".',
   );
 });
 
@@ -617,4 +617,22 @@ test("text that is not valid is replaced with U+FFFD and reported through onWarn
   const throwing = new RequestEngine({ transport: async () => rssResponse(feed("K&#xD800;se")), onWarning: () => { throw new Error("x"); } });
   assert.equal((await throwing.getFeed("/f.xml")).items[0]?.title, "K\ufffdse");
   assert.throws(() => new RequestEngine({ onWarning: "x" as never }), LebensmittelwarnungValidationError);
+});
+
+test("an answer error names the request: method and URL, userinfo redacted (D9)", async () => {
+  const cases: Array<[Buffer | string, string, string]> = [
+    [fx.htmlShell, "text/html", "expected an RSS feed but received an HTML page — the feed may have moved."],
+    ["", "text/xml", "empty response — the feed returned no content. (The legacy JSON API at megov.bayern.de is defunct and returns an empty body; this client uses the RSS feeds.)"],
+    ["<rss><channel>", "text/xml", "the answer is not valid RSS: Unterminated element <channel>"],
+    ["{}", "application/json", "the answer is not valid RSS: No document element found"],
+    ["<rss/>", "text/xml; charset=x-bogus", 'unsupported response charset "x-bogus".'],
+  ];
+  for (const [body, type, reason] of cases) {
+    const e = new RequestEngine({ baseUrl: "https://user:secret@mirror.test/base", transport: async () => rawResponse(body, type) });
+    await assert.rejects(
+      () => e.getFeed("/feed.xml", { state: "bayern" }),
+      (err) => err instanceof LebensmittelwarnungParseError && err.message === `GET https://***@mirror.test/base/feed.xml?state=bayern: ${reason}`,
+      reason,
+    );
+  }
 });

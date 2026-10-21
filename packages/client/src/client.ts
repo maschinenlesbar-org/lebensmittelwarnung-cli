@@ -250,7 +250,7 @@ export class LebensmittelwarnungClient {
     // feed may well be empty.
     if (feed.items.length === 0 && query.state === undefined && query.type === undefined) {
       throw new LebensmittelwarnungParseError(
-        `The unfiltered feed ${FEED_PATH} came back as an RSS <channel> with no <item> elements. ` +
+        `GET ${this.engine.describeUrl(FEED_PATH, params)}: the unfiltered feed came back as an RSS <channel> with no <item> elements. ` +
           "It always lists the active recalls (it goes back years), so this is not \"no recalls\": " +
           "the portal may be failing — try again later.",
       );

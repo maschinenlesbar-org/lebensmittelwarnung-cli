@@ -177,11 +177,11 @@ Use `--compact` for single-line JSON and `-o <file>` to write to a file — both
   `PATH`. It is `$(npm prefix -g)/bin`; add that to your `PATH`.
 - **Exit `1` / "received an HTML page"** — the feed URL returned the website's HTML
   shell instead of RSS (it may have moved). Check `--base-url`.
-- **Exit `1` / "Empty response … legacy JSON API"** — the old
+- **Exit `1` / "GET <url>: empty response … legacy JSON API"** — the old
   `megov.bayern.de` JSON API (bundesAPI spec) is **defunct** and returns an empty
   body; this CLI uses the RSS feeds instead and does not touch it. If you see this,
   a proxy or a wrong `--base-url` returned an empty body.
-- **Exit `1` / "The unfiltered feed … with no <item> elements"** or **"Found N <item>
+- **Exit `1` / "GET <url>: the unfiltered feed … with no <item> elements"** or **"Found N <item>
   elements that are not a direct child of the first <channel>"** — the all-Germany feed
   lists every active recall and is never empty, and items in a wrapper would be dropped
   unread; rather than answer "no recalls", the CLI fails. Try again later; if it persists,

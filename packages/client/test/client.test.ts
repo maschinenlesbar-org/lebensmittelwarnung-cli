@@ -313,7 +313,11 @@ test("an empty unfiltered feed is an error, an empty --state/--type feed is not 
   const c = new LebensmittelwarnungClient({ transport: mt.transport });
   await assert.rejects(c.warnings(), (e: unknown) => {
     assert.ok(e instanceof LebensmittelwarnungParseError);
-    assert.match(e.message, /unfiltered feed .* came back as an RSS <channel> with no <item> elements/);
+    assert.equal(
+      e.message,
+      `GET https://www.lebensmittelwarnung.de${FEED_PATH}: the unfiltered feed came back as an RSS <channel> with no <item> elements. ` +
+        'It always lists the active recalls (it goes back years), so this is not "no recalls": the portal may be failing — try again later.',
+    );
     return true;
   });
   // Client-side filters don't make it a filtered feed: the feed itself was empty.

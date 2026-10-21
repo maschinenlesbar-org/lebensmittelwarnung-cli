@@ -49,7 +49,10 @@ with two optional, combinable query parameters, both applied server-side:
 If a response ever comes back as the website's **HTML shell**, or as an **empty
 body** (the legacy-API failure mode), the engine detects it and throws a
 `LebensmittelwarnungParseError` with a plain-language message — the empty-body case
-names the defunct JSON API explicitly — rather than a cryptic parse failure.
+names the defunct JSON API explicitly — rather than a cryptic parse failure. Every error about
+an answer (the HTML shell, an empty body, no RSS, an unknown charset, an empty unfiltered feed)
+starts with the request, `GET <url>: ` (`describeUrl`: userinfo redacted), so it says which host
+gave the bad answer.
 Verified live against the endpoints on 2026-07-13.
 
 ## Build from source
@@ -254,7 +257,7 @@ Every other header in `defaultHeaders` goes through unchanged.
   extracted: text is entity-decoded, **CDATA** sections are kept verbatim, and the
   result is trimmed. Comments, processing instructions and declarations are skipped;
 - an **unterminated** element, comment, CDATA section, tag or attribute value throws
-  (the engine reports it as `Failed to parse RSS response from <path>: <reason>`,
+  (the engine reports it as `GET <url>: the answer is not valid RSS: <reason>`,
   exit 1), so a truncated or hostile body is an error rather than a partial feed;
   so is a feed with more than 100 000 items (a DoS guard; the live feed has a few
   hundred).

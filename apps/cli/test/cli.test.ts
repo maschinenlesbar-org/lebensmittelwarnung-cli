@@ -283,7 +283,7 @@ test("warnings --search also matches the Produktbezeichnung when the title words
 test("a truncated or hostile feed body exits 1 with the parser's reason", async () => {
   const cli = makeCli(() => rssResponse("<rss><channel>" + "<item><description>".repeat(1000)));
   assert.equal(await run(["warnings"], cli.deps), 1);
-  assert.match(cli.err.join("\n"), /Failed to parse RSS response from .*: Unterminated element <description>/);
+  assert.match(cli.err.join("\n"), /GET http\S+: the answer is not valid RSS: Unterminated element <description>/);
   assert.equal(cli.out.length, 0);
 });
 
@@ -517,7 +517,7 @@ test("an empty unfiltered feed or wrapped items exit 1 with the reason on stderr
   const empty = makeCli(() => rssResponse('<rss version="2.0"><channel><title>t</title></channel></rss>'));
   assert.equal(await run(["warnings", "--limit", "3"], empty.deps), 1);
   assert.deepEqual(empty.out, []);
-  assert.match(untimed(empty.err.join("\n")), /^ERROR \[lebensmittel\.api\] The unfiltered feed .* with no <item> elements\./);
+  assert.match(untimed(empty.err.join("\n")), /^ERROR \[lebensmittel\.api\] GET \S+: the unfiltered feed came back as an RSS <channel> with no <item> elements\./);
 
   const wrapped = makeCli(() =>
     rssResponse(

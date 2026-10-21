@@ -392,12 +392,13 @@ export function cleartextProblem(baseUrl: string, secrets: readonly string[] = [
  * The Content-Type used to be ignored, so a Latin-1 body declared only there was read as
  * UTF-8: thousands of U+FFFD, and the label `Betroffene Bundesländer …` no longer matched,
  * so every warning lost `affectedStates`. An encoding TextDecoder doesn't know is a
- * LebensmittelwarnungParseError rather than mojibake. Bytes that are invalid in the declared
+ * LebensmittelwarnungParseError (naming `request`, `GET <url>`) rather than mojibake. Bytes
+ * that are invalid in the declared
  * encoding become U+FFFD, as everywhere in the WHATWG decoders, and are counted (`replaced`):
  * the body is decoded with a fatal decoder first, and only on its failure with replacement,
  * counting the U+FFFD that added (for UTF-8 exactly: those the server sent are subtracted).
  */
-function decodeXml(body: Buffer, contentType: string, path: string): { text: string; replaced: number } {
+function decodeXml(body: Buffer, contentType: string, request: string): { text: string; replaced: number } {
   let charset: string | undefined;
   if (body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf) charset = "utf-8";
   else if (body[0] === 0xff && body[1] === 0xfe) charset = "utf-16le";
@@ -410,7 +411,7 @@ function decodeXml(body: Buffer, contentType: string, path: string): { text: str
     decoder = new TextDecoder(charset, { fatal: true });
   } catch {
     throw new LebensmittelwarnungParseError(
-      `Unsupported response charset "${sanitizeServerText(charset).slice(0, 100)}" from ${path}.`,
+      `${request}: unsupported response charset "${sanitizeServerText(charset).slice(0, 100)}".`,
     );
   }
   try {
@@ -535,7 +536,7 @@ export class RequestEngine {
   reportReplaced(path: string, query: QueryParams | undefined, replaced: number): void {
     if (replaced <= 0) return;
     const message =
-      `GET ${cutForMessage(redactUrl(this.buildUrl(path, query)))}: ${replaced} ${replaced === 1 ? "character" : "characters"} ` +
+      `GET ${this.describeUrl(path, query)}: ${replaced} ${replaced === 1 ? "character" : "characters"} ` +
       `of the answer ${replaced === 1 ? "was" : "were"} not valid text (invalid bytes or a lone surrogate) and replaced with U+FFFD.`;
     try {
       this.onWarning?.(message);
@@ -638,6 +639,15 @@ export class RequestEngine {
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
     const qs = query ? buildQueryString(query) : "";
     return `${this.#baseUrl}${normalizedPath}${qs ? `?${qs}` : ""}`;
+  }
+
+  /**
+   * The request URL as an error message names it: {@link buildUrl} with the userinfo redacted
+   * (`https://***@host/…`), cut at 500 characters. An error about an answer starts with
+   * `GET <this>: `, so it says which host gave the bad answer (a wrong `--base-url`).
+   */
+  describeUrl(path: string, query?: QueryParams): string {
+    return cutForMessage(redactUrl(this.buildUrl(path, query)));
   }
 
   /**
@@ -757,16 +767,18 @@ export class RequestEngine {
    */
   async readFeed(path: string, query?: QueryParams): Promise<{ feed: RssFeed; replaced: number }> {
     const res = await this.request(path, query);
-    const { text, replaced: badBytes } = decodeXml(res.data, res.contentType, path);
+    // Every error about the answer names the request, `GET <url>: …` (userinfo redacted).
+    const request = `GET ${this.describeUrl(path, query)}`;
+    const { text, replaced: badBytes } = decodeXml(res.data, res.contentType, request);
     const head = text.trimStart().slice(0, 200).toLowerCase();
     if (head.startsWith("<!doctype html") || head.startsWith("<html")) {
       throw new LebensmittelwarnungParseError(
-        `Expected an RSS feed from ${path} but received an HTML page — the feed may have moved.`,
+        `${request}: expected an RSS feed but received an HTML page — the feed may have moved.`,
       );
     }
     if (text.trim().length === 0) {
       throw new LebensmittelwarnungParseError(
-        `Empty response from ${path} — the feed returned no content. (The legacy JSON API at ` +
+        `${request}: empty response — the feed returned no content. (The legacy JSON API at ` +
           "megov.bayern.de is defunct and returns an empty body; this client uses the RSS feeds.)",
       );
     }
@@ -777,7 +789,7 @@ export class RequestEngine {
     } catch (cause) {
       // Name the parser's reason (run.ts prints only the message, never `cause`).
       const reason = cause instanceof Error ? `: ${cutForMessage(sanitizeServerText(cause.message))}` : "";
-      throw new LebensmittelwarnungParseError(`Failed to parse RSS response from ${path}${reason}`, {
+      throw new LebensmittelwarnungParseError(`${request}: the answer is not valid RSS${reason}`, {
         cause: this.scrubCause(cause),
       });
     }
