@@ -357,7 +357,9 @@ apps/cli/src/cli/
 an EPIPE on stdout (`| head`, a `jq` that exits early) exits 0 quietly; an EPIPE on
 stderr is ignored, so a failed run keeps its own exit code (`2>&1 | true` used to turn a
 usage error into 0); any other stdout error is an ERROR record of `lebensmittel.output`
-and exits 1.
+and exits 1. stdout redirected to a regular file (`> out.json`) is written with every byte
+checked (`stdoutWriter`): a short write (EFBIG, ENOSPC), which Node's stream ignored with exit 0,
+is that error, exit 1.
 `apps/cli/test/conformance-p7-pipes-exit-codes.test.ts` runs the built bin for both.
 
 **The `-o` file.** `action()` calls `checkOutputTarget` before any request: `--force`
@@ -370,7 +372,8 @@ the request was made), then a temporary file beside the target
 is written and renamed over it; the old file's mode is kept, `--force` writes through a
 symlink to the file it points to (a dangling link is replaced by the file), and on a failure
 neither the temporary file nor the claimed name is left. `apps/cli/test/output.test.ts`
-runs these against real files; conformance test P26 cuts a write short under `ulimit -f`.
+runs these against real files; conformance test P26 cuts a write short under `ulimit -f`, to the `-o` file and to stdout
+redirected to a file.
 
 **Rendering.** `renderJson` (`output.ts`) prints pretty JSON, or one line with
 `--compact`. An answer nested too deeply to pretty-print is an `OutputError` (exit 1, an

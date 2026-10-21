@@ -126,7 +126,8 @@ Each line on stderr is a **log record**: a timestamp (UTC), a level (`ERROR`, `W
 `INFO`) and a topic, the program and the area it comes from (`lebensmittel.cli` for usage
 errors, `lebensmittel.api` for the feed's answers and the notes on them, a malformed answer
 (the HTML shell, an empty body, no RSS) included, `lebensmittel.http`
-for the connection, `lebensmittel.output` for `-o` and a failed write to stdout). By default it is written log4j style;
+for the connection, `lebensmittel.output` for `-o` and a failed write to stdout: stdout redirected to a file and cut
+short, by a full disk or a file-size limit, exits `1`, never `0`). By default it is written log4j style;
 `--log-format jsonl` writes one JSON object per line instead. A record is always one line:
 a line break, a control character or a bidi control in a message (a server's text, a value
 you typed) is written as an escape (`\n`, `\u001b`, `\u202e`), so it can neither split a
