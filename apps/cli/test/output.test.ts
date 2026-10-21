@@ -115,6 +115,20 @@ test("printed JSON escapes DEL, C1 and the bidi controls, pretty and compact (K1
   }
 });
 
+test("terminal controls are escaped in chunks: the same text as one pass, across chunk edges (D7)", () => {
+  const DEL = String.fromCharCode(0x7f);
+  const C1 = String.fromCharCode(0x9b);
+  const RLO = String.fromCharCode(0x202e);
+  // Controls right before, at and after the 64 Ki edges, and a run of them.
+  const title = ["a".repeat(65535), DEL, C1, "b".repeat(65534), RLO, DEL.repeat(70000), "ü😀", C1].join("");
+  const { deps, out } = makeDeps();
+  renderJson(deps, { compact: true }, [{ title }]);
+  const expected = JSON.stringify([{ title }]).replace(/[\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,
+    (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`);
+  assert.equal(out[0], expected);
+  assert.deepEqual(JSON.parse(out[0]!), [{ title }]);
+});
+
 // ---- -o through run(), against real files in a temp dir (K7) ----------------------------
 // A write cut short (a full disk) is conformance test P26's.
 

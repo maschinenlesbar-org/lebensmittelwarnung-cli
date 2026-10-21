@@ -395,8 +395,12 @@ compact form of this very answer prints (`compactPrints`, probed, since it depen
 version and the stack). `--compact` takes V8's fast path, the only one that prints very deep
 nesting on Node 26, unless the answer holds a string or key of 64 Mi characters or more
 (`holdsHugeString`, iterative and without an allocation per value): on such a string the fast
-path aborts Node 26, and the path with an empty gap prints the same text.
-`apps/cli/test/output.test.ts` pins all of this. The printed
+path aborts Node 26, and the path with an empty gap prints the same text. The escaping below is
+measured first and built in chunks of 64 Ki characters (`escapeControlChars`), so an answer full
+of DEL characters prints within memory, or, past V8's longest string once escaped, is an
+`OutputError` (`The answer is too large to print (N characters once its control characters are
+escaped).`). `apps/cli/test/output.test.ts` pins all of this; conformance test P27 runs the built
+bin under a small heap. The printed
 JSON, on stdout and in the `-o` file, escapes what `JSON.stringify` leaves raw although a
 terminal acts on it: DEL, C1 (U+0080–U+009F) and the bidi controls (`isBidiControl`:
 U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), so a U+202E prints as `\u202e`.
@@ -547,7 +551,10 @@ everything that drives the CLI is in `apps/cli/test/`.
   lists are empty, with the reason), `p25` (an answer is exact or an error: the number cases
   are skipped, the feed is RSS text; an empty answer is an error, exit 1) and `p26` (`-o`
   never loses a file: a write cut short under `ulimit -f` leaves the old file and no
-  temporary one; runs the built bin). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
+  temporary one, stdout cut short is an error, streams are written in place, a signal leaves
+  nothing behind; runs the built bin). The fix round of 2026-10-21 added `p27` (a big or odd
+  answer is printed or refused in one clean record within memory: DEL characters under a small
+  heap; the large flat answer is skipped, the feed being RSS text). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
   to the kit's shape for P24 and P25.
 
 ## Continuous integration
