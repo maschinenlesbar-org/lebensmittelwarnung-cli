@@ -522,7 +522,14 @@ everything that drives the CLI is in `apps/cli/test/`.
   (no base-URL variable and no secret here, so those two cases are skipped), and `p21`:
   every relative link in `README.md` points to a file `package.json` `files` ships, since
   npmjs.com shows the README; other documents are linked by their GitHub URL. `p23`
-  (2026-10-09): every stderr line is a log record, `--log-format text|jsonl`.
+  (2026-10-09): every stderr line is a log record, `--log-format text|jsonl`. The kit
+  rollout of 2026-10-21 added `p24` (an input is canonicalised or refused: no case applies
+  here, since `--search` is matched client-side and the feed has one fixed path, so both
+  lists are empty, with the reason), `p25` (an answer is exact or an error: the number cases
+  are skipped, the feed is RSS text; an empty answer is an error, exit 1) and `p26` (`-o`
+  never loses a file: a write cut short under `ulimit -f` leaves the old file and no
+  temporary one; runs the built bin). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
+  to the kit's shape for P24 and P25.
 
 ## Continuous integration
 

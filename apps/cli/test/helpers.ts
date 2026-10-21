@@ -82,3 +82,23 @@ export async function parity(
   }
   return { cli, lib };
 }
+
+/** The library's outcome in the kit's shape (conformance P24, P25): the error as `{ name, message }`. */
+export interface KitLibOutcome {
+  ok: boolean;
+  value?: unknown;
+  error?: { name: string; message: string };
+  requests: HttpRequest[];
+}
+
+/** {@link parity}, with the library's outcome in the kit's shape (`KitLibOutcome`). */
+export async function kitParity(
+  argv: string[],
+  call: (transport: Transport) => unknown,
+  responder?: (req: HttpRequest) => HttpResponse | Promise<HttpResponse>,
+): Promise<{ cli: CliOutcome; lib: KitLibOutcome }> {
+  const { cli, lib } = await parity(argv, call, responder);
+  if (lib.ok) return { cli, lib: { ok: true, value: lib.value, requests: lib.requests } };
+  const error = lib.error instanceof Error ? { name: lib.error.name, message: lib.error.message } : { name: "", message: String(lib.error) };
+  return { cli, lib: { ok: false, error, requests: lib.requests } };
+}
