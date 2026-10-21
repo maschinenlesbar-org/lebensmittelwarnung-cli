@@ -290,7 +290,11 @@ option `onWarning(message)` is told once per answer, `GET <url>: N characters of
 were not valid text (invalid bytes or a lone surrogate) and replaced with U+FFFD.` (`getFeed`
 after the feed; `client.warnings()` after the descriptions too, through `readFeed` and
 `reportReplaced`); a throw in it is swallowed, and the CLI logs it as a `WARN` record of
-`lebensmittel.api`. One bad character never sinks a whole answer.
+`lebensmittel.api`. One bad character never sinks a whole answer. A body too large to be one
+string (512 MB and more, possible with `maxResponseBytes: 0`) is a
+`LebensmittelwarnungParseError`, `GET <url>: the answer is too large to read as text (N bytes;
+the longest string is 536870888 characters).`, never a plain Error; an error status with such a
+body keeps its `LebensmittelwarnungApiError`, without the body.
 
 It is deliberately **not** a general-purpose parser (no namespaces, DTDs, or full
 mixed-content reconstruction) — just enough for these shallow feeds, and exercised
