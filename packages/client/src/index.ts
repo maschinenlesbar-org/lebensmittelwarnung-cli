@@ -38,7 +38,13 @@ export {
   headerValueProblem,
   knownKeysProblem,
   limitProblem,
+  listProblem,
   nonBlankProblem,
+  normalizeText,
+  normalizeToken,
+  splitList,
+  textProblem,
+  tokenProblem,
 } from "./validate.js";
 export type { Problem } from "./validate.js";
 export { parseRss, parseDescription, decodeEntities } from "./rss.js";

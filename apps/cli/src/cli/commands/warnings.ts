@@ -7,7 +7,7 @@
 // use commander `.choices()` (an unknown slug fails at parse time, exit 2, rather
 // than being silently dropped and returning the full unfiltered feed); --limit,
 // --since and --search are parsed with the library's own rules (limitProblem,
-// calendarDateProblem, nonBlankProblem), so the CLI and the library agree.
+// calendarDateProblem, textProblem), so the CLI and the library agree.
 
 import type { Command } from "commander";
 import { logOf, type CliDeps } from "../io.js";
@@ -25,7 +25,7 @@ import {
   once,
   parseDate,
   parseLimit,
-  parseNonEmpty,
+  parseText,
 } from "../shared.js";
 import { renderJson } from "../output.js";
 
@@ -53,7 +53,7 @@ export function registerCommands(program: Command, deps: CliDeps): void {
     .option(
       "--search <term>",
       "only warnings whose product name (title or Produktbezeichnung) contains this text; case, umlaut spelling (Käse/Kaese), ß/ss and accents don't matter",
-      once(parseNonEmpty),
+      once(parseText),
     )
     .action(
       action(deps, async ({ client, global, opts }) => {

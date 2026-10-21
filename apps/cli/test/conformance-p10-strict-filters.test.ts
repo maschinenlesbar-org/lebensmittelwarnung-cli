@@ -47,12 +47,12 @@ const BAD_VALUES: Array<[string, Record<string, unknown>]> = [
   ["array limit", { limit: [1, 2] }],
 ];
 /**
- * Queries that differ from GOOD only in how a slug is spelled (padding, case, the
- * Land's display name): the feed answers an unknown slug with HTTP 400. "normalise" =
- * sent as GOOD_SENT; "reject" = the validation error (the CLI's --state choices reject them too).
+ * Queries that differ from GOOD only in how a slug is spelled (case, the Land's display
+ * name): the feed answers an unknown slug with HTTP 400. "normalise" = sent as GOOD_SENT;
+ * "reject" = the validation error (the CLI's --state choices reject them too). A padded slug is
+ * trimmed (D8, `normalizeToken`) and sent as GOOD_SENT: parity.test.ts checks it.
  */
 const UNNORMALISED: Array<[string, Record<string, unknown>]> = [
-  ["padded slug", { state: " bayern", type: "lebensmittel" }],
   ["upper case", { state: "BAYERN", type: "lebensmittel" }],
   ["display name", { state: "Bayern", type: "lebensmittel" }],
 ];

@@ -159,7 +159,7 @@ test("warnings() rejects an unknown state/type slug before any request", async (
     const client = new LebensmittelwarnungClient({ transport: mt.transport });
     await assert.rejects(
       () => client.warnings(query as never),
-      (err) => err instanceof LebensmittelwarnungValidationError && /^Invalid (state|type): expected one of /.test(err.message),
+      (err) => err instanceof LebensmittelwarnungValidationError && /^Invalid (state|type): (expected one of |Expected a non-empty value\.$)/.test(err.message),
       JSON.stringify(query),
     );
     assert.equal(mt.calls.length, 0);

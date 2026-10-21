@@ -18,7 +18,7 @@ import { parseDescription, type ReplacementTally } from "./rss.js";
 import { isStateSlug, isTypeSlug, STATE_SLUGS, TYPE_SLUGS } from "./enums.js";
 import { LebensmittelwarnungParseError, LebensmittelwarnungValidationError, cutForMessage, quoteValue } from "./errors.js";
 import { berlinDay, parsePubDate } from "./dates.js";
-import { assertValid, calendarDateProblem, knownKeysProblem, limitProblem, nonBlankProblem } from "./validate.js";
+import { assertValid, calendarDateProblem, knownKeysProblem, limitProblem, normalizeToken, textProblem, tokenProblem } from "./validate.js";
 import type { Warning, WarningsFilter, WarningsQuery } from "./types.js";
 
 /** The single feed path (relative to the base URL). GET, optionally `?state=&type=`. */
@@ -99,6 +99,22 @@ function invalid(name: string, expected: string, got: unknown): Lebensmittelwarn
   return new LebensmittelwarnungValidationError(`Invalid ${name}: expected ${expected}, got ${shown}.`);
 }
 
+/**
+ * A `state` or `type` slug as it is sent (trimmed, NFC), or undefined when none is given. A value
+ * with an invisible or control character (`tokenProblem`), and one that is not a known slug, is a
+ * LebensmittelwarnungValidationError that quotes it visibly.
+ */
+function slugOf<S extends string>(name: string, value: unknown, known: (v: string) => v is S, list: readonly string[]): S | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === "string") {
+    const problem = tokenProblem(value);
+    if (problem !== undefined) throw new LebensmittelwarnungValidationError(`Invalid ${name}: ${problem}`);
+    const slug = normalizeToken(value);
+    if (known(slug)) return slug;
+  }
+  throw invalid(name, `one of ${list.join(", ")}`, value);
+}
+
 /** The checked form of a {@link WarningsFilter}: a trimmed day, the folded needles. */
 interface CheckedFilter {
   since?: string;
@@ -161,7 +177,9 @@ function checkFilter(filter: WarningsFilter): CheckedFilter {
   const checked: CheckedFilter = {};
   if (filter.since !== undefined) checked.since = assertValid("since", filter.since, calendarDateProblem).trim();
   if (filter.search !== undefined) {
-    checked.needles = searchForms(assertValid("search", filter.search, nonBlankProblem));
+    // A needle of only invisible characters or combining marks folds to "", which every warning
+    // contains: refused as blank, like an empty one (textProblem).
+    checked.needles = searchForms(assertValid("search", filter.search, textProblem));
   }
   if (filter.limit !== undefined) checked.limit = assertValid("limit", filter.limit, limitProblem);
   return checked;
@@ -228,17 +246,15 @@ export class LebensmittelwarnungClient {
     // A misspelled key (`States`, `serach`) used to be ignored, returning the whole feed.
     assertValid("query", query, knownKeysProblem(QUERY_KEYS));
     // Checked before any request: the feed answers an unknown slug with HTTP 400,
-    // and a value such as "bayern&type=x" would be sent (encoded) as one slug.
-    if (query.state !== undefined && !isStateSlug(query.state)) {
-      throw invalid("state", `one of ${STATE_SLUGS.join(", ")}`, query.state);
-    }
-    if (query.type !== undefined && !isTypeSlug(query.type)) {
-      throw invalid("type", `one of ${TYPE_SLUGS.join(", ")}`, query.type);
-    }
+    // and a value such as "bayern&type=x" would be sent (encoded) as one slug. A slug is a
+    // token: trimmed and NFC (normalizeToken), an invisible or control character refused
+    // visibly (tokenProblem), then checked against the known list.
+    const state = slugOf("state", query.state, isStateSlug, STATE_SLUGS);
+    const type = slugOf("type", query.type, isTypeSlug, TYPE_SLUGS);
     const filter = checkFilter(query);
     const params: Record<string, string> = {};
-    if (query.state !== undefined) params["state"] = query.state;
-    if (query.type !== undefined) params["type"] = query.type;
+    if (state !== undefined) params["state"] = state;
+    if (type !== undefined) params["type"] = type;
 
     // The text is never changed silently: what the engine replaced with U+FFFD (invalid bytes,
     // a lone surrogate reference in an item leaf) and what the descriptions replaced is

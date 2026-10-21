@@ -12,6 +12,9 @@ import {
   headerValueProblem,
   limitProblem,
   nonBlankProblem,
+  normalizeToken,
+  textProblem,
+  tokenProblem,
 } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/validate";
 import { DEFAULT_BASE_URL, cleartextProblem, type RetryEvent } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/engine";
 import { quoteValue } from "@maschinenlesbar.org/lebensmittelwarnung-client/internal/errors";
@@ -67,12 +70,34 @@ export function once<T>(parse: (value: string) => T): (value: string, previous: 
   };
 }
 
-/** An Option constrained to a fixed set of choices, given at most once. */
+/**
+ * commander value-parser for a free-text filter (`--search`): the library's {@link textProblem}
+ * (not blank, nor only invisible characters or combining marks; no lone surrogate, control or
+ * format character), so the CLI refuses what the library refuses. The value is passed on as
+ * typed; the library folds it.
+ */
+export function parseText(value: string): string {
+  const problem = textProblem(value);
+  if (problem !== undefined) throw new InvalidArgumentError(problem);
+  return value;
+}
+
+/**
+ * An Option constrained to a fixed set of choices, given at most once. The value is a token
+ * ({@link tokenProblem}: an invisible or control character is refused, quoted visibly), trimmed
+ * and NFC ({@link normalizeToken}), then checked against the choices, as the library does.
+ */
 export function choiceOption(flags: string, description: string, choices: readonly string[]): Option {
   const option = new Option(flags, description).choices([...choices]);
   // Keep commander's choice check (and the choices in --help), and reject a repeat.
   const check = option.parseArg as (value: string, previous: unknown) => string;
-  return option.argParser(once((value: string) => check(value, undefined)));
+  return option.argParser(
+    once((value: string) => {
+      const problem = tokenProblem(value);
+      if (problem !== undefined) throw new InvalidArgumentError(problem);
+      return check(normalizeToken(value), undefined);
+    }),
+  );
 }
 
 /**

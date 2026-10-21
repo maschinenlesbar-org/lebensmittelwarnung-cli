@@ -139,7 +139,9 @@ macOS) and runs of whitespace folded away, so `kaese`, `weisse` and `Erdnuss` fi
 "Käse", "weiße" and "Erdnüsse". It is still a substring match: another word form needs
 a stem (`Tahin` finds "Tahina" and "Tahin", `Tahini` finds neither), and a term that is
 only in the reason, the manufacturer or another field is not searched (filter the JSON
-for those, see the recipes below).
+for those, see the recipes below). A term that is blank, or only invisible characters or
+combining marks (it would match every warning), and one with a control, zero-width or bidi
+character in it, are refused (exit `2`; the refusal shows the character as `\u200b`).
 
 `--since` takes a `YYYY-MM-DD` date and keeps warnings whose `pubDate` day, in
 German time (Europe/Berlin), is that day or later. A `pubDate` without a time zone is

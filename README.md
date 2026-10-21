@@ -78,7 +78,11 @@ New to terms like *Rückruf*, *Grund der Meldung* or the Bundesland slugs? The
 | `--limit <n>` | Return at most `n` warnings, in feed order (most recent first). |
 
 `--state` and `--type` are validated against the fixed slug lists, so a typo fails
-at parse time (exit `2`) rather than silently returning the full, unfiltered feed.
+at parse time (exit `2`) rather than silently returning the full, unfiltered feed; a slug is
+trimmed (` bayern` is `bayern`), and one with an invisible or control character (a zero-width
+space pasted along) is refused, showing it as `\u200b`. A `--search` term that is blank, or
+holds only invisible characters or combining marks (it would match every warning), or one with
+a control, zero-width or bidi character in it, is refused too (exit `2`).
 Each option takes one value: the feed has no "several states" query, so a repeated
 option (`--state bayern --state hessen`) is a usage error (exit `2`) too.
 

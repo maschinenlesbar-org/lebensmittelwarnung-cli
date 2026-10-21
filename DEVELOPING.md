@@ -122,7 +122,7 @@ this order — the CLI's `--since`, `--search` and `--limit` call exactly this:
 - `limit` keeps the first `n` (1..`MAX_WARNINGS_LIMIT`, 100 000), in feed order.
 
 Every option is checked before the request: an unknown slug, an impossible date
-(`calendarDateProblem`: `2026-02-30`), a blank `search` (`nonBlankProblem`) or a
+(`calendarDateProblem`: `2026-02-30`), a `search` that is blank or holds only invisible characters or combining marks, or one with a lone surrogate, a control or a format character (`textProblem`; folded, a needle of marks only was `""` and matched every warning), a `state`/`type` with an invisible or control character (`tokenProblem`; a slug is sent trimmed and NFC, `normalizeToken`, then checked against the list) or a
 `limit` outside its range (`limitProblem`) rejects with a
 `LebensmittelwarnungValidationError` (`Invalid since: Not a valid calendar date.`).
 `filterWarnings(list, { since, search, limit })` applies the same narrowing to a list

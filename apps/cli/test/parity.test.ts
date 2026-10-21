@@ -168,11 +168,11 @@ test("a refused --state/--type shows an invisible or control character escaped o
     ["--state", "state", "bay\u200bern"],
     ["--type", "type", "lebens\u00admittel"],
     ["--state", "state", "\u202ebayern"],
-    ["--state", "state", "bayern\u2028"],
+    ["--state", "state", "bay\u2066ern"],
   ] as const) {
     const o = await parity(["warnings", option, value], (t) =>
       new LebensmittelwarnungClient({ transport: t }).warnings({ [key]: value } as WarningsQuery));
-    const ch = [...value].find((c) => /[\p{Cf}\p{Zl}]/u.test(c)) ?? "";
+    const ch = [...value].find((c) => /\p{Cf}/u.test(c)) ?? "";
     const escape = `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`;
     assert.equal(o.cli.code, 2, `${option} ${JSON.stringify(value)}`);
     assert.deepEqual(o.cli.requests, []);
@@ -182,5 +182,69 @@ test("a refused --state/--type shows an invisible or control character escaped o
     const message = o.lib.ok ? "" : (o.lib.error as Error).message;
     assert.ok(message.includes(escape), `${JSON.stringify(value)}: the library's refusal doesn't show ${escape}: ${message}`);
     assert.ok(!message.includes(ch), `${JSON.stringify(value)}: the library's refusal shows the character raw`);
+  }
+});
+
+// ---- D8: every value is canonicalised or refused (the REFUSED corpus of conformance P24) ----
+
+/** P24's REFUSED corpus: blank, only invisible characters or combining marks, a lone surrogate, a control or format character. */
+const REFUSED = [
+  "", " ", "\u00a0", "\n\t", "\u3000", "\u200b", "\u00ad", "\u200d", "\ufeff", "\u0301\u0308", " \u200b ",
+  "a\u200bb", "M\u00fcl\u00adler", "\u202eabc", "a\u0000b", "a\u001bb", "a\u0085b", "\ud800", "a\udc00b", "x\ud83d",
+];
+/** A control, format or lone-surrogate character in `value`, or undefined. */
+const INVISIBLE = /[\p{Cc}\p{Cf}]|[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u;
+
+test("--search, --state and --type refuse a blank, invisible, control or half character before any request, showing it escaped (D8, bug 1)", async () => {
+  // P24's lists are empty in this repo (--search is matched client-side, the slugs are not free
+  // text), so its REFUSED corpus runs here, through the CLI and the library alike.
+  for (const [option, key] of [["--search", "search"], ["--state", "state"], ["--type", "type"]] as const) {
+    for (const value of REFUSED) {
+      const label = `${option} ${JSON.stringify(value)}`;
+      const o = await parity(["warnings", option, value], (t) =>
+        new LebensmittelwarnungClient({ transport: t }).warnings({ [key]: value } as WarningsQuery));
+      assert.equal(o.cli.code, 2, `${label}: CLI exit ${o.cli.code}`);
+      assert.deepEqual(o.cli.requests, [], label);
+      assert.equal(o.lib.ok, false, `${label}: the library resolved`);
+      assert.ok(!o.lib.ok && o.lib.error instanceof LebensmittelwarnungValidationError, label);
+      assert.deepEqual(o.lib.requests, [], label);
+      const blank = value.replace(/[\s\p{Cc}\p{Cf}\p{M}]/gu, "") === "";
+      const ch = INVISIBLE.exec(value.trim())?.[0];
+      if (ch === undefined || blank) continue;
+      const escape = `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`;
+      const message = o.lib.ok ? "" : (o.lib.error as Error).message;
+      assert.ok(o.cli.err.toLowerCase().includes(escape), `${label}: the CLI's refusal doesn't show ${escape}: ${o.cli.err}`);
+      assert.ok(!o.cli.err.includes(ch), `${label}: the CLI's refusal shows the character raw`);
+      assert.ok(message.toLowerCase().includes(escape), `${label}: the library's refusal doesn't show ${escape}: ${message}`);
+    }
+  }
+});
+
+test("a --search of combining marks only is refused as blank, not a match for every warning (bug 1)", async () => {
+  for (const value of ["\u0308", "\u0301\u0308", " \u0308 ", "\u20dd"]) {
+    const o = await parity(["warnings", "--search", value], (t) =>
+      new LebensmittelwarnungClient({ transport: t }).warnings({ search: value }), () => rssResponse(narrowFeedXml));
+    assert.equal(o.cli.code, 2, JSON.stringify(value));
+    assert.match(o.cli.err, /Expected a non-empty value\./, JSON.stringify(value));
+    assert.ok(!o.lib.ok && /^Invalid search: Expected a non-empty value\.$/.test((o.lib.error as Error).message), JSON.stringify(value));
+  }
+  // A needle with a mark on a letter, and one with ZWJ (an emoji sequence), still search.
+  const kaese = await parity(["warnings", "--search", "Ka\u0308se"], (t) =>
+    new LebensmittelwarnungClient({ transport: t }).warnings({ search: "Ka\u0308se" }), () => rssResponse(narrowFeedXml));
+  assert.equal(kaese.cli.code, 0, kaese.cli.err);
+});
+
+test("a padded --state/--type slug is sent trimmed on both sides; case and display names are refused (D8)", async () => {
+  const o = await parity(["warnings", "--state", " bayern ", "--type", "lebensmittel\n"], (t) =>
+    new LebensmittelwarnungClient({ transport: t }).warnings({ state: " bayern " as never, type: "lebensmittel\n" as never }),
+    () => rssResponse(narrowFeedXml));
+  assert.equal(o.cli.code, 0, o.cli.err);
+  assert.equal(o.lib.ok, true);
+  assert.deepEqual([...o.cli.requests, ...o.lib.requests].map((r) => new URL(r.url).search), ["?state=bayern&type=lebensmittel", "?state=bayern&type=lebensmittel"]);
+  for (const value of ["BAYERN", "Bayern"]) {
+    const refused = await parity(["warnings", "--state", value], (t) =>
+      new LebensmittelwarnungClient({ transport: t }).warnings({ state: value as never }));
+    assert.equal(refused.cli.code, 2, value);
+    assert.equal(refused.lib.ok, false, value);
   }
 });
