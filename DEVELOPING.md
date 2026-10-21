@@ -345,7 +345,8 @@ packages/client/src/
 apps/cli/src/cli/
     io.ts        # injectable I/O seam (stdout/stderr/file), the logger and the clock
     log.ts       # the stderr log: records with ts, level, topic; --log-format text|jsonl
-    shared.ts    # option parsers (thin wrappers over the library's rules), global-option resolver, JSON renderer
+    shared.ts    # option parsers (thin wrappers over the library's rules), global-option resolver
+    output.ts    # the JSON renderer: stdout or the -o file, control characters escaped
     commands/    # warnings.ts — warnings / states / types
     program.ts   # assembles the commander program from injectable deps
     run.ts       # parses argv -> exit code (no process.exit; testable)
@@ -358,6 +359,14 @@ stderr is ignored, so a failed run keeps its own exit code (`2>&1 | true` used t
 usage error into 0); any other stdout error is an ERROR record of `lebensmittel.output`
 and exits 1.
 `apps/cli/test/conformance-p7-pipes-exit-codes.test.ts` runs the built bin for both.
+
+**Rendering.** `renderJson` (`output.ts`) prints pretty JSON, or one line with
+`--compact`. An answer nested too deeply to pretty-print is an `OutputError` (exit 1, an
+ERROR record of `lebensmittel.output`) that suggests `--compact`, not "Maximum call stack
+size exceeded". `--compact` takes V8's fast path, the only one that prints very deep
+nesting on Node 26, unless the answer holds a string or key of 64 Mi characters or more
+(`holdsHugeString`): on such a string the fast path aborts Node 26, and the path with an
+empty gap prints the same text. `apps/cli/test/output.test.ts` pins both.
 
 **Two seams make the whole thing testable in-process (no subprocesses):**
 `Transport` (the single HTTP function; tests inject a mock returning canned RSS)

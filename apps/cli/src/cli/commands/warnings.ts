@@ -26,8 +26,8 @@ import {
   parseDate,
   parseLimit,
   parseNonEmpty,
-  renderJson,
 } from "../shared.js";
+import { renderJson } from "../output.js";
 
 export function registerCommands(program: Command, deps: CliDeps): void {
   program
