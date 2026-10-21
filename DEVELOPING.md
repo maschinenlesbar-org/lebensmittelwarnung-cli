@@ -386,12 +386,17 @@ file, writes `/dev/null`, a FIFO and `/dev/stdout`, follows a dangling link, and
 write with SIGINT and SIGTERM.
 
 **Rendering.** `renderJson` (`output.ts`) prints pretty JSON, or one line with
-`--compact`. An answer nested too deeply to pretty-print is an `OutputError` (exit 1, an
-ERROR record of `lebensmittel.output`) that suggests `--compact`, not "Maximum call stack
-size exceeded". `--compact` takes V8's fast path, the only one that prints very deep
+`--compact`. Printing can fail two ways, each an `OutputError` (exit 1, an ERROR record of
+`lebensmittel.output`) that names the cause, never "Maximum call stack size exceeded" or
+"Unexpected error": an answer nested too deeply (`The answer is nested too deeply to
+pretty-print.`) and one whose JSON would pass V8's longest string (`The answer is too large
+(more than 536870888 characters of JSON) to print.`). `; try --compact` is added only when the
+compact form of this very answer prints (`compactPrints`, probed, since it depends on the Node
+version and the stack). `--compact` takes V8's fast path, the only one that prints very deep
 nesting on Node 26, unless the answer holds a string or key of 64 Mi characters or more
-(`holdsHugeString`): on such a string the fast path aborts Node 26, and the path with an
-empty gap prints the same text. `apps/cli/test/output.test.ts` pins both. The printed
+(`holdsHugeString`, iterative and without an allocation per value): on such a string the fast
+path aborts Node 26, and the path with an empty gap prints the same text.
+`apps/cli/test/output.test.ts` pins all of this. The printed
 JSON, on stdout and in the `-o` file, escapes what `JSON.stringify` leaves raw although a
 terminal acts on it: DEL, C1 (U+0080–U+009F) and the bidi controls (`isBidiControl`:
 U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), so a U+202E prints as `\u202e`.
