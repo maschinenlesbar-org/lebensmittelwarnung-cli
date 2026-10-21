@@ -147,6 +147,11 @@ new LebensmittelwarnungClient({
 });
 ```
 
+An option given as `undefined` means its default, as an omitted one does, here and in
+`warnings()`'s query and `filterWarnings`'s filter. The types say so (`?: T | undefined`),
+so a consumer compiled with `exactOptionalPropertyTypes` can pass
+`{ baseUrl: process.env.X }` (`packages/client/test/types.test.ts`).
+
 **Custom transports.** `timeoutMs` and `maxResponseBytes` hold for every transport, not
 only the built-in one: the engine races the call against its own deadline and passes an
 `AbortSignal` in `HttpRequest.signal` (hand it to `fetch(url, { signal })`), and it checks

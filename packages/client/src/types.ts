@@ -83,16 +83,16 @@ export interface WarningImage {
 /** Options accepted by {@link LebensmittelwarnungClient.warnings}. */
 export interface WarningsQuery {
   /** Narrow to one Bundesland (server-side `state=` filter). */
-  state?: StateSlug;
+  state?: StateSlug | undefined;
   /** Narrow to one product type (server-side `type=` filter). */
-  type?: TypeSlug;
+  type?: TypeSlug | undefined;
   /**
    * Keep only warnings whose `published` day in German time (Europe/Berlin) is this
    * `YYYY-MM-DD` day or later (client-side; surrounding whitespace is ignored). A
    * warning without a parseable `pubDate` is dropped. An impossible date throws a
    * LebensmittelwarnungValidationError before any request.
    */
-  since?: string;
+  since?: string | undefined;
   /**
    * Keep only warnings whose product name (`title` or `product`) contains this text
    * (client-side). Case, umlaut spelling (`Käse`/`Kaese`/`Kase`), `ß`/`ss`, accents,
@@ -101,13 +101,13 @@ export interface WarningsQuery {
    * (`Tahin`). A blank value throws a LebensmittelwarnungValidationError before any
    * request.
    */
-  search?: string;
+  search?: string | undefined;
   /**
    * Return at most this many warnings, in feed order, after `since` and `search`
    * (client-side). An integer from 1 to `MAX_WARNINGS_LIMIT` (100 000); anything
    * else throws a LebensmittelwarnungValidationError before any request.
    */
-  limit?: number;
+  limit?: number | undefined;
 }
 
 /** The client-side narrowing of {@link WarningsQuery}: applied after the fetch. */

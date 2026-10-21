@@ -70,20 +70,20 @@ export interface EngineOptions {
    * that breaks a rule of {@link validateBaseUrl} (blank, unparseable, not http(s),
    * a query or fragment) throws a LebensmittelwarnungValidationError.
    */
-  baseUrl?: string;
+  baseUrl?: string | undefined;
   /**
    * Swappable transport. Defaults to the built-in node http/https transport. The engine
    * enforces `timeoutMs` and `maxResponseBytes` for any transport, reads its headers in any
    * case (a fetch `Headers` or a `Map` too) and its body as any ArrayBuffer view, and turns
    * whatever it throws into a `LebensmittelwarnungNetworkError`.
    */
-  transport?: Transport;
+  transport?: Transport | undefined;
   /**
    * Value of the User-Agent header (default `lebensmittelwarnung-cli`). A blank
    * value, a control character other than tab, or a character above U+00FF throws
    * a LebensmittelwarnungValidationError.
    */
-  userAgent?: string;
+  userAgent?: string | undefined;
   /**
    * Extra headers sent on every request; names and values are checked like `userAgent`.
    * `Accept` and `User-Agent` are the engine's own in any case: the request headers are
@@ -91,14 +91,14 @@ export interface EngineOptions {
    * the transport next to the engine's key, which comes last and is the one the built-in
    * transport sends. Use `userAgent` to set the User-Agent; `Accept` is fixed.
    */
-  defaultHeaders?: Record<string, string>;
+  defaultHeaders?: Record<string, string> | undefined;
   /**
    * Time limit per request in milliseconds, covering the whole response body, not
    * only idle gaps (0 disables; at most MAX_TIMEOUT_MS, 2^31 - 1 ms). Enforced by the
    * engine for every transport: the request's `signal` aborts at the deadline and the
    * call rejects with a LebensmittelwarnungNetworkError.
    */
-  timeoutMs?: number;
+  timeoutMs?: number | undefined;
   /**
    * Number of automatic retries for transient (429/503) responses and reset connections
    * (`ECONNRESET`, `EPIPE`, `ECONNABORTED`, undici's `UND_ERR_SOCKET`), 0..`MAX_RETRIES`
@@ -107,26 +107,26 @@ export interface EngineOptions {
    * to `MAX_RETRY_AFTER_MS`; a longer one is not retried, and the error names the requested
    * wait).
    */
-  maxRetries?: number;
+  maxRetries?: number | undefined;
   /**
    * Base backoff between retries in milliseconds (grows linearly; default 200). A
    * `Retry-After` can make a wait longer, never shorter. At most `MAX_RETRY_AFTER_MS`.
    */
-  retryDelayMs?: number;
+  retryDelayMs?: number | undefined;
   /**
    * Hard cap on response body size in bytes (defends against memory exhaustion
    * from a hostile/buggy endpoint). Defaults to 100 MiB; set to 0 for no limit;
    * at most `Number.MAX_SAFE_INTEGER`. The default transport aborts early; for any
    * transport the engine checks the body it gets back.
    */
-  maxResponseBytes?: number;
+  maxResponseBytes?: number | undefined;
   /** Injectable sleep, primarily for deterministic tests. */
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: ((ms: number) => Promise<void>) | undefined;
   /**
    * Called once per retry, right before the backoff sleep, for each retried 429/503
    * and reset connection; never when there is no retry. A throw is swallowed.
    */
-  onRetry?: (event: RetryEvent) => void;
+  onRetry?: ((event: RetryEvent) => void) | undefined;
 }
 
 /** What `EngineOptions.onRetry` is told about one retry. */
