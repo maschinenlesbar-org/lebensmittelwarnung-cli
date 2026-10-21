@@ -535,3 +535,41 @@ test("onRetry is never called without a retry", async () => {
 test("onRetry must be a function", () => {
   assert.throws(() => new RequestEngine({ onRetry: 5 as never }), LebensmittelwarnungValidationError);
 });
+
+test("a network failure names the request: timeout, size cap, refused, DNS, reset (K3)", async () => {
+  const { LebensmittelwarnungNetworkError } = await import("../src/errors.js");
+  const shown = "GET https://***@feeds.example/feed.xml?state=bayern failed: ";
+  const coded = (message: string, code: string): Error => Object.assign(new Error(message), { code });
+  const cases: Array<[string, EngineOptions, RegExp]> = [
+    ["refused", { transport: async () => { throw coded("connect ECONNREFUSED 127.0.0.1:443", "ECONNREFUSED"); } }, /connect ECONNREFUSED/],
+    ["DNS", { transport: async () => { throw coded("getaddrinfo ENOTFOUND feeds.example", "ENOTFOUND"); } }, /getaddrinfo ENOTFOUND feeds\.example$/],
+    ["reset", { maxRetries: 0, transport: async () => { throw coded("socket hang up", "ECONNRESET"); } }, /socket hang up$/],
+    ["timeout", { timeoutMs: 5, transport: () => new Promise(() => {}) }, /exceeded the 5ms deadline$/],
+    ["size cap", { maxResponseBytes: 3, transport: async () => rssResponse("<rss/>") }, /size limit of 3 bytes/],
+  ];
+  for (const [name, options, reason] of cases) {
+    const engine = new RequestEngine({ baseUrl: "https://u:secret@feeds.example", ...options });
+    const err = await engine.getFeed("/feed.xml", { state: "bayern" }).then(
+      () => assert.fail(`${name}: no error`),
+      (e: unknown) => e,
+    );
+    assert.ok(err instanceof LebensmittelwarnungNetworkError, name);
+    assert.ok(err.message.startsWith(shown), `${name}: ${err.message}`);
+    assert.match(err.message.slice(shown.length), reason, name);
+    assert.ok(!err.message.includes("secret"), name);
+    if (name !== "size cap") assert.ok(err.cause !== undefined, `${name}: the original is the cause`);
+  }
+});
+
+test("a reset retried to the end says how often it was retried (K3)", async () => {
+  const engine = new RequestEngine({
+    maxRetries: 2,
+    sleep: async () => {},
+    transport: async () => {
+      throw Object.assign(new Error("socket hang up"), { code: "ECONNRESET" });
+    },
+  });
+  await assert.rejects(engine.getFeed("/feed.xml"), {
+    message: "GET https://www.lebensmittelwarnung.de/feed.xml failed: socket hang up (after 2 retries)",
+  });
+});

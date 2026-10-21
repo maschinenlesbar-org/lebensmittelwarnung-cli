@@ -402,6 +402,11 @@ function decodeXml(body: Buffer, contentType: string, path: string): string {
   return decoder.decode(body);
 }
 
+/** `GET <url> failed: <reason>`, the URL's userinfo redacted and the URL cut for the message. */
+function requestFailed(url: string, reason: string): string {
+  return `GET ${cutForMessage(redactUrl(url))} failed: ${reason}`;
+}
+
 const realSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -513,16 +518,18 @@ export class RequestEngine {
    * rejects with `LebensmittelwarnungNetworkError` only; an injected one may throw anything
    * (a string, a `TypeError` from fetch). Every failure becomes a
    * `LebensmittelwarnungNetworkError` — a `LebensmittelwarnungError` a caller and the CLI can
-   * rely on — with the base URL's credentials scrubbed from its message and cause chain; any
-   * other `LebensmittelwarnungError` passes through, and a clean network error stays as it is.
+   * rely on — that names the request, `GET <url> failed: <reason>` (userinfo redacted; Node's
+   * own text, `socket hang up` or a timeout, says nothing about which host failed), with the
+   * original, its credentials scrubbed, as its `cause`. Any other `LebensmittelwarnungError`
+   * passes through.
    */
-  private transportError(cause: unknown): LebensmittelwarnungError {
+  private transportError(cause: unknown, url: string, attempt: number): LebensmittelwarnungError {
     if (cause instanceof LebensmittelwarnungError && !(cause instanceof LebensmittelwarnungNetworkError)) return cause;
     const reason = cause instanceof Error ? cause.message : String(cause);
-    const message = cutForMessage(sanitizeServerText(this.scrub(reason)));
-    const scrubbed = this.scrubCause(cause);
-    if (cause instanceof LebensmittelwarnungNetworkError && message === cause.message && scrubbed === cause) return cause;
-    return new LebensmittelwarnungNetworkError(message, { cause: scrubbed });
+    const retried = attempt > 0 ? ` (after ${attempt} ${attempt === 1 ? "retry" : "retries"})` : "";
+    return new LebensmittelwarnungNetworkError(requestFailed(url, cutForMessage(sanitizeServerText(this.scrub(reason))) + retried), {
+      cause: this.scrubCause(cause),
+    });
   }
 
   /**
@@ -604,14 +611,14 @@ export class RequestEngine {
           await this.backOff(attempt, this.retryDelayMs * attempt, url);
           continue;
         }
-        throw this.transportError(cause);
+        throw this.transportError(cause, url, attempt);
       }
 
       // An injected transport may resolve with anything; a malformed HttpResponse would
       // otherwise surface below as a raw TypeError, outside the error contract.
       const invalid = responseProblem(response);
       if (invalid !== undefined) {
-        throw new LebensmittelwarnungNetworkError(`The transport returned an invalid response (${invalid}).`);
+        throw new LebensmittelwarnungNetworkError(requestFailed(url, `the transport returned an invalid response (${invalid}).`));
       }
       const status = response.status;
       const responseHeaders = plainHeaders(response.headers);
@@ -620,7 +627,7 @@ export class RequestEngine {
       // The size cap holds whatever the transport did: the default one aborts early, a custom
       // one may have read everything.
       if (this.maxResponseBytes > 0 && body.byteLength > this.maxResponseBytes) {
-        throw new LebensmittelwarnungNetworkError(sizeLimitMessage(this.maxResponseBytes));
+        throw new LebensmittelwarnungNetworkError(requestFailed(url, sizeLimitMessage(this.maxResponseBytes)));
       }
       const retryable = status === 429 || status === 503;
       const retryAfter = retryable ? parseRetryAfter(responseHeaders["retry-after"]) : undefined;

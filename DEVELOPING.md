@@ -161,7 +161,10 @@ them), and its body as a `Buffer`, any ArrayBuffer view (fetch's `Uint8Array`) o
 `ArrayBuffer`, from any realm. A reset connection (`ECONNRESET`, `EPIPE`, `ECONNABORTED`,
 undici's `UND_ERR_SOCKET`, anywhere in the `cause` chain) is retried like a 503; whatever a
 transport throws or returns that isn't a response becomes a
-`LebensmittelwarnungNetworkError`. `apps/cli/test/conformance-p5-transport-contract.test.ts` checks
+`LebensmittelwarnungNetworkError`. Its message names the request, `GET <url> failed:
+<reason>` (userinfo redacted; ` (after N retries)` when resets were retried), for a timeout,
+the size cap, a refused connection, a DNS failure and a reset alike, and the original error
+is its `cause`. `apps/cli/test/conformance-p5-transport-contract.test.ts` checks
 this with a never-answering transport, `fetch` against a silent server, a 2 MiB body and
 every body and header shape.
 
