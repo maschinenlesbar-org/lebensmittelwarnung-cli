@@ -447,7 +447,8 @@ A `user:password@` in the base URL (a mirror behind a login) never reaches the C
 output. `credentialsIn(value)` finds the exact userinfo of a URL, parseable or not; only
 a URL with a scheme counts, since a bare `a:b@c` is a search text, an `-o`
 file name or a User-Agent as often as a credential. Such a URL is found wherever it starts in an
-argument (`urlsWithin`: padded, after a dash, inside a `--search` phrase), and its userinfo is
+argument (`urlsWithin`, linear: each `://` found with indexOf, at most 64 URLs per argument:
+padded, after a dash, inside a `--search` phrase), and its userinfo is
 replaced as typed, terminal-escaped, JSON-quoted and percent-encoded (the `--base-url` value is the
 exception: `run.ts` reads it as if it had a scheme, `BASE_URL_FLAGS`), and
 `redactCredentials(text, list)` replaces each `secret@` with `***@`; `redactUrl` falls
