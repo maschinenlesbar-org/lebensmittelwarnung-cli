@@ -241,7 +241,9 @@ Every other header in `defaultHeaders` goes through unchanged.
 - it is a single forward scan that finds every terminator with `indexOf`, so parsing
   time is **linear** in the body size whatever it contains (the earlier lazy-regex
   parser was quadratic on unclosed tags: 742 KiB took 14 s, and `--timeout` covers
-  only the transport, not the parse);
+  only the transport, not the parse). A close tag of a name that is not open is ignored
+  without scanning the open-element stack (a count per name; the scan made 280 KB of deep
+  nesting and stray close tags take 4 s);
 - the document must have the documented RSS 2.0 shape: its document element is
   `<rss>` and the `<channel>` a direct child of it. Anything else — an XML error
   envelope, an Atom feed, a JSON body, a channel wrapped in another element — is a parse

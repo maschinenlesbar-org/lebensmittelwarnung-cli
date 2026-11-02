@@ -187,6 +187,9 @@ interface Leaf {
  */
 export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 }): RssFeed {
   const stack: string[] = [];
+  // How many elements of each name are open on `stack`: a close tag of a name that is not
+  // open is ignored without scanning the stack (that scan made deep nesting quadratic).
+  const openCount = new Map<string, number>();
   const items: RawRssItem[] = [];
   let channel: RssChannel | undefined;
   let channelAt = -1; // stack index of the channel element while it is open
@@ -205,7 +208,8 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
   const closeTo = (index: number): void => {
     // Pop the element at `index` and everything opened inside it.
     while (stack.length > index) {
-      stack.pop();
+      const popped = stack.pop()!;
+      openCount.set(popped, openCount.get(popped)! - 1);
       if (stack.length === itemAt && item !== undefined) {
         items.push(item);
         item = undefined;
@@ -259,8 +263,9 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
           leaf.parts.push(xml.slice(i, j + 1));
         }
       } else {
-        const at = stack.lastIndexOf(name);
-        if (at !== -1) closeTo(at); // else: a stray close tag, ignored
+        // A stray close tag (no element of that name open) is ignored. Otherwise the scan
+        // stops at the element it closes, and closeTo pops everything it passed: linear.
+        if ((openCount.get(name) ?? 0) > 0) closeTo(stack.lastIndexOf(name));
       }
       i = j + 1;
     } else {
@@ -330,6 +335,7 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
         else leaf = l;
       } else if (!selfClosing) {
         stack.push(name);
+        openCount.set(name, (openCount.get(name) ?? 0) + 1);
       }
       i = j + 1;
     }

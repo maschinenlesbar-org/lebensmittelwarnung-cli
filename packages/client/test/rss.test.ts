@@ -153,6 +153,18 @@ test("parseRss is linear on hostile input (no lazy-regex rescans)", () => {
   assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);
 });
 
+test("parseRss is linear on stray close tags under deep nesting (security audit 2026-10-27)", () => {
+  // 40 000 open elements, then 40 000 close tags of a name that is not open: each one
+  // scanned the whole open-element stack before being ignored (4.3 s for 280 KB).
+  const stray = "<rss>" + "<a>".repeat(40_000) + "</b>".repeat(40_000);
+  const started = Date.now();
+  assert.throws(() => parseRss(stray), /Unterminated element <a>/);
+  // A close tag of a name that is open still closes it and everything opened inside it.
+  const feed = parseRss("<rss><channel><x><y><y></z></x><item><title>a</title></item></channel></rss>");
+  assert.equal(feed.items.length, 1);
+  assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);
+});
+
 test("parseDescription is linear on hostile input", () => {
   // 292 KiB of unclosed <b> took 6 s with the old pair regex.
   const started = Date.now();
