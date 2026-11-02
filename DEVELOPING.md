@@ -276,7 +276,8 @@ label only at the start of a line (the start, or after a `<br>`, a block tag or 
 image — where every label of the live feed sits); bold text inside a value
 (`L-1111 <b>sowie</b> L-2222`) is emphasis and stays in the value. A label the notice
 repeats (a notice for two products gives a name and a lot number per product) keeps
-every distinct value, joined with `"; "` (`REPEATED_LABEL_SEPARATOR`), in `fields` and
+every distinct value, joined with `"; "` (`REPEATED_LABEL_SEPARATOR`) once after the scan
+(a set per label; joining at every repeat was quadratic: 409 KB took 2.9 s), in `fields` and
 in the typed field; `affectedStates` is split on `,` and `;`.
 [`decodeEntities`](packages/client/src/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
 `&euro;`, … in [`entities.ts`](packages/client/src/entities.ts); `&nbsp;` gives U+00A0), and

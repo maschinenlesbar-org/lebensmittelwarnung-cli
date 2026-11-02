@@ -544,8 +544,8 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
   const imageUrls: string[] = [];
   const images: DescriptionImage[] = [];
   const fields: Record<string, string> = {};
-  /** Every distinct non-empty value seen per label, in order. */
-  const seen = new Map<string, string[]>();
+  /** Every distinct non-empty value seen per label, in first-seen order. */
+  const seen = new Map<string, Set<string>>();
   let label: string[] | undefined; // collecting a label's text (inside <b>/<strong>)
   let labelTag = ""; // the tag that opened the label, whose close tag ends it
   let lineStart = true; // nothing but whitespace since the start or the last line break
@@ -564,12 +564,16 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
       const image = images[value.image];
       if (image !== undefined && image.credit === undefined && text !== "") image.credit = text;
     }
-    if (text !== "") {
-      const values = seen.get(value.label) ?? [];
-      if (!values.includes(text)) values.push(text);
+    // The values are joined once, after the scan: joining them again at every repeat of a
+    // label was quadratic. The key is reserved at first sight, so `fields` keeps the order
+    // its labels first appear in.
+    let values = seen.get(value.label);
+    if (values === undefined) {
+      values = new Set<string>();
       seen.set(value.label, values);
-      setField(fields, value.label, values.join(REPEATED_LABEL_SEPARATOR));
-    } else if (!Object.hasOwn(fields, value.label)) setField(fields, value.label, "");
+      setField(fields, value.label, "");
+    }
+    if (text !== "") values.add(text);
     value = undefined;
   };
 
@@ -624,5 +628,8 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
     else if (value) value.parts.push(lineBreak ? "\n" : " ");
   }
   finishValue();
+  for (const [name, values] of seen) {
+    if (values.size > 0) setField(fields, name, [...values].join(REPEATED_LABEL_SEPARATOR));
+  }
   return { fields, imageUrls, images };
 }

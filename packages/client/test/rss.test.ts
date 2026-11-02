@@ -263,6 +263,25 @@ test("a repeated label keeps every distinct value (finding 02#1)", () => {
   assert.equal(fields["Haltbarkeit"], "01.01.2027"); // an empty one adds nothing
 });
 
+test("a label repeated with many distinct values is parsed in linear time (security audit 2026-10-27)", () => {
+  // Each repeat searched every earlier value and joined them all again: 409 KB took 2.9 s.
+  const n = 40_000;
+  let html = "";
+  for (let i = 0; i < n; i += 1) html += `<b>X:</b> v${i}<br/>`;
+  const started = Date.now();
+  const { fields } = parseDescription(html);
+  assert.ok(Date.now() - started < 1500, `took ${Date.now() - started} ms`);
+  const values = fields["X"]!.split("; ");
+  assert.equal(values.length, n);
+  assert.equal(values[0], "v0");
+  assert.equal(values[n - 1], `v${n - 1}`);
+  // The fields keep the order their labels first appear in, an empty first value included.
+  assert.deepEqual(
+    Object.entries(parseDescription("<b>A:</b> <br/><b>B:</b> 1<br/><b>A:</b> 2<br/><b>B:</b> 1<br/><b>C:</b>").fields),
+    [["A", "2"], ["B", "1"], ["C", ""]],
+  );
+});
+
 test("bold text inside a value is emphasis, not a new label (finding 02#2)", () => {
   const { fields } = parseDescription(
     "<b>Chargennummer / Los-Kennzeichnung:</b> L-1111 <b>sowie</b> L-2222<br/>" +
