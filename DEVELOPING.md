@@ -278,7 +278,10 @@ image — where every label of the live feed sits); bold text inside a value
 repeats (a notice for two products gives a name and a lot number per product) keeps
 every distinct value, joined with `"; "` (`REPEATED_LABEL_SEPARATOR`) once after the scan
 (a set per label; joining at every repeat was quadratic: 409 KB took 2.9 s), in `fields` and
-in the typed field; `affectedStates` is split on `,` and `;`.
+in the typed field; `affectedStates` is split on `,` and `;`. A leaf's text (`parseRss`) and a
+label's and a value's text (`parseDescription`) are joined in batches (`TextBuilder`), and the
+description is tokenised one token at a time, so a title or a value made of millions of tags
+(15 MB) is read within a 128 MB heap.
 [`decodeEntities`](packages/client/src/rss.ts) handles the five predefined XML entities, the HTML 4 named references (`&auml;`, `&ndash;`,
 `&euro;`, … in [`entities.ts`](packages/client/src/entities.ts); `&nbsp;` gives U+00A0), and
 numeric (`&#228;` / `&#xE4;`) refs; a pair of surrogate references (`&#xD83D;&#xDE00;`) is the

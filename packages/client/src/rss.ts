@@ -180,7 +180,8 @@ interface Leaf {
   key: string;
   /** Nesting of same-named elements inside the leaf (1 = the leaf itself). */
   depth: number;
-  parts: string[];
+  /** Its text so far, joined in batches: a slot per piece (each tag one) exhausted a small heap. */
+  parts: TextBuilder;
 }
 
 /**
@@ -219,7 +220,7 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
   const misplaced = new Map<string, number>();
 
   const finishLeaf = (l: Leaf): void => {
-    if (l.target[l.key] === undefined) l.target[l.key] = l.parts.join("").trim();
+    if (l.target[l.key] === undefined) l.target[l.key] = l.parts.toString().trim();
   };
   const closeTo = (index: number): void => {
     // Pop the element at `index` and everything opened inside it.
@@ -346,7 +347,7 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
         target = item as Record<string, string | undefined>;
       }
       if (key !== undefined && target !== undefined) {
-        const l: Leaf = { name, target, key, depth: 1, parts: [] };
+        const l: Leaf = { name, target, key, depth: 1, parts: new TextBuilder() };
         if (selfClosing) finishLeaf(l);
         else leaf = l;
       } else if (!selfClosing) {
@@ -443,26 +444,26 @@ type HtmlToken =
   | { kind: "tag"; name: string; close: boolean; attrs: string };
 
 /**
- * Split an HTML fragment into text runs and tags in one forward scan (linear time).
- * Comments are dropped; a "<" that starts no tag is text. An unterminated comment,
- * tag or quoted attribute value ends the fragment there — this is lenient on
- * purpose, as the description is HTML, not XML.
+ * Split an HTML fragment into text runs and tags in one forward scan (linear time), one token
+ * at a time: an array of every token held an object per tag at once, so a description of
+ * millions of tags exhausted a small heap. Comments are dropped; a "<" that starts no tag is
+ * text. An unterminated comment, tag or quoted attribute value ends the fragment there — this
+ * is lenient on purpose, as the description is HTML, not XML.
  */
-function tokenizeHtml(html: string): HtmlToken[] {
-  const tokens: HtmlToken[] = [];
+function* tokenizeHtml(html: string): Generator<HtmlToken> {
   const n = html.length;
   let i = 0;
   let textFrom = 0;
-  const flush = (to: number): void => {
-    if (to > textFrom) tokens.push({ kind: "text", text: html.slice(textFrom, to) });
-  };
+  const text = (to: number): HtmlToken | undefined =>
+    to > textFrom ? { kind: "text", text: html.slice(textFrom, to) } : undefined;
   while (i < n) {
     const lt = html.indexOf("<", i);
     if (lt === -1) break;
     if (html.startsWith("<!--", lt)) {
-      flush(lt);
+      const before = text(lt);
+      if (before) yield before;
       const end = html.indexOf("-->", lt + 4);
-      if (end === -1) return tokens;
+      if (end === -1) return;
       i = textFrom = end + 3;
       continue;
     }
@@ -479,22 +480,24 @@ function tokenizeHtml(html: string): HtmlToken[] {
       if (c === '"' || c === "'") {
         const q = html.indexOf(c, j + 1);
         if (q === -1) {
-          flush(lt);
-          return tokens;
+          const before = text(lt);
+          if (before) yield before;
+          return;
         }
         j = q;
       }
       j += 1;
     }
-    flush(lt);
-    if (j >= n) return tokens;
+    const before = text(lt);
+    if (before) yield before;
+    if (j >= n) return;
     let attrs = html.slice(NAME.lastIndex, j);
     if (attrs.endsWith("/")) attrs = attrs.slice(0, -1);
-    tokens.push({ kind: "tag", name: m[0].toLowerCase(), close, attrs });
+    yield { kind: "tag", name: m[0].toLowerCase(), close, attrs };
     i = textFrom = j + 1;
   }
-  flush(n);
-  return tokens;
+  const rest = text(n);
+  if (rest) yield rest;
 }
 
 /** Read one attribute's value from a tag's raw attribute text (linear scan). */
@@ -562,20 +565,22 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
   const fields: Record<string, string> = {};
   /** Every distinct non-empty value seen per label, in first-seen order. */
   const seen = new Map<string, Set<string>>();
-  let label: string[] | undefined; // collecting a label's text (inside <b>/<strong>)
+  // A label's and a value's text are joined in batches (TextBuilder): a slot per piece, each tag
+  // one, exhausted a small heap on a description of millions of tags.
+  let label: TextBuilder | undefined; // collecting a label's text (inside <b>/<strong>)
   let labelTag = ""; // the tag that opened the label, whose close tag ends it
   let lineStart = true; // nothing but whitespace since the start or the last line break
   let emphasis: string | undefined; // the bold tag of an emphasis inside a value
   // `image`: for a credit caption, the index of the image it follows (the value is
   // only complete at the next label, after the next <img> may have been seen).
-  let value: { label: string; parts: string[]; image: number } | undefined;
+  let value: { label: string; parts: TextBuilder; image: number } | undefined;
 
   const finishValue = (): void => {
     if (value === undefined) return;
     // Keep the value's line breaks (a manufacturer's address, one product or batch per
     // line), collapse the other whitespace within each line, trim every line and drop
     // empty ones; a repeated label keeps every distinct non-empty value.
-    const text = toLines(value.parts.join(""));
+    const text = toLines(value.parts.toString());
     if (value.label === IMAGE_CREDIT_LABEL) {
       const image = images[value.image];
       if (image !== undefined && image.credit === undefined && text !== "") image.credit = text;
@@ -617,15 +622,15 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
           continue;
         }
         finishValue();
-        label = [];
+        label = new TextBuilder();
         labelTag = token.name;
         continue;
       }
       if (token.close && label && token.name === labelTag) {
-        const name = label.join("").trim().replace(/:\s*$/, "");
+        const name = label.toString().trim().replace(/:\s*$/, "");
         label = undefined;
         lineStart = false;
-        if (name !== "") value = { label: name, parts: [], image: images.length - 1 };
+        if (name !== "") value = { label: name, parts: new TextBuilder(), image: images.length - 1 };
         continue;
       }
       if (token.close && token.name === emphasis) {

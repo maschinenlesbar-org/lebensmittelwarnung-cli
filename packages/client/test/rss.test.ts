@@ -339,3 +339,20 @@ test("millions of lone surrogate references are repaired within a small heap (C)
   const out = execFileSync(process.execPath, ["--max-old-space-size=128", "--input-type=module", "-e", script], { encoding: "utf8" });
   assert.equal(out, `${n + 5} ${n} ${JSON.stringify("a&\ufffd\ufffd\u{1f600}z")}`);
 });
+
+test("a leaf and a description value made of millions of tags are read within a small heap (C)", STARTS_A_PROCESS, () => {
+  // A leaf's text and a description value were collected one array slot per piece (each tag a
+  // piece), and the description was split into an array of every token first: five million tags
+  // (15 MB) in a title, or in a value, exhausted a 128 MB heap.
+  const rss = new URL("../src/rss.js", import.meta.url).href;
+  const n = 5_000_000;
+  const script =
+    `const { parseRss, parseDescription } = await import(${JSON.stringify(rss)});` +
+    `const feed = parseRss("<rss><channel><item><title>a" + "<b>".repeat(${n}) + "z</title></item></channel></rss>");` +
+    `const title = feed.items[0].title;` +
+    `const d = parseDescription("<b>Grund der Meldung:</b> x" + "<i>".repeat(${n}) + "y<br/><b>Haltbarkeit:</b> 1.1.2027");` +
+    `process.stdout.write(title.length + " " + title.slice(0, 4) + title.slice(-1) + " " + JSON.stringify(d.fields));`;
+  const out = execFileSync(process.execPath, ["--max-old-space-size=128", "--input-type=module", "-e", script], { encoding: "utf8" });
+  // The title keeps the markup as written; the value's tags separate words, as before.
+  assert.equal(out, `${3 * n + 2} a<b>z ${JSON.stringify({ "Grund der Meldung": "x y", Haltbarkeit: "1.1.2027" })}`);
+});
