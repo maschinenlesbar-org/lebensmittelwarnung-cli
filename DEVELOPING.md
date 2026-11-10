@@ -401,7 +401,15 @@ temporary file beside the target, `.<name>.<pid>-<random>.tmp` within NAME_MAX (
 shortened, the random part kept), is written and renamed over it; the old file's mode is kept,
 `--force` writes through a symlink, or a chain of them, to the file it points to (`linkTarget`;
 a dangling link's target is created, the link stays), and on a failure neither the temporary file
-nor the claimed name is left. From the first file write on, SIGINT, SIGTERM and SIGHUP remove the
+nor the claimed name is left. The links are read by hand (`linkTarget`), so the kernel's
+`fs.protected_symlinks` never sees them; the same rule is applied at every hop instead: a link is
+followed only when the caller or the owner of its directory made it, or nobody else can write to
+that directory (neither sticky nor writable by others). Another user's link in `/tmp` is refused
+(`… is a link another user made in a directory others can write to; it is not followed`, exit 2
+before the request, an output error at write time). `nodeFilesFor(owners)` takes the user id and
+the owner lookup (`LinkOwners`) as a seam, so a test can be another user without root. A path
+`state()` can't inspect (EACCES on the way to a link's target) is reported as that (exit 2), not
+taken for an existing file that `--force` may replace. From the first file write on, SIGINT, SIGTERM and SIGHUP remove the
 claim and the temporary file of a write under way and exit `130`, `143`, `129` (`removeOnSignals`;
 SIGKILL can't be handled). An error never names the temporary file (`reasonOf` drops Node's
 `, open '<path>'` tail). `apps/cli/test/output.test.ts` runs these against real files; conformance

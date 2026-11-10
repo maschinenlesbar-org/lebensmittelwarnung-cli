@@ -69,8 +69,9 @@ export function escapeControlChars(json: string): string {
 /**
  * Check `-o` before any request, so a refused target costs none: `--force` without `-o` (a
  * LebensmittelwarnungValidationError), a directory, an existing path (a dangling link too)
- * without `--force`, and a file whose directory is missing or not writable (an OutputError of the
- * usage kind) are usage errors, exit 2. A stream (`/dev/null`, a FIFO, `/dev/stdout`, `>(…)`)
+ * without `--force`, a path that can't be inspected (EACCES), a link `--force` won't follow
+ * (another user's, in a directory others can write to), and a file whose directory is missing or
+ * not writable (an OutputError of the usage kind) are usage errors, exit 2. A stream (`/dev/null`, a FIFO, `/dev/stdout`, `>(…)`)
  * needs no `--force`: it is written in place, and nothing in it can be lost. `-o -` is stdout.
  * The write checks again: a file that appears during the request is not overwritten either, but
  * that is a write failure (exit 1), not a usage error.
@@ -82,7 +83,13 @@ export function checkOutputTarget(deps: CliDeps, options: OutputOptions): void {
   const path = fileOf(options);
   if (path === undefined) return;
   const files = deps.files ?? nodeFiles;
-  const state = files.state(path);
+  let state: ReturnType<typeof files.state>;
+  try {
+    state = files.state(path);
+  } catch (err) {
+    // A path that can't be told (EACCES on the way) is refused as that, before any request.
+    throw new OutputError(err instanceof Error ? err.message : String(err), { usage: true, cause: err });
+  }
   if (state === "directory") throw isDirectoryError(path, true);
   if (state === "stream") return;
   if (state === "exists" && options.force !== true) throw refuseOverwrite(path, true);
