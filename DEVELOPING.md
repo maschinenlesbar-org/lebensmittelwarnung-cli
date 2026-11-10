@@ -443,11 +443,24 @@ instead of calling `process.exit`).
 too). A blank value, surrounding whitespace or a control character (`new URL()` would
 drop them silently, and a trailing space ended up in the request path), an unparseable
 URL, a scheme other than `http:`/`https:`, a query or fragment (request paths are
-appended to the base URL as a string), and a `%` in the userinfo that isn't an escape
-(Node would fail to decode it for the Authorization header; write `%25`) each throw a
+appended to the base URL as a string), a backslash (WHATWG ends an http(s) host at `\`, so
+`https://u:pw@a.example\@b.example` sends the credentials to `a.example` while a text-based
+reader sees `b.example`), a `%` in the userinfo that isn't an escape
+(Node would fail to decode it for the Authorization header; write `%25`), and a scheme not
+followed by exactly `//` and the host (`http:host`, `http:/host`, `http:///host`, which WHATWG
+repairs into `http://host` silently: `Expected an absolute http(s) URL ("https://" and the
+host).`) each throw a
 `LebensmittelwarnungValidationError` (`Invalid baseUrl: <reason>`) before any request —
-a configuration error, not a `LebensmittelwarnungNetworkError`. Only an omitted
-`baseUrl` selects the default. **Redirects are not followed** — a
+a configuration error, not a `LebensmittelwarnungNetworkError`. No reason quotes the value, so
+a base URL typed without its scheme (`user:pw@host`, `TOKEN:@host`) never shows its password
+or token. Only an omitted
+`baseUrl` selects the default. Requests go to the base URL as WHATWG parses it
+(`validateBaseUrl` returns that spelling: host lower-cased, a default port dropped, the path
+percent-encoded where WHATWG does it), the reading every check of it makes, so a custom
+transport that reads the request URL as text reaches the same host. `credentialsIn` reads a
+userinfo where WHATWG does: after the slashes and backslashes a special scheme skips
+(`http:///u:pw@h`, `https:\\u:pw@h`), up to a backslash too, so a refused value is never
+echoed with its password. **Redirects are not followed** — a
 `3xx` surfaces as an error (the canonical host serves the feed directly), with a
 pointed hint to check `--base-url`. Credential headers are never sent cross-host
 (there are none here — the feed needs no auth).

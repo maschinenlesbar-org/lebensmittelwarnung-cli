@@ -234,7 +234,10 @@ export const headerNameProblem: Problem<unknown> = (value) =>
 /**
  * Every rule for a base URL, in order: a non-blank string without surrounding
  * whitespace or control characters, a parseable URL, the `http:` or `https:` scheme,
- * no query or fragment, and userinfo that decodes. Request paths are appended to the
+ * no query or fragment, no backslash (WHATWG ends an http(s) host at `\`, which a text-based
+ * reader does not), userinfo that decodes, and the scheme followed by exactly `//` and the host
+ * (WHATWG repairs `http:host`, `http:/host` and `http:///host` silently, so the host requested
+ * would not be the one typed). Request paths are appended to the
  * base URL as a string, so a `?` or `#` would swallow every path (`http://h/?x=1`
  * requests `/?x=1/___LMW-Redaktion/...`, `http://h/#f` requests `/`), and a trailing
  * space would land in the path (`/ok%20/___LMW…`): `new URL()` trims surrounding
@@ -259,6 +262,9 @@ export const baseUrlProblem: Problem<unknown> = (value) => {
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return "Only http: and https: base URLs are supported.";
   if (/[?#]/.test(value)) return "A base URL cannot have a query (?) or fragment (#).";
+  // WHATWG reads a "\\" in an http(s) URL as "/", so it ends the host: in
+  // `https://u:pw@a.example\\@b.example` every reader of the base URL has to agree where.
+  if (value.includes("\\")) return 'A base URL cannot contain a backslash (\\); write "/" instead.';
   for (const part of [url.username, url.password]) {
     try {
       decodeURIComponent(part);
@@ -266,5 +272,8 @@ export const baseUrlProblem: Problem<unknown> = (value) => {
       return 'The user name or password has a "%" that is not followed by two hex digits; write a literal "%" as %25.';
     }
   }
+  // WHATWG skips any slashes after "http:" and repairs `http:host`, `http:/host` and
+  // `http:///host` into `http://host` silently: the host requested would not be the one typed.
+  if (!/^https?:\/\/[^/]/i.test(value)) return 'Expected an absolute http(s) URL ("https://" and the host).';
   return undefined;
 };

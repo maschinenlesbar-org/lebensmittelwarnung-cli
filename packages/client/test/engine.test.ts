@@ -16,6 +16,7 @@ import {
   LebensmittelwarnungApiError,
   LebensmittelwarnungParseError,
   LebensmittelwarnungValidationError,
+  credentialsIn,
   cutText,
   echoedCredentialForms,
   redactUrl,
@@ -23,6 +24,7 @@ import {
   TextBuilder,
   toWellFormed,
 } from "../src/errors.js";
+import { LebensmittelwarnungClient } from "../src/client.js";
 import { makeMockTransport, rssResponse, rawResponse } from "./helpers.js";
 import * as fx from "./fixtures.js";
 
@@ -932,4 +934,83 @@ test("a token userinfo (no password) a server echoes is scrubbed from the error 
     const err = await named.getFeed("/x").catch((caught: unknown) => caught);
     assert.ok(err instanceof LebensmittelwarnungParseError && !err.message.includes(token), String(err));
   }
+});
+
+// Classes F, F3, F4 and F5 of .reviews/2026-10-27-security-audit (portfolio round): the base URL
+// is read as WHATWG reads it, by every check and for the request.
+test("a base URL with a backslash, or whose scheme is not followed by // and the host, is rejected at construction, never echoing the password (F, F4)", () => {
+  // WHATWG ends an http(s) authority at "\\", and repairs `http:host`, `http:/host` and
+  // `http:///host` silently into `http://host`: the host requested would not be the one typed.
+  const absolute = 'Expected an absolute http(s) URL ("https://" and the host).';
+  const backslash = 'A base URL cannot contain a backslash (\\); write "/" instead.';
+  for (const [baseUrl, reason] of [
+    ["https://alice:s3cret@api.example\\@evil.example", backslash],
+    ["https://api.example\\evil", backslash],
+    ["https:\\\\alice:s3cret@h.example", backslash],
+    ["http:alice:s3cret@h.example", absolute],
+    ["https:/alice:s3cret@h.example", absolute],
+    ["http:///alice:s3cret@h.example", absolute],
+    ["HTTPS:h.example/v1", absolute],
+  ] as const) {
+    const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+    assert.throws(
+      () => new RequestEngine({ transport: mt.transport, baseUrl }),
+      (err: unknown) => err instanceof LebensmittelwarnungValidationError && err.message === `Invalid baseUrl: ${reason}` && !err.message.includes("s3cret"),
+      baseUrl,
+    );
+    assert.equal(mt.calls.length, 0, baseUrl);
+  }
+  // A spelling the parser keeps as typed stays accepted: an upper-case scheme, an explicit port.
+  for (const baseUrl of ["HTTPS://h.example/v1", "http://alice:pw@h.example:8080"]) {
+    assert.doesNotThrow(() => new RequestEngine({ baseUrl }), baseUrl);
+  }
+});
+
+test("a base URL typed without its scheme never names its user name or password (F5)", () => {
+  // This repo's reasons quote nothing of the value (`Only http: and https: base URLs are
+  // supported.`, `Expected a valid URL.`); the kit's `Unsupported scheme "<user>:"` echoed it.
+  for (const baseUrl of ["T0kenS3cret:@h.example", "alice:s3cretPw@h.example", "T0kenS3cret@h.example", "my_user:s3cretPw@h", "T0k:@h"]) {
+    assert.throws(
+      () => new RequestEngine({ baseUrl }),
+      (err: unknown) => err instanceof LebensmittelwarnungValidationError && !/t0kens3cret|s3cretpw|my_user|t0k:/i.test(err.message),
+      baseUrl,
+    );
+  }
+});
+
+test("requests go to the base URL as it parses: host lower-cased, default port dropped (F)", async () => {
+  const mt = makeMockTransport(() => rssResponse(fx.feedXml));
+  await new LebensmittelwarnungClient({ baseUrl: "https://API.Example:443/v1/", transport: mt.transport }).warnings();
+  assert.ok(mt.last().url.startsWith("https://api.example/v1/"), mt.last().url);
+});
+
+test("credentialsIn ends the authority of a special scheme at a backslash, as WHATWG does (F)", () => {
+  for (const scheme of ["http", "https", "HTTPS", "ws", "wss", "ftp"]) {
+    assert.deepEqual(credentialsIn(`${scheme}://u:p@a.example\\@b.example/x`), ["u:p"], scheme);
+    assert.equal(new URL(`${scheme}://u:p@a.example\\@b.example/x`).password, "p", scheme);
+  }
+  // Another scheme's authority runs on to "/", "?" or "#".
+  assert.deepEqual(credentialsIn("foo://u:p@a.example\\@b.example/x"), ["u:p@a.example\\"]);
+  assert.deepEqual(credentialsIn("https://u:p@a.example/x\\@y"), ["u:p"]);
+});
+
+test("credentialsIn skips the slashes and backslashes WHATWG skips after a special scheme (F3)", () => {
+  // `http:///u:pw@h`, `https:\\u:pw@h` and `http:u:pw@h` all carry `u:pw` for WHATWG; read
+  // after "://", the userinfo was missed, so a refused --base-url echoed the password in clear.
+  for (const value of [
+    "http:alice:pw@h.example",
+    "http:/alice:pw@h.example",
+    "http:///alice:pw@h.example/x",
+    "https:////alice:pw@h.example",
+    "HTTPS:\\\\alice:pw@h.example",
+    "wss:\\/alice:pw@h.example",
+    "ftp:alice:pw@h.example",
+  ]) {
+    assert.deepEqual(credentialsIn(value), ["alice:pw"], value);
+    assert.equal(new URL(value).password, "pw", value);
+  }
+  // Another scheme needs "//" before an authority: `foo:u:p@h` and `foo:///u:p@h` carry none.
+  assert.deepEqual(credentialsIn("foo:u:p@h.example"), []);
+  assert.deepEqual(credentialsIn("foo:///u:p@h.example"), []);
+  assert.equal(new URL("foo:///u:p@h.example").password, "");
 });
