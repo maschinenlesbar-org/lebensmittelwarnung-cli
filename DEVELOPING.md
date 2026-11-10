@@ -508,6 +508,11 @@ scheme characters (`a.a.…`) in an answer. `apps/cli/test/conformance-p1-cli-re
 checks ten passwords in seven URL shapes at nine argv positions (the schemeless shape as
 the `--base-url` value only).
 
+A base URL (`--base-url`, and the environment variable where the CLI reads one) is read as
+a URL however its scheme is typed (`typedUrlCredentials`): missing (`alice:pw@host`) or
+mistyped (`http//alice:pw@host`, the colon left out, whose userinfo is everything between the
+first slashes and the last `@`), so commander's echo of a refused one shows no password.
+
 The library keeps them out of what a caller logs, too. The engine holds the base URL in
 a real `#private` field (so `console.log(client)`, `util.inspect` and `JSON.stringify`
 never show it) next to its userinfo, raw and percent-decoded, and scrubs that, and the
