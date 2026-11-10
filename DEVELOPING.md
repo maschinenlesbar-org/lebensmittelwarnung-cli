@@ -393,7 +393,11 @@ follows the links with `--force`; a link loop too) are usage errors (exit 2), so
 costs no request; `-o -` is stdout. A stream (`state` → `"stream"`: a character device such as
 `/dev/null`, a FIFO, a socket, or a descriptor path, `/dev/stdout`, `/dev/fd/N` from `>(…)`) is
 written in place, with no claim, no temporary file and no `--force` needed: nothing in it can be
-lost, and a device or a pipe can't be renamed over. Any other target goes through
+lost, and a device or a pipe can't be renamed over. The open creates nothing (`O_WRONLY |
+O_APPEND`, no `O_CREAT`) and the descriptor is checked (`fstat`): a path that is no FIFO, device
+or socket by then (a link switched to a regular file after the check) is not appended to but
+takes the way of a file below, so without `--force` it is refused (a descriptor path keeps
+whatever the shell opened). Any other target goes through
 `CliDeps.files` (`OutputFiles`; unset, `nodeFiles`, the real file system) atomically: without
 `--force` the name is claimed with an exclusive create (so a file that appears during the request
 is refused too: a write failure, exit 1, not a usage error, as the request was made), then a
