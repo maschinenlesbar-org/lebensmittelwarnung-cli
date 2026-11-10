@@ -818,3 +818,86 @@ test("a 16 MB plain-text error body ends in an API error within a small heap (C)
   assert.ok(Number(length) < 1000, out);
   assert.equal(Number(detail), 201, out); // 200 characters and the "…"
 });
+
+// Class D of .reviews/2026-10-27-security-audit (portfolio round): the base URL's credentials
+// are scrubbed from decoded server text too, and from every value the client quotes from an
+// answer, before it is cut.
+test("an error body keeps its spelling unless a credential hides behind an escape (D)", async () => {
+  const base = "https://alice:s3cret-pw@mirror.example";
+  const failed = async (body: string): Promise<LebensmittelwarnungApiError> => {
+    const e = new RequestEngine({ baseUrl: base, maxRetries: 0, transport: async () => rawResponse(body, "application/json", 500) });
+    const err = await e.getFeed("/x").catch((caught: unknown) => caught);
+    assert.ok(err instanceof LebensmittelwarnungApiError, String(err));
+    return err;
+  };
+  // No credential, or one spelled as sent: the body as sent (scrubbed), escapes kept.
+  assert.equal((await failed('{"m":"caf\\u00e9 \\"x\\""}')).body, '{"m":"caf\\u00e9 \\"x\\""}');
+  assert.equal((await failed('{"m":"pw s3cret-pw \\u00e9"}')).body, '{"m":"pw *** \\u00e9"}');
+  // Escaped: written again decoded, scrubbed in that spelling; the message's snippet with it.
+  const escaped = await failed('{"m":"pw s3cret\\u002dpw \\u00e9"}');
+  assert.equal(escaped.body, '{"m":"pw *** é"}');
+  assert.equal(escaped.detail, '{"m":"pw *** é"}');
+  assert.ok(!escaped.message.includes("s3cret"), escaped.message);
+  // Not JSON: nobody decodes it, it stays as sent.
+  assert.equal((await failed("pw s3cret\\u002dpw")).body, "pw s3cret\\u002dpw");
+});
+
+test("a password with an inner space is scrubbed whole, never word by word (D)", async () => {
+  // The URL carries it percent-encoded (`pa%20ss-word`); the server echoes it decoded.
+  const base = "https://alice:pa ss-word@mirror.example";
+  for (const body of ["bad password pa ss-word here", "bad login alice:pa ss-word here", '{"m":"bad pa\\u0020ss-word"}']) {
+    const e = new RequestEngine({ baseUrl: base, maxRetries: 0, transport: async () => rawResponse(body, "text/plain", 401) });
+    const err = await e.getFeed("/x").catch((caught: unknown) => caught);
+    assert.ok(err instanceof LebensmittelwarnungApiError, String(err));
+    for (const text of [err.message, err.detail ?? "", err.body]) {
+      assert.ok(!text.includes("ss-word") && !text.includes("pa ss"), `${body}: ${text}`);
+    }
+  }
+});
+
+test("an echo of the request URL as sent is scrubbed, a short password too (D)", async () => {
+  // WHATWG percent-encodes `"` and `ä` in the userinfo it sends; a server that echoes the
+  // request URL echoes that spelling, which the userinfo as typed doesn't match.
+  const e = new RequestEngine({
+    baseUrl: 'https://alice:p"ä@mirror.example',
+    maxRetries: 0,
+    transport: async (req) => rawResponse(`no route for ${req.url}`, "text/plain", 404),
+  });
+  const err = await e.getFeed("/x").catch((caught: unknown) => caught);
+  assert.ok(err instanceof LebensmittelwarnungApiError, String(err));
+  for (const text of [err.message, err.detail ?? "", err.body]) {
+    assert.ok(!text.includes("p%22%C3%A4") && !text.includes("alice:p"), text);
+  }
+});
+
+test("a token the answer names as its root element, a tag, a parent or its charset is scrubbed from the library's error, as spelled (D)", async () => {
+  // Every value of an answer the client quotes into its own errors: the root element's name and
+  // the other names in the parser's reason, and the declared charset. The CLI redacted them on
+  // stderr; a library caller logging err.message saw the token, and the parser named elements in
+  // lower case, a spelling the exact scrub doesn't match.
+  const token = "DummyToken0123456789";
+  for (const xml of [
+    `<${token}><channel/></${token}>`,
+    `<rss><channel><${token} a="1"`,
+    `<rss><channel><${token}>`,
+    `<rss><channel><${token}><item/></${token}></channel></rss>`,
+    `<?xml version="1.0" encoding="${token}"?><rss/>`,
+  ]) {
+    const e = new RequestEngine({ baseUrl: `https://alice:${token}@mirror.example`, transport: async () => rssResponse(xml) });
+    const err = await e.getFeed("/feed.xml").catch((caught: unknown) => caught);
+    assert.ok(err instanceof LebensmittelwarnungParseError, String(err));
+    assert.ok(!err.message.toLowerCase().includes(token.toLowerCase()), err.message);
+    assert.ok(err.message.includes("***"), err.message);
+  }
+});
+
+test("a long name in the parser's reason is scrubbed before it is cut, so no part of a credential stays (D)", async () => {
+  const pw = "s3cret-Pw-long";
+  for (const at of [0, 30, 35, 39, 470, 495]) {
+    const name = `x${"x".repeat(at)}${pw.replace("-", "_")}${"y".repeat(600)}`;
+    const e = new RequestEngine({ baseUrl: `https://alice:${pw.replace("-", "_")}@mirror.example`, transport: async () => rssResponse(`<${name}/>`) });
+    const err = await e.getFeed("/feed.xml").catch((caught: unknown) => caught);
+    assert.ok(err instanceof LebensmittelwarnungParseError, String(err));
+    assert.ok(!err.message.includes("s3cr"), `${at}: ${err.message}`);
+  }
+});

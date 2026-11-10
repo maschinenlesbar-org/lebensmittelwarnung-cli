@@ -483,8 +483,16 @@ The library keeps them out of what a caller logs, too. The engine holds the base
 a real `#private` field (so `console.log(client)`, `util.inspect` and `JSON.stringify`
 never show it) next to its userinfo, raw and percent-decoded, and scrubs that, and the
 forms a server echoes it back in (the `Basic` value, the decoded `user:password`, the
-password alone from 4 characters: `echoedCredentialForms`), from error bodies (`LebensmittelwarnungApiError.body`/`detail`), transport error text and the
-`cause` chain. `LebensmittelwarnungApiError.url` is the request URL with its userinfo
+password alone from 4 characters: `echoedCredentialForms`; each also percent-encoded, and the
+userinfo also as WHATWG writes it), from error bodies (`LebensmittelwarnungApiError.body`/`detail`), transport error text and the
+`cause` chain. A password is matched whole, an inner space included. An error body that is JSON
+(a proxy's or a mirror's) and spells a credential with escapes (`\"`, `\u00e4`), which the scrub
+of the text as sent misses but a caller who parses `.body` sees, is kept as the decoded JSON
+written again with the credential as `***` (and the `detail` snippet is taken from that); one too
+deeply nested to write again is `""`. Every value of a 2xx answer the client quotes into its own
+errors — the element names in the parser's reason (the document element, an unterminated tag or
+element, the parent of a misplaced `<item>`, each as the answer spells it, never lower-cased) and
+the declared charset — is scrubbed too, before it is cut. `LebensmittelwarnungApiError.url` is the request URL with its userinfo
 redacted. Whatever a custom transport throws (a string, fetch's `TypeError` naming the
 URL) reaches the caller as a `LebensmittelwarnungNetworkError` with the original,
 scrubbed, as its `cause`. Relative image URLs of an item without a `<link>` are resolved

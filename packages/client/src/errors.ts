@@ -275,6 +275,12 @@ export class LebensmittelwarnungApiError extends LebensmittelwarnungError {
   readonly detail: string | undefined;
   readonly url: string;
   readonly method: string;
+  /**
+   * The error body as text, the base URL's credentials scrubbed. As sent, unless it is JSON whose
+   * decoded text still holds an echoed credential behind an escape (`\"`, `\u00e4`): then the
+   * decoded JSON written again (`JSON.stringify`) with the credential as `***`, or `""` when it is
+   * nested too deeply to write again. `""` for a body too large to be a string.
+   */
   readonly body: string;
   /**
    * For a 429/503 that was not retried because its `Retry-After` asked for longer than the

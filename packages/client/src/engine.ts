@@ -430,13 +430,19 @@ export function cleartextProblem(baseUrl: string, secrets: readonly string[] = [
  * The Content-Type used to be ignored, so a Latin-1 body declared only there was read as
  * UTF-8: thousands of U+FFFD, and the label `Betroffene Bundesländer …` no longer matched,
  * so every warning lost `affectedStates`. An encoding TextDecoder doesn't know is a
- * LebensmittelwarnungParseError (naming `request`, `GET <url>`) rather than mojibake. Bytes
+ * LebensmittelwarnungParseError (naming `request`, `GET <url>`) rather than mojibake; its name is
+ * quoted with the base URL's credentials scrubbed (`scrub`) before it is cut. Bytes
  * that are invalid in the declared
  * encoding become U+FFFD, as everywhere in the WHATWG decoders, and are counted (`replaced`):
  * the body is decoded with a fatal decoder first, and only on its failure with replacement,
  * counting the U+FFFD that added (for UTF-8 exactly: those the server sent are subtracted).
  */
-function decodeXml(body: Buffer, contentType: string, request: string): { text: string; replaced: number } {
+function decodeXml(
+  body: Buffer,
+  contentType: string,
+  request: string,
+  scrub: (text: string) => string,
+): { text: string; replaced: number } {
   let charset: string | undefined;
   if (body[0] === 0xef && body[1] === 0xbb && body[2] === 0xbf) charset = "utf-8";
   else if (body[0] === 0xff && body[1] === 0xfe) charset = "utf-16le";
@@ -449,7 +455,7 @@ function decodeXml(body: Buffer, contentType: string, request: string): { text: 
     decoder = new TextDecoder(charset, { fatal: true });
   } catch {
     throw new LebensmittelwarnungParseError(
-      `${request}: unsupported response charset "${sanitizeServerText(charset).slice(0, 100)}".`,
+      `${request}: unsupported response charset "${cutText(sanitizeServerText(scrub(charset)), 100)}".`,
     );
   }
   try {
@@ -517,6 +523,18 @@ export function isBidiControl(code: number): boolean {
   );
 }
 
+/**
+ * `form` and its spelling in a URL (`encodeURIComponent`): a server that puts a credential into
+ * a URL percent-encodes it. A form that has no such spelling (a lone surrogate) is kept as it is.
+ */
+function urlSpellings(form: string): string[] {
+  try {
+    return [form, encodeURIComponent(form)];
+  } catch {
+    return [form];
+  }
+}
+
 /** `GET <url> failed: <reason>`, the URL's userinfo redacted and the URL cut for the message. */
 function requestFailed(url: string, reason: string): string {
   return `GET ${cutForMessage(redactUrl(url))} failed: ${reason}`;
@@ -534,8 +552,8 @@ export class RequestEngine {
   readonly #credentials: string[];
   /**
    * The forms a server echoes that userinfo back in (the Basic value, the decoded
-   * `user:password`, the password alone), longest first, so a password never leaves half
-   * of the `user:password` around it.
+   * `user:password`, the password alone; `echoedCredentialForms`), each also percent-encoded as
+   * in a URL, longest first, so a password never leaves half of the `user:password` around it.
    */
   readonly #echoed: string[];
   private readonly transport: Transport;
@@ -555,16 +573,16 @@ export class RequestEngine {
     // The raw value is checked before the trailing-slash strip; only an omitted
     // baseUrl selects the default.
     this.#baseUrl = validateBaseUrl(options.baseUrl === undefined ? DEFAULT_BASE_URL : options.baseUrl);
-    this.#credentials = credentialsIn(this.#baseUrl).flatMap((raw) => {
+    // The userinfo as typed and as WHATWG writes it (it percent-encodes some of its characters).
+    const userinfos = [...new Set([...credentialsIn(this.#baseUrl), ...credentialsIn(new URL(this.#baseUrl).href)])];
+    this.#credentials = userinfos.flatMap((raw) => {
       try {
         return [raw, decodeURIComponent(raw)];
       } catch {
         return [raw];
       }
     });
-    this.#echoed = credentialsIn(this.#baseUrl)
-      .flatMap(echoedCredentialForms)
-      .sort((a, b) => b.length - a.length);
+    this.#echoed = [...new Set(userinfos.flatMap(echoedCredentialForms).flatMap(urlSpellings))].sort((a, b) => b.length - a.length);
     this.transport = functionOption("transport", options.transport, nodeHttpTransport);
     // Only an omitted userAgent selects the default: a blank one is an error, not
     // a silent fallback, and a malformed one fails here rather than at request time.
@@ -627,6 +645,33 @@ export class RequestEngine {
    */
   private scrub(text: string): string {
     return this.#credentials.length === 0 ? text : redactSecrets(redactCredentials(text, this.#credentials), this.#echoed);
+  }
+
+  /**
+   * An error body, already scrubbed as sent, as `LebensmittelwarnungApiError.body` keeps it: when
+   * it is JSON with an escape in it (a proxy's or a mirror's error), checked decoded too. An
+   * escape (`\"`, `\u00e4`) hides an echoed credential from the scrub of the text as sent, while a
+   * caller who parses the body sees it. Such a body is kept as the decoded JSON written again
+   * (`JSON.stringify`, one spelling per character) with the credential scrubbed in that spelling.
+   * A body that doesn't parse is text nobody decodes, and stays as sent; one too deeply nested to
+   * write again is left out.
+   */
+  private scrubBody(scrubbed: string): string {
+    if (this.#echoed.length === 0 || !scrubbed.includes("\\")) return scrubbed;
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(scrubbed);
+    } catch {
+      return scrubbed;
+    }
+    let rewritten: string;
+    try {
+      rewritten = JSON.stringify(decoded);
+    } catch {
+      return "";
+    }
+    const spelled = this.#echoed.map((form) => JSON.stringify(form).slice(1, -1));
+    return spelled.some((form) => rewritten.includes(form)) ? redactSecrets(rewritten, spelled) : scrubbed;
   }
 
   /**
@@ -829,7 +874,7 @@ export class RequestEngine {
     const res = await this.request(path, query);
     // Every error about the answer names the request, `GET <url>: …` (userinfo redacted).
     const request = `GET ${this.describeUrl(path, query)}`;
-    const { text, replaced: badBytes } = decodeXml(res.data, res.contentType, request);
+    const { text, replaced: badBytes } = decodeXml(res.data, res.contentType, request, (t) => this.scrub(t));
     const head = text.trimStart().slice(0, 200).toLowerCase();
     if (head.startsWith("<!doctype html") || head.startsWith("<html")) {
       throw new LebensmittelwarnungParseError(
@@ -847,8 +892,9 @@ export class RequestEngine {
     try {
       feed = parseRss(text, tally);
     } catch (cause) {
-      // Name the parser's reason (run.ts prints only the message, never `cause`).
-      const reason = cause instanceof Error ? `: ${cutForMessage(sanitizeServerText(cause.message))}` : "";
+      // Name the parser's reason (run.ts prints only the message, never `cause`). It quotes the
+      // names of the answer's elements, so it is scrubbed first, before it is cleaned and cut.
+      const reason = cause instanceof Error ? `: ${cutForMessage(sanitizeServerText(this.scrub(cause.message)))}` : "";
       throw new LebensmittelwarnungParseError(`${request}: the answer is not valid RSS${reason}`, {
         cause: this.scrubCause(cause),
       });
@@ -865,7 +911,9 @@ export class RequestEngine {
     } catch (err) {
       if (!isStringTooLong(err)) throw err;
     }
-    const text = this.scrub(raw);
+    // A JSON body that spells a credential with escapes is written again decoded, scrubbed in
+    // that spelling (scrubBody), and the snippet below is taken from that.
+    const text = this.scrubBody(this.scrub(raw));
     // The portal serves HTML error pages, not a structured envelope; surface a
     // short, whitespace-collapsed snippet only when it is plain (non-HTML) text. `detail`
     // lands in an Error.message printed to stderr, so it is cleaned (sanitizeServerText:

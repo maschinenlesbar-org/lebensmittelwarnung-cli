@@ -176,6 +176,8 @@ const CHANNEL_LEAVES: Record<string, keyof RssChannel> = {
 /** A leaf element being read: its text content is collected until its close tag. */
 interface Leaf {
   name: string;
+  /** The name as the answer spells it, for a message (`name` is lower-cased). */
+  spelled: string;
   target: Record<string, string | undefined>;
   key: string;
   /** Nesting of same-named elements inside the leaf (1 = the leaf itself). */
@@ -204,6 +206,9 @@ interface Leaf {
  */
 export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 }): RssFeed {
   const stack: string[] = [];
+  // The names on `stack` as the answer spells them: a message quotes a name in that spelling, so
+  // the engine's scrub of the base URL's credentials finds it (a lower-cased token escaped it).
+  const spelledStack: string[] = [];
   // How many elements of each name are open on `stack`: a close tag of a name that is not
   // open is ignored without scanning the stack (that scan made deep nesting quadratic).
   const openCount = new Map<string, number>();
@@ -226,6 +231,7 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
     // Pop the element at `index` and everything opened inside it.
     while (stack.length > index) {
       const popped = stack.pop()!;
+      spelledStack.pop();
       openCount.set(popped, openCount.get(popped)! - 1);
       if (stack.length === itemAt && item !== undefined) {
         items.push(item);
@@ -302,7 +308,8 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
         j += 1;
       }
       if (j >= n) throw new Error(`Unterminated tag <${m[0]}> at offset ${i}`);
-      const name = m[0].toLowerCase();
+      const spelled = m[0];
+      const name = spelled.toLowerCase();
       const selfClosing = xml[j - 1] === "/";
       if (leaf) {
         if (name === leaf.name && !selfClosing) leaf.depth += 1;
@@ -315,12 +322,13 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
         // The documented shape is RSS 2.0: anything else is not this feed, whatever it
         // contains, and must not read as "no warnings".
         root = name;
-        if (name !== "rss") throw new Error(`Expected an RSS document, but the document element is <${name.slice(0, 40)}>`);
+        // The name as spelled and whole: the engine scrubs the reason before it cuts it.
+        if (name !== "rss") throw new Error(`Expected an RSS document, but the document element is <${spelled}>`);
       }
       let key: string | undefined;
       let target: Record<string, string | undefined> | undefined;
       if (name === "item" && !(channelAt !== -1 && depth === channelAt + 1 && channel !== undefined)) {
-        const parent = stack[depth - 1] ?? "";
+        const parent = spelledStack[depth - 1] ?? "";
         misplaced.set(parent, (misplaced.get(parent) ?? 0) + 1);
       }
       if (channel === undefined && name === "channel" && depth === 1) {
@@ -347,19 +355,20 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
         target = item as Record<string, string | undefined>;
       }
       if (key !== undefined && target !== undefined) {
-        const l: Leaf = { name, target, key, depth: 1, parts: new TextBuilder() };
+        const l: Leaf = { name, spelled, target, key, depth: 1, parts: new TextBuilder() };
         if (selfClosing) finishLeaf(l);
         else leaf = l;
       } else if (!selfClosing) {
         stack.push(name);
+        spelledStack.push(spelled);
         openCount.set(name, (openCount.get(name) ?? 0) + 1);
       }
       i = j + 1;
     }
   }
 
-  if (leaf) throw new Error(`Unterminated element <${leaf.name}>`);
-  const open = stack[stack.length - 1];
+  if (leaf) throw new Error(`Unterminated element <${leaf.spelled}>`);
+  const open = spelledStack[spelledStack.length - 1];
   if (open !== undefined) throw new Error(`Unterminated element <${open}>`);
   if (root === undefined) throw new Error("No document element found");
   if (channel === undefined) {
@@ -367,7 +376,7 @@ export function parseRss(xml: string, tally: ReplacementTally = { replaced: 0 })
   }
   if (misplaced.size > 0) {
     const total = [...misplaced.values()].reduce((a, b) => a + b, 0);
-    const where = [...misplaced].map(([parent, n]) => `${n} inside <${parent.slice(0, 40)}>`).join(", ");
+    const where = [...misplaced].map(([parent, n]) => `${n} inside <${parent}>`).join(", ");
     throw new Error(
       `Found ${total} <item> element${total === 1 ? "" : "s"} that ${total === 1 ? "is" : "are"} not a direct child of ` +
         `the first <channel> (${where}; ${items.length} in place) — the feed's shape has changed`,
