@@ -159,7 +159,9 @@ so a consumer compiled with `exactOptionalPropertyTypes` can pass
 **Custom transports.** `timeoutMs` and `maxResponseBytes` hold for every transport, not
 only the built-in one: the engine races the call against its own deadline and passes an
 `AbortSignal` in `HttpRequest.signal` (hand it to `fetch(url, { signal })`), and it checks
-the size of the body it gets back. A transport may return its headers as a fetch `Headers`
+the size of the body it gets back. The default transport joins small chunks of a body as they
+arrive (at most 1024 of them or 64 KiB), so its memory follows the bytes, not the number of
+chunks a server sends. A transport may return its headers as a fetch `Headers`
 object, a `Map` or a record with names in any case (`Retry-After` is read from all of
 them), and its body as a `Buffer`, any ArrayBuffer view (fetch's `Uint8Array`) or an
 `ArrayBuffer`, from any realm. A reset connection (`ECONNRESET`, `EPIPE`, `ECONNABORTED`,
@@ -625,8 +627,9 @@ everything that drives the CLI is in `apps/cli/test/`.
   temporary one, stdout cut short is an error, streams are written in place, a signal leaves
   nothing behind; runs the built bin). The fix round of 2026-10-21 added `p27` (a big or odd
   answer is printed or refused in one clean record within memory: DEL characters under a small
-  heap; a lone surrogate reference or invalid bytes are U+FFFD with one WARN; the large flat
-  answer is skipped, the feed being RSS text). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
+  heap; a lone surrogate reference or invalid bytes are U+FFFD with one WARN; an answer in two
+  million one-byte chunks is read under a 256 MB heap; the large flat answer is skipped, the
+  feed being RSS text). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
   to the kit's shape for P24 and P25.
 
 ## Continuous integration
