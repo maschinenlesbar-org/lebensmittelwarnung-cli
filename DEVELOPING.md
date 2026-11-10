@@ -629,8 +629,18 @@ everything that drives the CLI is in `apps/cli/test/`.
   answer is printed or refused in one clean record within memory: DEL characters under a small
   heap; a lone surrogate reference or invalid bytes are U+FFFD with one WARN; an answer in two
   million one-byte chunks is read under a 256 MB heap; the large flat answer is skipped, the
-  feed being RSS text). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
-  to the kit's shape for P24 and P25.
+  feed being RSS text). The security audit of 2026-10-27 added `p28` (a hostile error answer
+  ends in one clean error in time and within memory, and no error quotes a credential of the
+  base URL however the server spells it: the number case is skipped, the feed is RSS text; the
+  quoted-2xx-value case too, as the only values this client quotes from an answer are XML names
+  and the charset, which can't hold the test's password, and are checked with a token in
+  `packages/client/test/engine.test.ts`; redirects are not followed, so a 302 reads `HTTP 302`),
+  `p29` (base-URL credentials: a token userinfo scrubbed, a backslash or a repaired scheme
+  refused, requests to the parsed host, the stdout redaction linear), `p30` (`--force` follows no
+  other user's link in a shared directory, EACCES isn't "exists", a stream is checked on its
+  descriptor) and `p31` (the release pipeline: the SBOM tool locked in `tools/sbom/`, three jobs,
+  pinned actions). `kitParity` (`apps/cli/test/helpers.ts`) maps `parity`
+  to the kit's shape for P24, P25, P27 and P29.
 
 ## Continuous integration
 
@@ -650,7 +660,8 @@ GitHub Actions workflows under `.github/workflows/`:
   where the tarball is built or where the write token is. Update the tool by changing its
   version in `tools/sbom/package.json` and running `npm install --package-lock-only
   --ignore-scripts` there; don't chain its install into an npm script.
-  `apps/cli/test/release-workflow.test.ts` reads the workflow and the lockfile and checks it.
+  Conformance test P31 (`apps/cli/test/conformance-p31-release-pipeline.test.ts`) reads the
+  workflow and the lockfile and checks it.
 - **publish.yml** — manual dispatch from the release tag (`gh workflow run publish.yml --ref vX.Y.Z`; the version is the tag's): `npm publish --workspace apps/cli` via OIDC **Trusted
   Publishing** (no stored `NPM_TOKEN`) with provenance.
 - **docs.yml** — build the project website (`site/`, English and German) with the TypeDoc API docs
