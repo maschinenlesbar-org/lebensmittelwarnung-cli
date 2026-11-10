@@ -18,6 +18,7 @@
 // in rss.test.ts against real feed shapes.
 
 import { HTML_ENTITIES } from "./entities.js";
+import { TextBuilder } from "./errors.js";
 
 /**
  * Maximum number of `<item>` elements accepted from a single feed (DoS guard). A
@@ -80,7 +81,7 @@ export function decodeEntities(text: string, tally: ReplacementTally = { replace
   // malformed decimal ref that contains hex letters (`&#1F;`) does NOT match the
   // decimal branch and get truncated at the first non-digit by `parseInt(…, 10)`.
   let consumed = -1; // the offset of a low-surrogate reference already joined to its high one
-  return text.replace(/&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g, (whole, body: string, offset: number) => {
+  const value = (whole: string, body: string, offset: number): string => {
     if (offset === consumed) return "";
     switch (body) {
       case "amp":
@@ -122,7 +123,22 @@ export function decodeEntities(text: string, tally: ReplacementTally = { replace
     // Unknown named entity, or a reference past U+10FFFF: leave it untouched rather than
     // dropping information.
     return whole;
-  });
+  };
+  // One match at a time, the pieces joined in batches (TextBuilder): `replace` with a callback
+  // kept a slot per match until the end, so six million lone-surrogate references (48 MB)
+  // exhausted a 128 MB heap.
+  const references = /&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g;
+  const out = new TextBuilder();
+  let copied = 0;
+  for (let m = references.exec(text); m !== null; m = references.exec(text)) {
+    const replacement = value(m[0], m[1] as string, m.index);
+    if (replacement === m[0]) continue;
+    out.push(text.slice(copied, m.index), replacement);
+    copied = m.index + m[0].length;
+  }
+  if (copied === 0) return text;
+  out.push(text.slice(copied));
+  return out.toString();
 }
 
 /** An XML/HTML name at a given offset (sticky, so it never scans ahead). */

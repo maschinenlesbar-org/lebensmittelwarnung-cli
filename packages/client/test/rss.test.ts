@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { parseRss, parseDescription, decodeEntities } from "../src/rss.js";
 import * as fx from "./fixtures.js";
@@ -320,4 +321,21 @@ test("a label named __proto__ is an ordinary field, never the prototype of field
   assert.deepEqual(Object.keys(fields), ["__proto__", "constructor", "Grund der Meldung"]);
   assert.equal(Object.getOwnPropertyDescriptor(fields, "__proto__")?.value, "Wert");
   assert.equal(JSON.stringify(fields), '{"__proto__":"Wert","constructor":"c","Grund der Meldung":"g"}');
+});
+
+// This test starts a process with a small heap: 30 s instead of the suite's 5 s.
+const STARTS_A_PROCESS = { timeout: 30_000 };
+
+test("millions of lone surrogate references are repaired within a small heap (C)", STARTS_A_PROCESS, () => {
+  // `replace` with a callback kept a slot per match until the end: six million references
+  // (48 MB) exhausted a 128 MB heap. One match at a time, joined in batches, they fit.
+  const rss = new URL("../src/rss.js", import.meta.url).href;
+  const n = 6_000_000;
+  const script =
+    `const { decodeEntities } = await import(${JSON.stringify(rss)});` +
+    `const tally = { replaced: 0 };` +
+    `const text = decodeEntities("a&amp;" + "&#xd800;".repeat(${n}) + "&#xD83D;&#xDE00;z", tally);` +
+    `process.stdout.write(text.length + " " + tally.replaced + " " + JSON.stringify(text.slice(0, 3) + text.slice(-4)));`;
+  const out = execFileSync(process.execPath, ["--max-old-space-size=128", "--input-type=module", "-e", script], { encoding: "utf8" });
+  assert.equal(out, `${n + 5} ${n} ${JSON.stringify("a&\ufffd\ufffd\u{1f600}z")}`);
 });

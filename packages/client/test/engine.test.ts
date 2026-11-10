@@ -802,3 +802,19 @@ test("a malformed answer with a 16 MB tag name ends in a parse error within a sm
   assert.equal(name, "LebensmittelwarnungParseError", out);
   assert.ok(Number(length) < 1000, out);
 });
+
+test("a 16 MB plain-text error body ends in an API error within a small heap (C)", STARTS_A_PROCESS, () => {
+  // The snippet's whitespace was folded over the whole body before the cut: one replacement per
+  // space of a 16 MB body exhausted a 128 MB heap.
+  const engine = new URL("../src/engine.js", import.meta.url).href;
+  const script =
+    `const { RequestEngine } = await import(${JSON.stringify(engine)});` +
+    `const body = Buffer.from("x ".repeat(8_000_000));` +
+    `const e = new RequestEngine({ maxRetries: 0, transport: async () => ({ status: 500, headers: { "content-type": "text/plain" }, body }) });` +
+    `try { await e.getFeed("/feed.xml"); } catch (err) { process.stdout.write(err.name + " " + err.message.length + " " + err.detail.length); }`;
+  const out = execFileSync(process.execPath, ["--max-old-space-size=128", "--input-type=module", "-e", script], { encoding: "utf8" });
+  const [name, length, detail] = out.split(" ");
+  assert.equal(name, "LebensmittelwarnungApiError", out);
+  assert.ok(Number(length) < 1000, out);
+  assert.equal(Number(detail), 201, out); // 200 characters and the "…"
+});
