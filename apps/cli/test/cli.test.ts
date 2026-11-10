@@ -698,3 +698,23 @@ test("the userinfo redaction of stdout is linear in the answer and catches glued
   assert.ok(out.includes("https://host://***@h and https://***@x://***@w"), out);
   for (const secret of ["u:p1", "u:p2", "v:q3"]) assert.ok(!out.includes(secret), out);
 });
+
+test("a token in --base-url (a userinfo without a password) is redacted from what the CLI prints, on stderr and stdout (E)", async () => {
+  const token = "T0kenS3cret";
+  const basic = Buffer.from(`${token}:`, "utf8").toString("base64");
+  for (const base of [`https://${token}@mirror.example`, `https://${token}:@mirror.example`]) {
+    // An error answer that echoes the token and its Basic value: stderr.
+    const failed = makeCli(() => rawResponse(`bad token ${token}, Basic ${basic}`, "text/plain", 401));
+    assert.notEqual(await run(["--base-url", base, "--max-retries", "0", "warnings"], failed.deps), 0);
+    const err = failed.err.join("\n");
+    assert.match(err, /bad token \*\*\*, Basic \*\*\*/);
+    assert.ok(!err.includes(token) && !err.includes(basic), err);
+    // A 2xx answer that echoes the Basic value and `TOKEN:`: stdout.
+    const xml = `<rss version="2.0"><channel><item><title>Basic ${basic} for ${token}:x</title><description>d</description></item></channel></rss>`;
+    const echoed = makeCli(() => rssResponse(xml));
+    assert.equal(await run(["--base-url", base, "warnings"], echoed.deps), 0, echoed.err.join("\n"));
+    const out = echoed.out.join("\n");
+    assert.match(out, /Basic \*\*\* for \*\*\*x/);
+    assert.ok(!out.includes(basic) && !out.includes(`${token}:`), out);
+  }
+});

@@ -17,6 +17,7 @@ import {
   LebensmittelwarnungParseError,
   LebensmittelwarnungValidationError,
   cutText,
+  echoedCredentialForms,
   redactUrl,
   redactUrlUserinfo,
   TextBuilder,
@@ -899,5 +900,36 @@ test("a long name in the parser's reason is scrubbed before it is cut, so no par
     const err = await e.getFeed("/feed.xml").catch((caught: unknown) => caught);
     assert.ok(err instanceof LebensmittelwarnungParseError, String(err));
     assert.ok(!err.message.includes("s3cr"), `${at}: ${err.message}`);
+  }
+});
+
+test("echoedCredentialForms treats a userinfo without a password as a token (Basic `TOKEN:`) (E)", () => {
+  const basic = (pair: string): string => Buffer.from(pair, "utf8").toString("base64");
+  assert.deepEqual(echoedCredentialForms("alice:s3cret"), [basic("alice:s3cret"), "alice:s3cret", "s3cret"]);
+  assert.deepEqual(echoedCredentialForms("T0ken"), [basic("T0ken:"), "T0ken:", "T0ken"]);
+  assert.deepEqual(echoedCredentialForms("T0ken:"), [basic("T0ken:"), "T0ken:", "T0ken"]);
+  assert.deepEqual(echoedCredentialForms("T%C3%B6k"), [basic("Tök:"), "Tök:"]); // short: not alone
+  assert.deepEqual(echoedCredentialForms(":pw12"), [basic(":pw12"), ":pw12", "pw12"]);
+  assert.deepEqual(echoedCredentialForms(""), []);
+  assert.deepEqual(echoedCredentialForms(":"), []);
+});
+
+test("a token userinfo (no password) a server echoes is scrubbed from the error in every form (E)", async () => {
+  const token = "T0kenS3cret";
+  const basic = Buffer.from(`${token}:`, "utf8").toString("base64");
+  for (const baseUrl of [`https://${token}@mirror.example`, `https://${token}:@mirror.example`]) {
+    for (const echo of [`bad token ${token}`, `Authorization: Basic ${basic}`, `user ${token}: unknown`]) {
+      const engine = new RequestEngine({ baseUrl, maxRetries: 0, transport: makeMockTransport(() => rawResponse(echo, "text/plain", 401)).transport });
+      const err = await engine.getFeed("/x").catch((caught: unknown) => caught);
+      assert.ok(err instanceof LebensmittelwarnungApiError, String(err));
+      assert.match(err.message, /^HTTP 401 /);
+      for (const text of [err.message, err.body, String(err.detail)]) {
+        assert.ok(!text.includes(token) && !text.includes(basic), `${baseUrl} ${echo}: ${text}`);
+      }
+    }
+    // And the document element an answer names after it.
+    const named = new RequestEngine({ baseUrl, transport: async () => rssResponse(`<${token}><channel/></${token}>`) });
+    const err = await named.getFeed("/x").catch((caught: unknown) => caught);
+    assert.ok(err instanceof LebensmittelwarnungParseError && !err.message.includes(token), String(err));
   }
 });

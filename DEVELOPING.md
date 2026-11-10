@@ -471,7 +471,9 @@ to the raw stderr: the frame (time, level, topic) is never touched, and a passwo
 DEL, C1 or bidi characters is matched in its raw form. The forms a server echoes a
 userinfo back in are replaced too: the `Basic` value and the decoded `user:password` on
 stdout and stderr, the password alone (4 characters or more) on stderr only, since it may
-well occur in the data. Behind these exact strings, the userinfo of every URL in a printed
+well occur in the data. A userinfo without a password (`https://TOKEN@host`,
+`https://TOKEN:@host`) is a token: Node sends it as Basic `TOKEN:`, so that value, `TOKEN:` and
+the token itself are the forms. Behind these exact strings, the userinfo of every URL in a printed
 text is replaced as a pattern (`redactUrlUserinfo`, client `errors.ts`): one linear pass (each
 `://` found with indexOf, its scheme by walking back), which also catches a URL glued onto the
 one before it (`https://host://u:p@h`); the scheme regex it replaces was quadratic on a run of
@@ -483,7 +485,8 @@ The library keeps them out of what a caller logs, too. The engine holds the base
 a real `#private` field (so `console.log(client)`, `util.inspect` and `JSON.stringify`
 never show it) next to its userinfo, raw and percent-decoded, and scrubs that, and the
 forms a server echoes it back in (the `Basic` value, the decoded `user:password`, the
-password alone from 4 characters: `echoedCredentialForms`; each also percent-encoded, and the
+password alone from 4 characters — the user name when there is no password, a token sent as
+Basic `TOKEN:`: `echoedCredentialForms`; each also percent-encoded, and the
 userinfo also as WHATWG writes it), from error bodies (`LebensmittelwarnungApiError.body`/`detail`), transport error text and the
 `cause` chain. A password is matched whole, an inner space included. An error body that is JSON
 (a proxy's or a mirror's) and spells a credential with escapes (`\"`, `\u00e4`), which the scrub
