@@ -466,7 +466,11 @@ to the raw stderr: the frame (time, level, topic) is never touched, and a passwo
 DEL, C1 or bidi characters is matched in its raw form. The forms a server echoes a
 userinfo back in are replaced too: the `Basic` value and the decoded `user:password` on
 stdout and stderr, the password alone (4 characters or more) on stderr only, since it may
-well occur in the data. `apps/cli/test/conformance-p1-cli-redaction.test.ts`
+well occur in the data. Behind these exact strings, the userinfo of every URL in a printed
+text is replaced as a pattern (`redactUrlUserinfo`, client `errors.ts`): one linear pass (each
+`://` found with indexOf, its scheme by walking back), which also catches a URL glued onto the
+one before it (`https://host://u:p@h`); the scheme regex it replaces was quadratic on a run of
+scheme characters (`a.a.…`) in an answer. `apps/cli/test/conformance-p1-cli-redaction.test.ts`
 checks ten passwords in seven URL shapes at nine argv positions (the schemeless shape as
 the `--base-url` value only).
 

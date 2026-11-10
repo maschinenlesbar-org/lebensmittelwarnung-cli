@@ -676,3 +676,25 @@ for (const [what, big] of [
     assert.ok(took < 1000, `${what} took ${Math.round(took)} ms`);
   });
 }
+
+// Class B of .reviews/2026-10-27-security-audit (portfolio round): with a URL with userinfo in
+// argv, every stdout text goes through the userinfo redaction. The scheme regex it used was
+// quadratic on a run of scheme characters (`a.a.…`) in an answer; the linear pass that replaces
+// it must also catch a URL glued onto the one before it (B2).
+test("the userinfo redaction of stdout is linear in the answer and catches glued URLs (B, B2)", async () => {
+  const base = "https://alice:s3cret-Pw@mirror.example";
+  const titled = (title: string) => () =>
+    rssResponse(`<rss version="2.0"><channel><item><title>${title}</title><description>d</description></item></channel></rss>`);
+  const value = "a.".repeat(100_000);
+  const slow = makeCli(titled(value));
+  const started = performance.now();
+  assert.equal(await run(["--base-url", base, "--compact", "warnings"], slow.deps), 0, slow.err.join("\n"));
+  const ms = performance.now() - started;
+  assert.ok(slow.out.join("\n").includes(value));
+  assert.ok(ms < 1500, `${Math.round(ms)} ms`);
+  const glued = makeCli(titled("https://host://u:p1@h and https://u:p2@x://v:q3@w"));
+  assert.equal(await run(["--base-url", base, "--compact", "warnings"], glued.deps), 0, glued.err.join("\n"));
+  const out = glued.out.join("\n");
+  assert.ok(out.includes("https://host://***@h and https://***@x://***@w"), out);
+  for (const secret of ["u:p1", "u:p2", "v:q3"]) assert.ok(!out.includes(secret), out);
+});
