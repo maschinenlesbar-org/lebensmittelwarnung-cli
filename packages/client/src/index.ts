@@ -73,3 +73,40 @@ export {
 } from "./errors.js";
 
 export * from "./types.js";
+export {
+  CITATION_NOTE,
+  GROUP_BY,
+  ISSUERS,
+  REASON_CATEGORIES,
+  countRecalls,
+  getRecall,
+  latestBestBefore,
+  listRecalls,
+  noticeInfo,
+  recallOf,
+  resolveIssuer,
+  resolveReason,
+  resolveState,
+  resolveType,
+  searchRecalls,
+  searchTerms,
+} from "./operations.js";
+export type {
+  CountRecallsInput,
+  IssuerCode,
+  ListRecallsInput,
+  NoticeInfo,
+  OperationOptions,
+  ReasonCategory,
+  ReasonMatch,
+  Recall,
+  RecallCounts,
+  RecallDetail,
+  RecallFilter,
+  RecallGroupBy,
+  RecallList,
+  RecallLookup,
+  RecallSearch,
+  Searched,
+  SearchRecallsInput,
+} from "./operations.js";
