@@ -75,7 +75,7 @@ test("countRecalls by type: one request per type, the overlap said; the source i
   const connection = await connect({ transport });
   const content = (await connection.call("countRecalls", { groupBy: "type" })).structuredContent ?? {};
   assert.equal(content["total"], 9);
-  assert.deepEqual((content["groups"] as { key: string; count: number }[]).map((g) => g.key), ["Lebensmittel", "Bedarfsgegenstände", "Baby- und Kinderprodukte"]);
+  assert.deepEqual((content["groups"] as { key: string; count: number }[]).map((g) => g.key), ["Lebensmittel", "Bedarfsgegenstände", "Baby- und Kinderprodukte", "Kosmetische Mittel", "Mittel zum Tätowieren"]);
   assert.match((content["notes"] as string[]).join(" "), /Types overlap/);
   assert.equal(content["source"], FEED);
   assert.equal(transport.calls.length, 6);

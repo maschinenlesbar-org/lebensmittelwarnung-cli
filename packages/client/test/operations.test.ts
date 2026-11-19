@@ -207,7 +207,7 @@ test("countRecalls by reason: joined reasons count under each, so the groups add
   assert.match(counts.notes.join(" "), /more than total/);
 });
 
-test("countRecalls by type asks each type's feed; a baby spoon is also a consumer good, so the types overlap", async () => {
+test("countRecalls by type asks each type's feed and lists every type, 0 too; a baby spoon is also a consumer good, so the types overlap", async () => {
   const { mock, client } = setup();
   const counts = await countRecalls(client, { groupBy: "type" }, NOW);
   assert.equal(mock.calls.length, 6, "the total, then one request per type");
@@ -215,6 +215,8 @@ test("countRecalls by type asks each type's feed; a baby spoon is also a consume
     { key: "Lebensmittel", count: 7 },
     { key: "Bedarfsgegenstände", count: 2 },
     { key: "Baby- und Kinderprodukte", count: 1 },
+    { key: "Kosmetische Mittel", count: 0 },
+    { key: "Mittel zum Tätowieren", count: 0 },
   ]);
   assert.match(counts.notes.join(" "), /Types overlap/);
   await assert.rejects(countRecalls(client, { groupBy: "type", type: "Kosmetik" }), /takes no type filter/);

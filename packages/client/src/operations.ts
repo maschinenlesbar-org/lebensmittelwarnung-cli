@@ -628,7 +628,8 @@ const count = (keys: readonly string[]): Map<string, number> => keys.reduce((acc
  * the notice was issued. The groups don't add up to the total: a notice with two reasons counts
  * under both, a product can be listed under two types (a baby spoon is also a consumer good), a
  * notice lists every Land it was sold in. The total is counted once, from the same feed.
- * By type it asks the feed once per type (five requests) besides the total.
+ * By type it asks the feed once per type (five requests) besides the total, and lists every type,
+ * one with no recall as 0.
  */
 export async function countRecalls(client: LebensmittelwarnungClient, input: CountRecallsInput, options?: OperationOptions): Promise<RecallCounts> {
   const groupBy = assertValid("groupBy", input.groupBy, (g) => ((GROUP_BY as readonly unknown[]).includes(g) ? undefined : `Expected one of ${GROUP_BY.join(", ")}.`));
@@ -641,7 +642,7 @@ export async function countRecalls(client: LebensmittelwarnungClient, input: Cou
   if (groupBy === "type") {
     groups = new Map();
     for (const slug of TYPE_SLUGS) groups.set(TYPE_NAMES[slug], (await fetchRecalls(client, resolved, day, slug)).length);
-    notes.push("Types overlap (a baby product is often also listed as Lebensmittel or Bedarfsgegenstand): the counts add up to more than total. Report each on its own.");
+    notes.push("Types overlap (a baby product is often also listed as Lebensmittel or Bedarfsgegenstand): the counts add up to more than total. Report each on its own; every type is listed, a 0 too (tattoo inks are often 0).");
   } else if (groupBy === "reason") {
     groups = count(all.flatMap((r) => (r.reason ?? "(none)").split(",").map((part) => part.trim())));
     notes.push("A notice with several reasons counts under each: the counts add up to more than total.");
@@ -655,7 +656,7 @@ export async function countRecalls(client: LebensmittelwarnungClient, input: Cou
     groups = count(all.map((r) => (r.noticeDate ?? r.date ?? "(unknown)").slice(0, 4)));
     notes.push("By the year the notice was issued (its URL), else of its date.");
   }
-  const sorted = [...groups].map(([key, n]) => ({ key, count: n })).filter((g) => g.count > 0).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key, "de"));
+  const sorted = [...groups].map(([key, n]) => ({ key, count: n })).filter((g) => g.count > 0 || groupBy === "type").sort((a, b) => b.count - a.count || a.key.localeCompare(b.key, "de"));
   if (all.length === 0) return { status: "empty", searched: resolved.searched, groupBy, total: 0, groups: sorted, reason: emptyReason(resolved), notes };
   return { status: "ok", searched: resolved.searched, groupBy, total: all.length, groups: sorted, notes };
 }
