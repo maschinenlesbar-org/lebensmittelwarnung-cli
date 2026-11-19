@@ -1,0 +1,66 @@
+{
+  "comment": "What tools/interop/interop.mjs needs that is particular to this repo: the mock upstream's answer per path (under --base-url http://127.0.0.1:<port>; the feed is RSS, so a raw answer: notices of the live feed of 2026-11-19, cut down; the mock answers every query alike), how many tools the server lists, and the calls to make with what each must answer.",
+  "answers": {
+    "/___LMW-Redaktion/RSSNewsfeed/Functions/RssFeeds/rssnewsfeed_Alle_DE.xml": {
+      "$raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<rss version=\"2.0\"><channel>\n<title>Lebensmittelwarnung.de - Alle Bundesländer - Alle Produkttypen</title>\n<link>https://www.lebensmittelwarnung.de/</link>\n<ttl>60</ttl>\n<item>\n<title>Leberwurst fein 100 Gramm</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/261113_16_NI_Leberwurst_fein,_100_Gramm/261113_16_NI_Leberwurst_fein,_100_Gramm.html</link>\n<pubDate>Wed, 18 Nov 2026 08:09:00 +0100</pubDate>\n<description><![CDATA[<img src=\"https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/261113_16_NI_Leberwurst_fein,_100_Gramm/Bild_1.jpg?__blob=normal&amp;v=5\" width=\"100\" /><br/><b>Bildquelle</b> © Oekoland GmbH Nord<br/><b>Verpackungseinheit:</b> 100 Gramm in einem Schlauchbeutel<br/><b>Chargennummer / Los-Kennzeichnung:</b> Chargennummer:\n3825082,\n3825083<br/><b>Grund der Meldung:</b> Fremdkörper<br/><b>Haltbarkeit:</b> Mindesthaltbarkeitsdaten:\n04.12.2026, Charge: 3825082\n08.12.2026, Charge: 3825083<br/><b>Hersteller / Inverkehrbringer:</b> Hersteller:\nFranz Ludowig Fleischerei GmbH & Co. KG\nHindenburgstraße 48\n31515 Wunstorf<br/><b>Produktbezeichnung/ -beschreibung:</b> Leberwurst fein, 100 Gramm<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Baden-Württemberg, Bayern, Berlin, Brandenburg, Bremen, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Sachsen, Sachsen-Anhalt, Schleswig-Holstein, Thüringen<br/>]]></description>\n</item>\n<item>\n<title>rieker Antistress Damensandale rot/braun</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/261117_19_BW_ChromVI_Schuhe/261117_19_BW_ChromVI_Schuhe_Meldung.html</link>\n<pubDate>Tue, 17 Nov 2026 13:15:00 +0100</pubDate>\n<description><![CDATA[<b>Chargennummer / Los-Kennzeichnung:</b> Artikelnummer: 61338-35 (Größe 36-43)<br/><b>Grund der Meldung:</b> Gesundheitsschädliche Substanz<br/><b>Hersteller / Inverkehrbringer:</b> Firma Rieker-Schuh GmbH<br/><b>Produktbezeichnung/ -beschreibung:</b> rieker Antistress Damensandale rot/braun<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Baden-Württemberg, Bayern, Berlin, Brandenburg, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Sachsen, Sachsen-Anhalt, Schleswig-Holstein, Thüringen<br/>]]></description>\n</item>\n<item>\n<title>Knackwurst „Kümmel” und Knackwurst „Knoblauch”</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/261113_17_SN_Knackwurst_Kuemmel_und_Knackwurst_Knoblauch/261113_17_SN_Knackwurst_Kuemmel_und_Knackwurst_Knoblauch.html</link>\n<pubDate>Fri, 13 Nov 2026 12:30:00 +0100</pubDate>\n<description><![CDATA[<b>Verpackungseinheit:</b> lose Ware<br/><b>Grund der Meldung:</b> Krankheitserreger<br/><b>Hersteller / Inverkehrbringer:</b> Fleischerei Lars Methe,\nDorfstraße 2,\n04523 Pegau<br/><b>Produktbezeichnung/ -beschreibung:</b> Knackwurst „Kümmel” und Knackwurst „Knoblauch”<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Sachsen, Sachsen-Anhalt, Thüringen<br/>]]></description>\n</item>\n<item>\n<title>Waermesensorloeffel</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/261112_13_NI_Waermesensorloeffel/261112_13_NI_Waermesensorloeffel.html</link>\n<pubDate>Thu, 12 Nov 2026 13:15:00 +0100</pubDate>\n<description><![CDATA[<b>Verpackungseinheit:</b> drei Löffel im Kartonblister<br/><b>Chargennummer / Los-Kennzeichnung:</b> Chargen: M2C18Z, M2D28Z, M2E26Z und M2F18Z.<br/><b>Grund der Meldung:</b> Gesundheitsschädliche Substanz, Sonstige Gründe<br/><b>Hersteller / Inverkehrbringer:</b> Hersteller: Nuby Asia Pacific Ltd., China<br/><b>Produktbezeichnung/ -beschreibung:</b> Nûby Wärmesensorlöffel<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Baden-Württemberg, Bayern, Berlin, Brandenburg, Bremen, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Sachsen, Sachsen-Anhalt, Schleswig-Holstein, Thüringen<br/>]]></description>\n</item>\n<item>\n<title>Sesampaste (Tahina), 12x800 Gramm</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/261002_03_BY_Sesampaste/261002_03_BY_Sesampaste.html</link>\n<pubDate>Tue, 27 Oct 2026 17:35:00 +0100</pubDate>\n<description><![CDATA[<b>Verpackungseinheit:</b> 12x800 Gramm<br/><b>Chargennummer / Los-Kennzeichnung:</b> L#80 925 TF<br/><b>Grund der Meldung:</b> Krankheitserreger<br/><b>Haltbarkeit:</b> Mindesthaltbarkeitsdatum: EXP 10-2027<br/><b>Hersteller / Inverkehrbringer:</b> Tema Fine Foods<br/><b>Produktbezeichnung/ -beschreibung:</b> Sesampaste (Tahina), Marke: Chtoura Garden, 12x800 Gramm<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Baden-Württemberg, Bayern, Berlin, Hamburg, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Sachsen<br/>]]></description>\n</item>\n<item>\n<title>frischer Käse, 800 Gramm</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/260619_17_TH_frischer_Kaese/260619_17_TH_frischer_Kaese.html</link>\n<pubDate>Wed, 24 Jun 2026 09:00:00 +0200</pubDate>\n<description><![CDATA[<b>Verpackungseinheit:</b> 800 Gramm<br/><b>Chargennummer / Los-Kennzeichnung:</b> F22042026<br/><b>Grund der Meldung:</b> Krankheitserreger<br/><b>Haltbarkeit:</b> 30.11.2026<br/><b>Hersteller / Inverkehrbringer:</b> Käse King\nLessingstraße 16\n99510 Apolda<br/><b>Produktbezeichnung/ -beschreibung:</b> frischer Käse aus Kuhmilch, 800 Gramm<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Thüringen, Sachsen<br/>]]></description>\n</item>\n<item>\n<title>„Treets Salted Peanuts Vegan 200 Gramm\" und „K-Classic Choc it bunte Erdnüsse 300 Gramm\"</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/260522_18_BY_Piasten/260522_18_BY_Piasten.html</link>\n<pubDate>Tue, 26 May 2026 13:12:00 +0200</pubDate>\n<description><![CDATA[<b>Chargennummer / Los-Kennzeichnung:</b> Treets Salted Peanuts Vegan 200 Gramm: L6155Z<br/><b>Grund der Meldung:</b> Fremdkörper<br/><b>Haltbarkeit:</b> Treets Salted Peanuts Vegan 200 Gramm: 11.05.2027<br/><b>Hersteller / Inverkehrbringer:</b> Piasten GmbH,\nPiastenstraße 1,\n91301 Forchheim<br/><b>Produktbezeichnung/ -beschreibung:</b> „Treets Salted Peanuts Vegan 200 Gramm\" und „K-Classic Choc it bunte Erdnüsse 300 Gramm\"<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Baden-Württemberg, Bayern, Berlin, Brandenburg, Bremen, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Sachsen, Sachsen-Anhalt, Schleswig-Holstein, Thüringen<br/>]]></description>\n</item>\n<item>\n<title>Lotus Mixed Herbal Paste with Honey</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/260302_01_Sildenafil_in_NEM/260302_01_BW_Sildenafil_in_NEM_Meldung.html</link>\n<pubDate>Mon, 2 Mar 2026 16:00:00 +0100</pubDate>\n<description><![CDATA[<b>Grund der Meldung:</b> Sonstige Gründe, Gesundheitsschädliche Substanz<br/><b>Haltbarkeit:</b> Mindesthaltbarkeitsdatum:\n07/2030<br/><b>Hersteller / Inverkehrbringer:</b> Hergestellt für: Ersan Cimen,\nSindelfingerstraße 53,\n72070 Tübingen, Germany<br/><b>Produktbezeichnung/ -beschreibung:</b> Lotus Mixed Herbal Paste with Honey<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Baden-Württemberg, Bayern, Berlin, Brandenburg, Bremen, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Sachsen, Sachsen-Anhalt, Schleswig-Holstein, Thüringen<br/>]]></description>\n</item>\n<item>\n<title>aerobic stabilized oxygen, 70 Milliliter</title>\n<link>https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2018/11_November/180621_BY_aerobic_stabilized/180621_BY_aerobic_stabilized.html</link>\n<pubDate>Thu, 21 Jun 2018 11:54:00 +0200</pubDate>\n<description><![CDATA[<b>Verpackungseinheit:</b> 70 Milliliter<br/><b>Grund der Meldung:</b> Gesundheitsschädliche Substanz, Rückstände und Kontaminanten<br/><b>Haltbarkeit:</b> Mindesthaltbarkeitsdatum 31.12.2030<br/><b>Hersteller / Inverkehrbringer:</b> GLOBALIS,\nOase der Natur,\nWestheim 42,\n93049 Regensburg<br/><b>Produktbezeichnung/ -beschreibung:</b> aerobic stabilized oxygen, 70 Milliliter<br/><b>Betroffene Bundesländer nach derzeitigem Stand:</b> Baden-Württemberg, Bayern, Berlin, Brandenburg, Bremen, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Sachsen, Sachsen-Anhalt, Schleswig-Holstein, Thüringen<br/>]]></description>\n</item>\n</channel></rss>",
+      "$type": "text/xml;charset=utf-8"
+    }
+  },
+  "tools": 4,
+  "calls": [
+    {
+      "name": "searchRecalls",
+      "arguments": {
+        "product": "Tahini"
+      },
+      "expect": {
+        "status": "ok",
+        "matchedIn": "name",
+        "searched.terms": [
+          "Tahini",
+          "Tahin"
+        ],
+        "recalls.0.issuer": "BY"
+      }
+    },
+    {
+      "name": "listRecalls",
+      "arguments": {
+        "reason": "Salmonellen",
+        "limit": 2
+      },
+      "expect": {
+        "searched.reason": "Krankheitserreger",
+        "total": 3,
+        "nextOffset": 2
+      }
+    },
+    {
+      "name": "countRecalls",
+      "arguments": {
+        "groupBy": "issuer"
+      },
+      "expect": {
+        "total": 9,
+        "groups.0.key": "BY Bayern"
+      }
+    },
+    {
+      "name": "getRecall",
+      "arguments": {
+        "id": "261113_16_NI_Leberwurst_fein,_100_Gramm"
+      },
+      "expect": {
+        "status": "ok",
+        "recall.issuer": "NI"
+      }
+    },
+    {
+      "name": "listRecalls",
+      "arguments": {
+        "state": "Atlantis"
+      },
+      "error": true
+    }
+  ]
+}
