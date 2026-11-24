@@ -325,6 +325,14 @@ test("searchRecalls: a word under 4 letters matches only at the start or end of 
   assert.doesNotMatch((await searchRecalls(client, { product: "Eiernudeln" }, NOW)).notes.join(" "), /under 4 letters/);
 });
 
+test("searchRecalls without a date says the matches go back years, as listRecalls does; with a date it doesn't", async () => {
+  const { client } = setup();
+  const all = await searchRecalls(client, { product: "Gramm" }, NOW);
+  assert.match(all.notes.join(" "), /back to 2018-06-21: these are not all current/);
+  const recent = await searchRecalls(client, { product: "Gramm", days: 30 }, NOW);
+  assert.doesNotMatch(recent.notes.join(" "), /not all current/);
+});
+
 test("searchRecalls: nothing found says which terms were searched where, and how to widen", async () => {
   const { client } = setup();
   const none = await searchRecalls(client, { product: "Gummibärchen" }, NOW);

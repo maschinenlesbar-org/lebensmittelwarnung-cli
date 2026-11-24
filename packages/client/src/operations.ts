@@ -744,6 +744,10 @@ export async function searchRecalls(client: LebensmittelwarnungClient, input: Se
   const byName = narrowed.filter((_, i) => matchesAnyTerm(names[i] ?? [], needles));
   const matches = byName.length > 0 ? byName : narrowed.filter((w) => matchesAnyTerm(hayOf([w.reason, w.manufacturer, ...Object.values(w.fields), urlWords(w.link)]), needles));
   const notes = [...resolved.notes, "A recall is batch-specific: match lotNumbers and bestBefore with the pack before saying an item is affected."];
+  if (resolved.since === undefined && narrowed.length > 0) {
+    const oldest = narrowed.map((w) => (w.published === undefined ? undefined : berlinDay(w.published))).filter((d) => d !== undefined).sort()[0];
+    notes.push(`Without days or since this searched every recall the portal still lists, back to ${oldest ?? "years ago"}: these are not all current. For "aktuell" use days or since; bestBeforePassed marks products past their best-before.`);
+  }
   const shortWords = [...new Set(needles.flat().filter((n) => n.short !== undefined).map((n) => n.word))];
   if (shortWords.length > 0) {
     notes.push(`A word under ${SHORT_WORD} letters (${shortWords.map((w) => quoteValue(w)).join(", ")}) matches only at the start or end of a word (Ei: Eier, Hühnerei; not Reis): also search its plural or a longer word (Eier, Speiseöl) in alsoSearch, and check each hit.`);
