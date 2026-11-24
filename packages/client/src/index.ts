@@ -82,6 +82,7 @@ export {
   getRecall,
   latestBestBefore,
   listRecalls,
+  matchType,
   noticeInfo,
   recallOf,
   resolveIssuer,
@@ -109,4 +110,5 @@ export type {
   RecallSearch,
   Searched,
   SearchRecallsInput,
+  TypeMatch,
 } from "./operations.js";

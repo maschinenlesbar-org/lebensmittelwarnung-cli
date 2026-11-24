@@ -124,24 +124,57 @@ const TYPE_WORDS: [TypeSlug, string[]][] = [
   ["mittelzumtaetowieren", ["taetowier", "tatowier", "tattoo"]],
   ["babyundkinderprodukte", ["baby", "kinder", "kind", "child", "infant"]],
   ["kosmetischemittel", ["kosmet", "cosmetic"]],
-  ["bedarfsgegenstaende", ["bedarf", "consumergood", "foodcontact", "kitchen", "kueche"]],
+  ["bedarfsgegenstaende", ["bedarf", "consumergood", "foodcontact", "lebensmittelkontakt", "kontaktmaterial", "kitchen", "kueche"]],
   ["lebensmittel", ["lebensmittel", "food", "nahrung", "getraenk", "drink"]],
 ];
 
 /**
- * The feed's slug for a product type given as its slug, its German name or a word for it
- * ("Kosmetik", "cosmetics", "Tattoo", "Babyprodukte", "food"). Anything else is a validation
- * error that lists the five types.
+ * The entries of `table` whose word is part of one of `keys` and longest of all: the most specific
+ * word decides ("schwermetall" over "metall", "lebensmittelkontakt" over "lebensmittel"), never the
+ * order of the table. One entry per category; several when words of equal length in different
+ * categories match.
  */
-export function resolveType(text: string): TypeSlug {
-  const value = normalizeText(assertValid("type", text, textProblem));
-  for (const key of keysOf(value)) {
-    const exact = TYPE_SLUGS.find((s) => s === key || keysOf(TYPE_NAMES[s]).includes(key));
-    if (exact !== undefined) return exact;
-    const found = TYPE_WORDS.find(([, words]) => words.some((word) => key.includes(word)));
-    if (found !== undefined) return found[0];
+function longestWords<C>(keys: readonly string[], table: readonly [C, string[]][]): { category: C; by: string }[] {
+  const found: { category: C; by: string }[] = [];
+  for (const [category, words] of table) {
+    const best = words.filter((word) => keys.some((key) => key.includes(word))).sort((a, b) => b.length - a.length)[0];
+    if (best !== undefined) found.push({ category, by: best });
   }
-  throw new LebensmittelwarnungValidationError(`Invalid type: ${quoteValue(value)} is not a product type. Give one of ${TYPE_SLUGS.map((s) => `${TYPE_NAMES[s]} (${s})`).join(", ")}.`);
+  const longest = Math.max(0, ...found.map((f) => f.by.length));
+  return found.filter((f) => f.by.length === longest);
+}
+
+/** What {@link matchType} gives: the type, and how the word given maps to it. */
+export interface TypeMatch {
+  slug: TypeSlug;
+  /** Set when the word given is not the type itself ("Kosmetik" -> kosmetischemittel). */
+  mappedFrom?: string;
+  /** The part of the word it was read by ("kosmet"). */
+  by?: string;
+}
+
+/**
+ * The product type a slug, a German name or a word for it names ("Kosmetik", "cosmetics",
+ * "Tattoo", "Babyprodukte", "food"): the type whose word is the longest part of it. Anything else,
+ * or words of two types equally long, is a validation error that lists the five types.
+ */
+export function matchType(text: string): TypeMatch {
+  const value = normalizeText(assertValid("type", text, textProblem));
+  const keys = keysOf(value);
+  const exact = TYPE_SLUGS.find((s) => keys.some((key) => s === key || keysOf(TYPE_NAMES[s]).includes(key)));
+  if (exact !== undefined) return { slug: exact };
+  const types = `Give one of ${TYPE_SLUGS.map((s) => `${TYPE_NAMES[s]} (${s})`).join(", ")}.`;
+  const found = longestWords(keys, TYPE_WORDS);
+  if (found.length > 1) {
+    throw new LebensmittelwarnungValidationError(`Invalid type: ${quoteValue(value)} reads as more than one product type: ${found.map((f) => `${TYPE_NAMES[f.category]} (by "${f.by}")`).join(", ")}. ${types}`);
+  }
+  if (found[0] !== undefined) return { slug: found[0].category, mappedFrom: value, by: found[0].by };
+  throw new LebensmittelwarnungValidationError(`Invalid type: ${quoteValue(value)} is not a product type. ${types}`);
+}
+
+/** The feed's slug for a product type: {@link matchType}'s slug. */
+export function resolveType(text: string): TypeSlug {
+  return matchType(text).slug;
 }
 
 /** Words the feed never uses, for the category it files them under (folded, as parts of a word). */
@@ -160,25 +193,32 @@ export interface ReasonMatch {
   category: ReasonCategory;
   /** Set when the word given is not the category itself ("Salmonellen" -> Krankheitserreger). */
   mappedFrom?: string;
+  /** The part of the word it was read by ("salmonell"). */
+  by?: string;
 }
 
 /**
  * The reason category ("Grund der Meldung") a word belongs to. The feed files every notice under
  * one of seven categories (several joined with ", ") and never names the pathogen or allergen:
  * "Salmonellen" appears nowhere, so it is mapped to Krankheitserreger, "Erdnuss" to Allergene,
- * "Glas" to Fremdkörper. A word of no category is a validation error that lists the seven.
+ * "Glas" to Fremdkörper. The most specific word decides: "Schwermetalle" is read by
+ * "schwermetall" (Rückstände und Kontaminanten), not by "metall" (Fremdkörper). A word of no
+ * category, or one read as two categories by parts equally long ("Bleihaltige Glasur": "blei",
+ * "glas"), is a validation error that lists the seven.
  */
 export function resolveReason(text: string): ReasonMatch {
   const value = normalizeText(assertValid("reason", text, textProblem));
-  for (const key of keysOf(value)) {
-    const exact = REASON_CATEGORIES.find((c) => keysOf(c).includes(key));
-    if (exact !== undefined) return { category: exact };
+  const keys = keysOf(value);
+  const exact = REASON_CATEGORIES.find((c) => keys.some((key) => keysOf(c).includes(key)));
+  if (exact !== undefined) return { category: exact };
+  const categories = `The feed files every notice under one of: ${REASON_CATEGORIES.join(", ")} (a pathogen such as Salmonellen is a Krankheitserreger, an undeclared allergen Allergene).`;
+  const found = longestWords(keys, REASON_WORDS);
+  if (found.length > 1) {
+    const named = found.map((f) => `${f.category} (by "${f.by}")`).sort((a, b) => a.localeCompare(b, "de"));
+    throw new LebensmittelwarnungValidationError(`Invalid reason: ${quoteValue(value)} reads as more than one category: ${named.join(", ")}. Give the category. ${categories}`);
   }
-  for (const key of keysOf(value)) {
-    const found = REASON_WORDS.find(([, words]) => words.some((word) => key.includes(word)));
-    if (found !== undefined) return { category: found[0], mappedFrom: value };
-  }
-  throw new LebensmittelwarnungValidationError(`Invalid reason: ${quoteValue(value)} is no reason category. The feed files every notice under one of: ${REASON_CATEGORIES.join(", ")} (a pathogen such as Salmonellen is a Krankheitserreger, an undeclared allergen Allergene).`);
+  if (found[0] !== undefined) return { category: found[0].category, mappedFrom: value, by: found[0].by };
+  throw new LebensmittelwarnungValidationError(`Invalid reason: ${quoteValue(value)} is no reason category. ${categories}`);
 }
 
 /**
@@ -451,14 +491,18 @@ function resolveFilter(filter: RecallFilter, options: OperationOptions | undefin
     resolved.notes.push(`state is where a product was sold (Betroffene Bundesländer), whoever issued the notice: most recalls list all 16 Länder. For what ${STATE_NAMES[resolved.state]} itself issued, use issuer.`);
   }
   if (filter.type !== undefined) {
-    resolved.type = resolveType(filter.type);
-    resolved.searched.type = TYPE_NAMES[resolved.type];
+    const type = matchType(filter.type);
+    resolved.type = type.slug;
+    resolved.searched.type = TYPE_NAMES[type.slug];
+    if (type.mappedFrom !== undefined && type.by !== undefined) {
+      resolved.notes.push(`${quoteValue(type.mappedFrom)} is read as the product type ${TYPE_NAMES[type.slug]} (by its part "${type.by}"); if that is not what was meant, give one of the five types.`);
+    }
   }
   if (filter.reason !== undefined) {
     resolved.reason = resolveReason(filter.reason);
     resolved.searched.reason = resolved.reason.category;
     if (resolved.reason.mappedFrom !== undefined) {
-      resolved.notes.push(`The feed gives only the reason category: ${quoteValue(resolved.reason.mappedFrom)} is filed under ${resolved.reason.category}, which covers more than that. The notice (link) names the detail.`);
+      resolved.notes.push(`The feed gives only the reason category: ${quoteValue(resolved.reason.mappedFrom)} is filed under ${resolved.reason.category} (by its part "${resolved.reason.by ?? ""}"), which covers more than that. The notice (link) names the detail.`);
     }
   }
   if (filter.issuer !== undefined) {

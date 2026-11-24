@@ -49,12 +49,39 @@ test("resolveType reads a slug, a German name or a word for it", () => {
 });
 
 test("resolveReason: the feed never names the pathogen or allergen, so the word is mapped to its category", () => {
-  assert.deepEqual(resolveReason("Salmonellen"), { category: "Krankheitserreger", mappedFrom: "Salmonellen" });
-  assert.deepEqual(resolveReason("Listeria"), { category: "Krankheitserreger", mappedFrom: "Listeria" });
-  assert.deepEqual(resolveReason("Erdnuss"), { category: "Allergene", mappedFrom: "Erdnuss" });
-  assert.deepEqual(resolveReason("Glassplitter"), { category: "Fremdkörper", mappedFrom: "Glassplitter" });
+  assert.deepEqual(resolveReason("Salmonellen"), { category: "Krankheitserreger", mappedFrom: "Salmonellen", by: "salmonell" });
+  assert.deepEqual(resolveReason("Listeria"), { category: "Krankheitserreger", mappedFrom: "Listeria", by: "listeri" });
+  assert.deepEqual(resolveReason("Erdnuss"), { category: "Allergene", mappedFrom: "Erdnuss", by: "erdnuss" });
+  assert.deepEqual(resolveReason("Glassplitter"), { category: "Fremdkörper", mappedFrom: "Glassplitter", by: "splitter" });
   assert.deepEqual(resolveReason("fremdkoerper"), { category: "Fremdkörper" });
   assert.throws(() => resolveReason("Wetter"), /no reason category.*Krankheitserreger/);
+});
+
+test("resolveReason takes the most specific word, not the first category with a part of it; a tie names both", () => {
+  assert.deepEqual(resolveReason("Schwermetalle"), { category: "Rückstände und Kontaminanten", mappedFrom: "Schwermetalle", by: "schwermetall" });
+  assert.equal(resolveReason("Kunststoffweichmacher").category, "Gesundheitsschädliche Substanz");
+  assert.equal(resolveReason("Glassplitter").category, "Fremdkörper");
+  assert.throws(
+    () => resolveReason("Bleihaltige Glasur"),
+    (err: Error) => err instanceof LebensmittelwarnungValidationError && /more than one category: Fremdkörper \(by "glas"\), Rückstände und Kontaminanten \(by "blei"\)/.test(err.message),
+  );
+});
+
+test("resolveType takes the most specific word: food-contact material is a consumer good; a mapped word is said", async () => {
+  assert.equal(resolveType("Lebensmittelkontaktmaterial"), "bedarfsgegenstaende");
+  assert.equal(resolveType("Lebensmittel"), "lebensmittel");
+  const { client } = setup();
+  const answer = await listRecalls(client, { type: "Kinderschokolade" }, NOW);
+  assert.equal(answer.searched.type, "Baby- und Kinderprodukte");
+  assert.match(answer.notes.join(" "), /"Kinderschokolade" is read as the product type Baby- und Kinderprodukte \(by its part "kinder"\)/);
+  assert.doesNotMatch((await listRecalls(client, { type: "Kosmetische Mittel" }, NOW)).notes.join(" "), /is read as the product type/);
+});
+
+test("listRecalls: the note on a mapped reason names the part it was read by", async () => {
+  const { client } = setup();
+  const answer = await listRecalls(client, { reason: "Schwermetalle" }, NOW);
+  assert.deepEqual(answer.searched, { reason: "Rückstände und Kontaminanten" });
+  assert.match(answer.notes.join(" "), /"Schwermetalle" is filed under Rückstände und Kontaminanten \(by its part "schwermetall"\)/);
 });
 
 test("resolveIssuer: a code, a Land or the BVL", () => {
@@ -124,7 +151,7 @@ test("listRecalls by reason: a pathogen word finds its category, joined reasons 
   const answer = await listRecalls(client, { reason: "Salmonellen" }, NOW);
   assert.deepEqual(answer.searched, { reason: "Krankheitserreger" });
   assert.deepEqual(titles(answer.recalls), ["Knackwurst „Kümmel” und Knackwurst „Knoblauch”", "Sesampaste (Tahina), 12x800 Gramm", "frischer Käse, 800 Gramm"]);
-  assert.match(answer.notes.join(" "), /"Salmonellen" is filed under Krankheitserreger/);
+  assert.match(answer.notes.join(" "), /"Salmonellen" is filed under Krankheitserreger \(by its part "salmonell"\)/);
   const joined = await listRecalls(client, { reason: "Sonstige Gründe" }, NOW);
   assert.deepEqual(titles(joined.recalls), ["Waermesensorloeffel", "Lotus Mixed Herbal Paste with Honey"]);
 });
