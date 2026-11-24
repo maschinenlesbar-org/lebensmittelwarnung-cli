@@ -65,7 +65,7 @@ For scripts and shared configs, pin a release and its digest from the
 
 | Tool | What it answers |
 |---|---|
-| `searchRecalls` | Is there a recall for a product? The product names first, then every other field and the notice's URL; names the terms searched (a single word's stem added) when nothing matches. Paged like listRecalls (`offset`, `nextOffset`). |
+| `searchRecalls` | Is there a recall for a product? The product names first, then every other field and the notice's URL; several words are searched each on its own, in any order (a recall must have them all); names the terms searched (each word's stem added) and which words alone match when nothing matches. Paged like listRecalls (`offset`, `nextOffset`). |
 | `listRecalls` | The listed recalls, newest first, by Land (where sold), issuing Land, product type, reason category (a pathogen or allergen word mapped to its category) and date, a page at a time. |
 | `countRecalls` | Counts per reason, product type, Land, issuer or year, with why the groups add up to more than the total. |
 | `getRecall` | One notice in full by its id (compared without case, percent-encoding and slashes) or its URL: every field and the product images with their credits. An id no notice has is answered as such, not as withdrawn. |

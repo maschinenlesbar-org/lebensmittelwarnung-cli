@@ -253,6 +253,48 @@ test("searchRecalls widens to every field and the URL before saying no: a manufa
   assert.equal(chrom.recalls[0]?.title, "rieker Antistress Damensandale rot/braun");
 });
 
+/** Live titles of 2026-11-22, the products the exploratory round asked for in other words. */
+const LIVE_TITLES: MockNotice[] = [
+  "Parmentine Speisekartoffeln rot",
+  "Frischkäseringe Ananas & Mandel",
+  "Pizza Ziegenkäse",
+  "hausgemachter Kochkäse mit Kümmel",
+  "Sportness Proteinriegel",
+  "Bergkäse aus Bio-Heumilch",
+  "Tahina Sesampaste",
+].map((title, i) => ({ title, folder: `26111${i}_01_BY_Produkt_${i}`, pubDate: `Wed, 1${i} Nov 2026 10:00:00 +0100`, reason: "Fremdkörper" }));
+
+test("searchRecalls: a product of several words finds the recall with every word, in any order and with a word left out", async () => {
+  const { client } = setup([...LIVE_NOTICES, ...LIVE_TITLES]);
+  const asked: [string, string][] = [
+    ["Parmentine Kartoffeln", "Parmentine Speisekartoffeln rot"],
+    ["Kartoffeln Parmentine", "Parmentine Speisekartoffeln rot"],
+    ["Frischkäse Ananas", "Frischkäseringe Ananas & Mandel"],
+    ["Ziegenkäse Pizza", "Pizza Ziegenkäse"],
+    ["Kochkäse Kümmel", "hausgemachter Kochkäse mit Kümmel"],
+    ["Proteinriegel Sportness", "Sportness Proteinriegel"],
+    ["Leberwurst 100 Gramm", "Leberwurst fein 100 Gramm"],
+    ["Bio Bergkäse", "Bergkäse aus Bio-Heumilch"],
+  ];
+  for (const [product, title] of asked) {
+    const found = await searchRecalls(client, { product }, NOW);
+    assert.deepEqual([found.status, found.matchedIn, titles(found.recalls)], ["ok", "name", [title]], product);
+  }
+  const both = await searchRecalls(client, { product: "Tahina-Sesampaste" }, NOW);
+  assert.deepEqual(titles(both.recalls).sort(), ["Sesampaste (Tahina), 12x800 Gramm", "Tahina Sesampaste"]);
+  const none = await searchRecalls(client, { product: "Ananas Kokos" }, NOW);
+  assert.equal(none.status, "empty", "every word must be found");
+});
+
+test("searchRecalls: when no recall has every word, the empty answer says how the words were searched and which alone match", async () => {
+  const { client } = setup([...LIVE_NOTICES, ...LIVE_TITLES]);
+  const none = await searchRecalls(client, { product: "Leberwurst fein 100g" }, NOW);
+  assert.equal(none.status, "empty");
+  assert.match(none.reason ?? "", /Each word of a term is searched on its own, in any order/);
+  assert.match(none.reason ?? "", /alone match a product name: "Leberwurst" \(1\), "fein" \(1\)/);
+  assert.match(none.reason ?? "", /search one word/);
+});
+
 test("searchRecalls: nothing found says which terms were searched where, and how to widen", async () => {
   const { client } = setup();
   const none = await searchRecalls(client, { product: "Gummibärchen" }, NOW);

@@ -628,16 +628,21 @@ export interface RecallSearch extends RecallList {
 /** Endings dropped once to get a word's stem ("Erdnüsse" -> "Erdnüss", "Tahini" -> "Tahin", "Würstchen" -> "Würst"). */
 const ENDINGS = ["chen", "innen", "ern", "en", "er", "es", "e", "n", "s", "i"];
 
+/** A word's stem: one ending dropped when at least 4 letters remain; undefined when there is none. */
+function stemOf(word: string): string | undefined {
+  if (!/^\p{L}+$/u.test(word)) return undefined;
+  const ending = ENDINGS.find((e) => word.toLowerCase().endsWith(e) && word.length - e.length >= 4);
+  return ending === undefined ? undefined : word.slice(0, word.length - ending.length);
+}
+
 /** The terms searched: each given, and for a single word its stem too. */
 export function searchTerms(product: string, alsoSearch: readonly string[] = []): string[] {
   const terms: string[] = [];
   for (const text of [product, ...alsoSearch]) {
     const term = normalizeText(text);
     terms.push(term);
-    if (/^\p{L}+$/u.test(term)) {
-      const ending = ENDINGS.find((e) => term.toLowerCase().endsWith(e) && term.length - e.length >= 4);
-      if (ending !== undefined) terms.push(term.slice(0, term.length - ending.length));
-    }
+    const stem = stemOf(term);
+    if (stem !== undefined) terms.push(stem);
   }
   const seen = new Set<string>();
   return terms.filter((term) => {
@@ -658,14 +663,36 @@ function urlWords(link: string | undefined): string | undefined {
   }
 }
 
-/** True when one of `texts` contains one of the terms, folded (case, umlaut spelling, ß, accents don't matter). */
-function containsAny(texts: readonly (string | undefined)[], terms: readonly ReturnType<typeof searchForms>[]): boolean {
-  return texts.some((text) => {
-    if (text === undefined) return false;
-    const forms = searchForms(text);
-    return terms.some((t) => forms.transliterated.includes(t.transliterated) || forms.plain.includes(t.plain));
+/** One word of a term as it is compared: the word as given, and its folded stem (or itself). */
+interface Needle {
+  word: string;
+  /** The stem (or the word), umlauts transliterated (searchForms). */
+  form: string;
+  /** The same with diacritics dropped, compared with the text's plain form ("Erdnuss" finds "Erdnüsse"). */
+  plain: string;
+}
+
+/**
+ * The words of a term: split at every character that is no letter, mark or digit ("Leberwurst
+ * fein, 100 Gramm", "Tahina-Sesampaste"), each with its stem. A term of no such character is one word.
+ */
+function needlesOf(term: string): Needle[] {
+  const words = term.normalize("NFC").split(/[^\p{L}\p{M}\p{N}]+/u).filter((word) => word !== "");
+  return (words.length > 0 ? words : [term]).map((word) => {
+    const forms = searchForms(stemOf(word) ?? word);
+    return { word, form: forms.transliterated, plain: forms.plain };
   });
 }
+
+/** Texts folded once for the search (searchForms). */
+const hayOf = (texts: readonly (string | undefined)[]): ReturnType<typeof searchForms>[] => texts.filter((t) => t !== undefined).map((t) => searchForms(t));
+
+/** True when one of the folded texts contains the word. */
+const hasWord = (hay: readonly ReturnType<typeof searchForms>[], needle: Needle): boolean =>
+  hay.some((h) => h.transliterated.includes(needle.form) || h.plain.includes(needle.plain));
+
+/** True when the texts hold every word of one of the terms, each anywhere, in any order. */
+const matchesAnyTerm = (hay: readonly ReturnType<typeof searchForms>[], terms: readonly Needle[][]): boolean => terms.some((words) => words.every((needle) => hasWord(hay, needle)));
 
 /**
  * Is there a recall for this product? The terms (the product, its stem, alsoSearch) are searched
@@ -680,7 +707,7 @@ export async function searchRecalls(client: LebensmittelwarnungClient, input: Se
   assertValid("alsoSearch", also, (list) => (Array.isArray(list) && list.length <= 8 ? undefined : "Expected at most 8 words."));
   also.forEach((word, i) => assertValid(`alsoSearch[${i}]`, word, textProblem));
   const terms = searchTerms(input.product, also);
-  const forms = terms.map((term) => searchForms(term));
+  const needles = [input.product, ...also].map((text) => needlesOf(normalizeText(text)));
   const resolved = resolveFilter(input, options);
   const day = today(options);
   const warnings = await client.warnings({
@@ -694,12 +721,24 @@ export async function searchRecalls(client: LebensmittelwarnungClient, input: Se
       (resolved.issuer === undefined || noticeInfo(w.link).issuer === resolved.issuer),
   );
   const searched = { ...resolved.searched, terms };
-  const byName = narrowed.filter((w) => containsAny([w.title, w.product], forms));
-  const matches = byName.length > 0 ? byName : narrowed.filter((w) => containsAny([w.reason, w.manufacturer, ...Object.values(w.fields), urlWords(w.link)], forms));
+  const names = narrowed.map((w) => hayOf([w.title, w.product]));
+  const byName = narrowed.filter((_, i) => matchesAnyTerm(names[i] ?? [], needles));
+  const matches = byName.length > 0 ? byName : narrowed.filter((w) => matchesAnyTerm(hayOf([w.reason, w.manufacturer, ...Object.values(w.fields), urlWords(w.link)]), needles));
   const notes = [...resolved.notes, "A recall is batch-specific: match lotNumbers and bestBefore with the pack before saying an item is affected."];
   if (matches.length === 0) {
-    const reason = `No listed recall matched ${terms.map((t) => quoteValue(t)).join(", ")} in the product names or any other field (reason, manufacturer, every field of the notice, the notice's URL). Before answering "no recall", search the German stem, singular and plural, a synonym in German and English, and the brand (alsoSearch); the portal is authoritative.`;
-    return { status: "empty", searched, total: 0, recalls: [], reason, notes, citationNote: CITATION_NOTE };
+    const reason = [`No listed recall matched ${terms.map((t) => quoteValue(t)).join(", ")} in the product names or any other field (reason, manufacturer, every field of the notice, the notice's URL).`];
+    if (needles.some((words) => words.length > 1)) {
+      const alone = [...new Map(needles.flat().map((n) => [n.form, n])).values()]
+        .map((n) => ({ word: n.word, count: names.filter((hay) => hasWord(hay, n)).length }))
+        .filter((w) => w.count > 0);
+      reason.push(
+        "Each word of a term is searched on its own, in any order, and a recall must have every word of it." +
+          (alone.length > 0 ? ` These words alone match a product name: ${alone.map((w) => `${quoteValue(w.word)} (${w.count})`).join(", ")}.` : "") +
+          " So search one word, the product's main noun, before more.",
+      );
+    }
+    reason.push('Before answering "no recall", search the German stem, singular and plural, a synonym in German and English, and the brand (alsoSearch); the portal is authoritative.');
+    return { status: "empty", searched, total: 0, recalls: [], reason: reason.join(" "), notes, citationNote: CITATION_NOTE };
   }
   const recalls = matches.map((w) => recallOf(w, day));
   const { page, nextOffset } = pageOf(recalls, input.offset, input.limit, 10);
