@@ -103,6 +103,9 @@ loses its middle, never its end, where the reason is).
 --log-format <text|jsonl>  the log records on stderr (default text)
 ```
 
+`--max-pages` has no effect here: the portal's feed has no pages, and every call reads it whole
+(countRecalls by type reads the six feeds of the types).
+
 ## What it does and doesn't do
 
 - **Read-only.** No tool changes anything, here or upstream.
