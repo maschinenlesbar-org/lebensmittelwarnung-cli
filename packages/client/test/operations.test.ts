@@ -82,6 +82,18 @@ test("latestBestBefore reads days, day-first slashes and months (their last day)
   assert.equal(latestBestBefore("Es werden alle noch gültigen Mindesthaltbarkeitsdaten zurückgerufen."), undefined);
 });
 
+test("latestBestBefore reads the live feed's other forms: day-month-year with hyphens, year first, month/two-digit year, a month's name", () => {
+  assert.equal(latestBestBefore("mindestens haltbar bis: 04-06-2027"), "2027-06-04");
+  assert.equal(latestBestBefore("E2028/1/1"), "2028-01-01");
+  assert.equal(latestBestBefore("2027-06-04"), "2027-06-04");
+  assert.equal(latestBestBefore("Holzhauser Bier: Mindesthaltbarkeitsdatum bis 7/26; Helles: bis 11/26"), "2026-11-30");
+  assert.equal(latestBestBefore("Mindesthaltbarkeitsdatum E: 05/28"), "2028-05-31");
+  assert.equal(latestBestBefore("März/2028"), "2028-03-31");
+  assert.equal(latestBestBefore("Ende Dezember 2026"), "2026-12-31");
+  assert.equal(latestBestBefore("12/11"), undefined, "day and month, or month and year: not guessed");
+  assert.equal(latestBestBefore("31-02-2027"), undefined, "no such day");
+});
+
 test("listRecalls by state: the feed's state is where it was sold, so recalls issued elsewhere come too; issuer narrows to who issued it", async () => {
   const { mock, client } = setup();
   const sold = await listRecalls(client, { state: "Thüringen" }, NOW);

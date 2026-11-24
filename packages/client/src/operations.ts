@@ -238,22 +238,61 @@ function monthEnd(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+/** German month names and their usual short forms, folded to lower case, by month number. */
+const MONTH_NAMES: [RegExp, number][] = [
+  [/^jan(uar)?$/, 1],
+  [/^feb(ruar)?$/, 2],
+  [/^(märz|maerz|mär|mrz)$/, 3],
+  [/^apr(il)?$/, 4],
+  [/^mai$/, 5],
+  [/^jun[i]?$/, 6],
+  [/^jul[i]?$/, 7],
+  [/^aug(ust)?$/, 8],
+  [/^sep(t|tember)?$/, 9],
+  [/^okt(ober)?$/, 10],
+  [/^nov(ember)?$/, 11],
+  [/^dez(ember)?$/, 12],
+];
+
 /**
- * The latest date a best-before text names (YYYY-MM-DD): "04.12.2026", "04/05/2027" (day first),
- * "07.2028", "EXP 10-2027" and "07/2030" (a month: its last day). Undefined when the text names
- * none ("alle noch gültigen Mindesthaltbarkeitsdaten").
+ * The latest date a best-before text names (YYYY-MM-DD): "04.12.2026", "04/05/2027" and
+ * "04-06-2027" (day first), "2028/1/1" (year first), "07.2028", "EXP 10-2027", "07/2030",
+ * "bis 7/26" (month and a two-digit year after 2012) and "März/2028" (a month: its last day).
+ * Undefined when the text names none ("alle noch gültigen Mindesthaltbarkeitsdaten") or only
+ * a form that could be either ("12/11": a day and month, or a month and year).
  */
 export function latestBestBefore(text: string | undefined): string | undefined {
   if (text === undefined) return undefined;
   const dates: string[] = [];
-  const rest = text.replace(/(?<!\d)(\d{1,2})[./](\d{1,2})[./](\d{4}|\d{2})(?!\d)/g, (_, d: string, m: string, y: string) => {
+  const day = (y: string, m: string, d: string): void => {
     const iso = `${y.length === 2 ? `20${y}` : y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
     if (calendarDateProblem(iso) === undefined) dates.push(iso);
+  };
+  const month = (y: number, m: number): void => {
+    if (m >= 1 && m <= 12) dates.push(monthEnd(y, m));
+  };
+  // Each form is taken out of the text once read, so a later, shorter form doesn't read its parts again.
+  let rest = text.replace(/(?<!\d)(\d{4})([./-])(\d{1,2})\2(\d{1,2})(?!\d)/g, (_, y: string, _sep: string, m: string, d: string) => {
+    day(y, m, d);
     return " ";
   });
-  for (const match of rest.matchAll(/(?<![\d.])(\d{1,2})[./-](\d{4})(?!\d)/g)) {
-    const month = Number(match[1]);
-    if (month >= 1 && month <= 12) dates.push(monthEnd(Number(match[2]), month));
+  rest = rest.replace(/(?<!\d)(\d{1,2})([./-])(\d{1,2})\2(\d{4}|\d{2})(?!\d)/g, (_, d: string, _sep: string, m: string, y: string) => {
+    day(y, m, d);
+    return " ";
+  });
+  rest = rest.replace(/(?<![\d.])(\d{1,2})[./-](\d{4})(?!\d)/g, (_, m: string, y: string) => {
+    month(Number(y), Number(m));
+    return " ";
+  });
+  rest = rest.replace(/(?<![\d./-])(\d{1,2})\/(\d{2})(?![\d./-])/g, (all: string, m: string, y: string) => {
+    if (Number(y) <= 12) return all; // "12/11": a day and month as well; not guessed
+    month(2000 + Number(y), Number(m));
+    return " ";
+  });
+  for (const match of rest.matchAll(/(?<!\p{L})(\p{L}{3,9})\.?[\s./-]*(\d{4})(?!\d)/gu)) {
+    const name = (match[1] ?? "").toLowerCase();
+    const found = MONTH_NAMES.find(([pattern]) => pattern.test(name));
+    if (found !== undefined) month(Number(match[2]), found[1]);
   }
   return dates.sort().at(-1);
 }
