@@ -9,6 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { listTools } from "../src/mcp/server.js";
+import { DEADLINE_HINT, SIZE_HINT, TOOLS } from "../src/mcp/tools.js";
 import { connect } from "./harness.js";
 import { portal } from "./helpers.js";
 
@@ -16,6 +17,36 @@ const FEED = "https://www.lebensmittelwarnung.de/___LMW-Redaktion/RSSNewsfeed/Fu
 
 test("four tools: the product search, the list, the counts and one notice", () => {
   assert.deepEqual(listTools().map((t) => t.name), ["searchRecalls", "listRecalls", "countRecalls", "getRecall"]);
+});
+
+/** Every option a hint names with its tools ("state or type (listRecalls, countRecalls)") is an input of each of those tools. */
+function assertOptionsFit(text: string): void {
+  const schemas = new Map(TOOLS.map((tool) => [tool.name, Object.keys((tool.inputSchema as { properties: Record<string, unknown> }).properties)]));
+  const pairs = [...text.matchAll(/(\w+(?: or \w+)*) \((\w+(?:, \w+)*)\)/g)];
+  assert.ok(pairs.length >= 2, text);
+  for (const [, options, tools] of pairs) {
+    for (const tool of (tools as string).split(", ")) {
+      for (const option of (options as string).split(" or ")) assert.ok(schemas.get(tool)?.includes(option), `${tool} takes no ${option}: ${text}`);
+    }
+  }
+}
+
+test("the deadline's advice fits every tool: try again, what narrows the feed, and what to ask instead of counting by type", async () => {
+  const hanging = { transport: (): Promise<never> => new Promise<never>(() => {}) };
+  const connection = await connect({ transport: hanging, config: { callTimeoutMs: 30 } });
+  const text = (await connection.call("countRecalls", { groupBy: "type", state: "Bremen" })).content[0]?.text ?? "";
+  await connection.close();
+  assert.match(text, /took longer than .* and was stopped/);
+  assert.match(text, /try again shortly/);
+  assert.match(text, /groupBy type reads six feeds/);
+  assert.equal(text.endsWith(DEADLINE_HINT), true, text);
+  assertOptionsFit(DEADLINE_HINT);
+});
+
+test("the size advice names only options that make an answer smaller, each with its tools, and says a date doesn't shrink the feed", () => {
+  assertOptionsFit(SIZE_HINT);
+  assert.match(SIZE_HINT, /limit \(searchRecalls, listRecalls\)/);
+  assert.match(SIZE_HINT, /not the feed the portal sends/);
 });
 
 test("searchRecalls: Tahini finds Tahina by its stem; the result names the terms, the citation and the licence", async () => {
