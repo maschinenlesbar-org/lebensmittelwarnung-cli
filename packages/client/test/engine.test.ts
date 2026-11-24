@@ -97,6 +97,26 @@ test("a 404 surfaces as an ApiError with status 404", async () => {
   );
 });
 
+test("an HTTP error says what to do: a redirect names where it points and that it wasn't followed, a 404 that the feed may have moved, a 5xx to try later", async () => {
+  const errorFor = async (status: number, headers: Record<string, string> = {}): Promise<string> => {
+    const transport = async () => ({ status, headers: { "content-type": "text/html", ...headers }, body: Buffer.from("<html>error</html>") });
+    const e = new RequestEngine({ transport, maxRetries: 0 });
+    const err = await e.getFeed("/feed.xml").then(() => undefined, (caught: unknown) => caught);
+    assert.ok(err instanceof LebensmittelwarnungApiError, String(err));
+    return err.message;
+  };
+  for (const status of [301, 302, 307, 308]) {
+    const message = await errorFor(status, { location: "https://www.lebensmittelwarnung.de/neu/feed.xml?x=1" });
+    assert.match(message, new RegExp(`^HTTP ${status} for GET .*: the portal redirected to https://www\\.lebensmittelwarnung\\.de/neu/feed\\.xml, which this client does not follow: the feed may have moved`));
+  }
+  assert.match(await errorFor(302, { location: "/elsewhere.xml" }), /redirected to https:\/\/www\.lebensmittelwarnung\.de\/elsewhere\.xml,/);
+  assert.match(await errorFor(302), /the portal answered with a redirect without a target, which this client does not follow: the feed may have moved/);
+  assert.match(await errorFor(404), /^HTTP 404 for GET .*: the feed was not found: it may have moved/);
+  for (const status of [500, 502, 503, 504]) assert.match(await errorFor(status), /: the portal is failing or overloaded: try again later\.$/);
+  assert.match(await errorFor(429), /: the portal asks for fewer requests: try again later\.$/);
+  assert.doesNotMatch(await errorFor(400), /try again|moved/);
+});
+
 test("a 3xx redirect is treated as an error (redirects are not followed)", async () => {
   const mt = makeMockTransport(() => rawResponse("", "text/html", 302));
   const e = new RequestEngine({ transport: mt.transport });
@@ -434,7 +454,8 @@ test("server text cut at 200 characters (a plain error body) keeps the message w
     const err = await e.getFeed("/feed.xml").catch((x: unknown) => x);
     assert.ok(err instanceof LebensmittelwarnungApiError);
     assert.equal(toWellFormed(err.message), err.message);
-    assert.match(err.message, /…$/);
+    assert.match(err.detail ?? "", /…$/);
+    assert.match(err.message, /…; the portal is failing/);
   }
 });
 

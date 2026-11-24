@@ -489,8 +489,11 @@ transport that reads the request URL as text reaches the same host. `credentials
 userinfo where WHATWG does: after the slashes and backslashes a special scheme skips
 (`http:///u:pw@h`, `https:\\u:pw@h`), up to a backslash too, so a refused value is never
 echoed with its password. **Redirects are not followed** — a
-`3xx` surfaces as an error (the canonical host serves the feed directly), with a
-pointed hint to check `--base-url`. Credential headers are never sent cross-host
+`3xx` surfaces as an error (the canonical host serves the feed directly) that names
+where the redirect points (scheme, host and path of its `Location`, query left out,
+credentials scrubbed), says it wasn't followed and that the feed may have moved, with a
+hint to check `--base-url`. A 404/410 says the feed may have moved too, a 5xx and a 429
+to try again later (`adviceFor` in the engine). Credential headers are never sent cross-host
 (there are none here — the feed needs no auth).
 
 A `user:password@` in the base URL (a mirror behind a login) never reaches the CLI's

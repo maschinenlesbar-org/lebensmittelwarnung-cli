@@ -242,7 +242,7 @@ lebensmittel warnings -o warnings-$(date +%F).json --force
 | `2` | Bad usage / invalid argument (unknown `--state`/`--type`, bad `--since`/`--limit`, an existing `-o` file without `--force`, a directory as `-o`, an `-o` file whose directory is missing or not writable) |
 | `4` | Not found (`404`) |
 | `6` | Network / transport failure (DNS, connection, timeout, size cap) |
-| `1` | Any other error — an `-o` write that fails (a file that appeared during the request, a full disk), non-RSS HTML shell, empty body, an unfiltered feed with no items, `<item>`s outside the channel, or a `3xx` redirect |
+| `1` | Any other error — an `-o` write that fails (a file that appeared during the request, a full disk), non-RSS HTML shell, empty body, an unfiltered feed with no items, `<item>`s outside the channel, or a `3xx` redirect (not followed; the message names where it points) |
 
 ## Notes
 

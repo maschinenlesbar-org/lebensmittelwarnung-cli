@@ -843,7 +843,7 @@ export class RequestEngine {
       const contentType = String(responseHeaders["content-type"] ?? "");
       if (status < 200 || status >= 300) {
         const tooLong = retryable && retryAfter !== undefined && retryAfter > MAX_RETRY_AFTER_MS;
-        throw this.toApiError(url, status, body, tooLong ? retryAfter : undefined);
+        throw this.toApiError(url, status, body, tooLong ? retryAfter : undefined, this.adviceFor(url, status, responseHeaders["location"]));
       }
 
       return { data: body, contentType, status };
@@ -907,7 +907,33 @@ export class RequestEngine {
     return { feed, replaced: badBytes + tally.replaced };
   }
 
-  private toApiError(url: string, status: number, body: Buffer, retryAfterMs?: number): LebensmittelwarnungApiError {
+  /**
+   * What an HTTP error status means for the feed, and what to do: a redirect is not followed, and
+   * where it points (scheme, host and path of its Location, resolved against the request; its
+   * query left out and the base URL's credentials scrubbed) tells where the feed may have moved; a
+   * 404 or 410 that it may have moved; a 5xx to try again later. Undefined for other statuses.
+   */
+  private adviceFor(url: string, status: number, location: unknown): string | undefined {
+    if (status >= 300 && status < 400) {
+      let target: string | undefined;
+      if (typeof location === "string" && location.trim() !== "") {
+        try {
+          const resolved = new URL(location.trim(), url);
+          target = cutForMessage(sanitizeServerText(this.scrub(`${resolved.origin}${resolved.pathname}`)));
+        } catch {
+          // an unreadable Location: no target to name
+        }
+      }
+      const where = target === undefined ? "the portal answered with a redirect without a target" : `the portal redirected to ${target}`;
+      return `${where}, which this client does not follow: the feed may have moved (check the address, --base-url)`;
+    }
+    if (status === 404 || status === 410) return "the feed was not found: it may have moved (check the address, --base-url)";
+    if (status === 429) return "the portal asks for fewer requests: try again later.";
+    if (status >= 500) return "the portal is failing or overloaded: try again later.";
+    return undefined;
+  }
+
+  private toApiError(url: string, status: number, body: Buffer, retryAfterMs?: number, advice?: string): LebensmittelwarnungApiError {
     // The body is kept on the error (`body`) and may echo the request URL: scrub it. One too
     // large to be a string (maxResponseBytes lifted) is left out: the status is the error.
     let raw = "";
@@ -932,6 +958,6 @@ export class RequestEngine {
           ? `${cutText(snippet, 200)}…`
           : snippet
         : undefined;
-    return new LebensmittelwarnungApiError({ status, url, method: "GET", body: text, detail, retryAfterMs });
+    return new LebensmittelwarnungApiError({ status, url, method: "GET", body: text, detail, retryAfterMs, advice: retryAfterMs === undefined ? advice : undefined });
   }
 }

@@ -330,9 +330,12 @@ export class LebensmittelwarnungApiError extends LebensmittelwarnungError {
     body: string;
     detail?: string;
     retryAfterMs?: number;
+    /** What the status means and what to do ("the feed may have moved", "try again later"), last in the message. */
+    advice?: string | undefined;
   }) {
     const parts: string[] = [];
     if (args.detail) parts.push(args.detail);
+    if (args.advice) parts.push(args.advice);
     if (args.retryAfterMs !== undefined) {
       parts.push(
         `the server asks to retry after ${Math.ceil(args.retryAfterMs / 1000)} s, longer than ` +
