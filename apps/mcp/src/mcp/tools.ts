@@ -55,7 +55,7 @@ const output = (properties: Record<string, JsonSchema>): JsonSchema => ({
     status: { type: "string", enum: ["ok", "empty"], description: "ok: the answer; empty: nothing matched (see reason and searched), a valid answer." },
     source: { type: "string" },
     licence: { type: "string" },
-    truncated: { type: "boolean", description: "True when the answer holds only part of the list (size cap): continue at nextOffset." },
+    truncated: { type: "boolean", description: "True when the answer holds only part of the list (size cap): continue at nextOffset, where there is one; or a text cut at its end (it ends in \"…[cut, N characters in all]\")." },
     reason: { type: "string" },
     searched: { type: "object", description: "The filters as applied (a Land's name, the reason category a word was filed under, the terms searched)." },
     notes: { type: "array" },
