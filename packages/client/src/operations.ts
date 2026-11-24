@@ -663,13 +663,26 @@ function urlWords(link: string | undefined): string | undefined {
   }
 }
 
+/** Words shorter than this are matched only at a word's start or as a compound's last part. */
+const SHORT_WORD = 4;
+
 /** One word of a term as it is compared: the word as given, and its folded stem (or itself). */
 interface Needle {
   word: string;
   /** The stem (or the word), umlauts transliterated (searchForms). */
   form: string;
-  /** The same with diacritics dropped, compared with the text's plain form ("Erdnuss" finds "Erdnüsse"). */
-  plain: string;
+  /**
+   * True when the word has no umlaut: then it is also compared with the text's diacritics
+   * dropped ("Erdnuss" finds "Erdnüsse"). A word with one is compared only transliterated, as
+   * dropping its umlaut makes another word ("Öl" is not the "ol" of "Schokolade").
+   */
+  plainToo: boolean;
+  /**
+   * For a word under {@link SHORT_WORD} letters, where it may stand: at the start of a word
+   * ("Ei": "Eier") or at the end of one after at least 3 letters, a compound's last part
+   * ("Hühnerei", "Olivenöl"), never inside one ("Reis", "Schokolade", "Crumble").
+   */
+  short?: RegExp;
 }
 
 /**
@@ -680,7 +693,10 @@ function needlesOf(term: string): Needle[] {
   const words = term.normalize("NFC").split(/[^\p{L}\p{M}\p{N}]+/u).filter((word) => word !== "");
   return (words.length > 0 ? words : [term]).map((word) => {
     const forms = searchForms(stemOf(word) ?? word);
-    return { word, form: forms.transliterated, plain: forms.plain };
+    const form = forms.transliterated;
+    const escaped = form.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const short = [...form].length < SHORT_WORD ? new RegExp(`(?<![\\p{L}\\p{N}])${escaped}|(?<=[\\p{L}\\p{N}]{3})${escaped}(?![\\p{L}\\p{N}])`, "u") : undefined;
+    return { word, form, plainToo: forms.plain === form, ...(short === undefined ? {} : { short }) };
   });
 }
 
@@ -689,7 +705,10 @@ const hayOf = (texts: readonly (string | undefined)[]): ReturnType<typeof search
 
 /** True when one of the folded texts contains the word. */
 const hasWord = (hay: readonly ReturnType<typeof searchForms>[], needle: Needle): boolean =>
-  hay.some((h) => h.transliterated.includes(needle.form) || h.plain.includes(needle.plain));
+  hay.some((h) => {
+    const has = (text: string): boolean => (needle.short === undefined ? text.includes(needle.form) : needle.short.test(text));
+    return has(h.transliterated) || (needle.plainToo && has(h.plain));
+  });
 
 /** True when the texts hold every word of one of the terms, each anywhere, in any order. */
 const matchesAnyTerm = (hay: readonly ReturnType<typeof searchForms>[], terms: readonly Needle[][]): boolean => terms.some((words) => words.every((needle) => hasWord(hay, needle)));
@@ -725,6 +744,10 @@ export async function searchRecalls(client: LebensmittelwarnungClient, input: Se
   const byName = narrowed.filter((_, i) => matchesAnyTerm(names[i] ?? [], needles));
   const matches = byName.length > 0 ? byName : narrowed.filter((w) => matchesAnyTerm(hayOf([w.reason, w.manufacturer, ...Object.values(w.fields), urlWords(w.link)]), needles));
   const notes = [...resolved.notes, "A recall is batch-specific: match lotNumbers and bestBefore with the pack before saying an item is affected."];
+  const shortWords = [...new Set(needles.flat().filter((n) => n.short !== undefined).map((n) => n.word))];
+  if (shortWords.length > 0) {
+    notes.push(`A word under ${SHORT_WORD} letters (${shortWords.map((w) => quoteValue(w)).join(", ")}) matches only at the start or end of a word (Ei: Eier, Hühnerei; not Reis): also search its plural or a longer word (Eier, Speiseöl) in alsoSearch, and check each hit.`);
+  }
   if (matches.length === 0) {
     const reason = [`No listed recall matched ${terms.map((t) => quoteValue(t)).join(", ")} in the product names or any other field (reason, manufacturer, every field of the notice, the notice's URL).`];
     if (needles.some((words) => words.length > 1)) {

@@ -295,6 +295,36 @@ test("searchRecalls: when no recall has every word, the empty answer says how th
   assert.match(none.reason ?? "", /search one word/);
 });
 
+test("searchRecalls: a word under 4 letters matches only at the start or end of a word, and a word's umlaut is never dropped", async () => {
+  const shelf: MockNotice[] = [
+    "Speisekartoffeln",
+    "Basmati Reis",
+    "Proteinriegel",
+    "Speiseeis Vanille",
+    "Bio-Eier aus Freilandhaltung",
+    "Eiernudeln",
+    "Hühnerei, gekocht",
+    "Natives Olivenöl extra",
+    "Rapsöl",
+    "Vollmilch-Schokolade",
+    "Alkoholfreies Bier",
+    "Folgenahrung",
+    "Jack's Ice-Cream Choco Crumble",
+    "Rum Verschnitt",
+  ].map((title, i) => ({ title, folder: `2611${String(i).padStart(2, "0")}_01_BY_P${i}`, pubDate: "Wed, 18 Nov 2026 10:00:00 +0100", reason: "Fremdkörper" }));
+  const { client } = setup(shelf);
+  const ei = await searchRecalls(client, { product: "Ei", limit: 50 }, NOW);
+  assert.deepEqual(titles(ei.recalls).sort(), ["Bio-Eier aus Freilandhaltung", "Eiernudeln", "Hühnerei, gekocht"]);
+  assert.match(ei.notes.join(" "), /A word under 4 letters \("Ei"\) matches only at the start or end of a word.*plural/);
+  const oel = await searchRecalls(client, { product: "Öl", limit: 50 }, NOW);
+  assert.deepEqual(titles(oel.recalls).sort(), ["Natives Olivenöl extra", "Rapsöl"]);
+  const rum = await searchRecalls(client, { product: "Rum", limit: 50 }, NOW);
+  assert.deepEqual(titles(rum.recalls), ["Rum Verschnitt"]);
+  const eis = await searchRecalls(client, { product: "Eis", limit: 50 }, NOW);
+  assert.deepEqual(titles(eis.recalls), ["Speiseeis Vanille"]);
+  assert.doesNotMatch((await searchRecalls(client, { product: "Eiernudeln" }, NOW)).notes.join(" "), /under 4 letters/);
+});
+
 test("searchRecalls: nothing found says which terms were searched where, and how to widen", async () => {
   const { client } = setup();
   const none = await searchRecalls(client, { product: "Gummibärchen" }, NOW);
