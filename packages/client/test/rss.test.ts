@@ -230,6 +230,19 @@ test("parseDescription reads labels in <b> with attributes and in <strong>", () 
   });
 });
 
+test("parseDescription keeps only web images: a javascript:, data: or other scheme is dropped, with its credit", () => {
+  const html =
+    '<img src="javascript:alert(document.cookie)"/><br/><b>Bildquelle</b> © click<br/>' +
+    '<img src="data:image/svg+xml;base64,PHN2Zy8+"/><br/>' +
+    '<img src=" java\tscript:alert(1)"/><img src="vbscript:x"/><img src="file:///etc/passwd"/>' +
+    '<img src="https://x/a.jpg"/><br/><b>Bildquelle</b> © Hersteller<br/><img src="rel/b.jpg"/><img src="//cdn.test/c.jpg"/>';
+  const { images, imageUrls } = parseDescription(html);
+  assert.deepEqual(images, [{ url: "https://x/a.jpg", credit: "© Hersteller" }, { url: "rel/b.jpg" }, { url: "//cdn.test/c.jpg" }]);
+  assert.deepEqual(imageUrls, ["https://x/a.jpg", "rel/b.jpg", "//cdn.test/c.jpg"]);
+  const based = parseDescription(html, "https://www.lebensmittelwarnung.de/a.html").imageUrls;
+  assert.deepEqual(based, ["https://x/a.jpg", "https://www.lebensmittelwarnung.de/rel/b.jpg", "https://cdn.test/c.jpg"]);
+});
+
 test("parseDescription resolves a relative image URL against the given base", () => {
   const html = '<img src="rel/pic.jpg"/><img src="/abs.jpg"/><img src="https://cdn.test/x.jpg"/>';
   assert.deepEqual(parseDescription(html, "https://www.lebensmittelwarnung.de/Meldungen/2026/a.html").imageUrls, [

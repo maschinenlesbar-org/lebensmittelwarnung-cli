@@ -228,7 +228,7 @@ Every other header in `defaultHeaders` goes through unchanged.
 | `lotNumbers` | "Chargennummer / Los-Kennzeichnung" | |
 | `bestBefore` | "Haltbarkeit" | |
 | `packaging` | "Verpackungseinheit" | |
-| `imageUrls` | `<img src>` | Every image in the description, in order |
+| `imageUrls` | `<img src>` | Every image in the description, in order; http(s) or relative only (a `javascript:` or `data:` `src` is dropped) |
 | `images` | `<img src>` + "Bildquelle" | The same images as `{ url, credit? }`, each with the credit caption that follows it (`fields.Bildquelle` keeps only the last) |
 | `fields` | all `<b>Label:</b> value` pairs | The complete label→value map (superset); every label is an own entry, `__proto__` too |
 | `rawDescription` | `<description>` | The original HTML, verbatim |
@@ -275,7 +275,8 @@ Every other header in `defaultHeaders` goes through unchanged.
 
 [`parseDescription`](packages/client/src/rss.ts) then turns one item's HTML `<description>`
 into `{ fields, imageUrls, images }`, again in one linear scan: it collects every `<img src>`
-(a relative `src` resolved against the notice's `link`, or the feed URL) and lets each
+(a relative `src` resolved against the notice's `link`, or the feed URL; a `src` of another
+scheme than http(s), such as `javascript:` or `data:`, is dropped with its credit) and lets each
 bold label (`<b>` or `<strong>`, attributes allowed) own the text up to the next label,
 dropping residual tags and HTML comments. A value keeps its line breaks — the notice's
 own newlines (an address, one batch or product per line: 244 of 255 live items have

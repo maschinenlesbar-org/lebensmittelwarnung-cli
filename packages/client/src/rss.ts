@@ -397,7 +397,7 @@ function setField(fields: Record<string, string>, label: string, value: string):
 export interface ParsedDescription {
   /** Every `<b>Label:</b> value` pair, keyed by the (trailing-colon-stripped) label. */
   fields: Record<string, string>;
-  /** Every image URL from an `<img src=…>` in the description, in order. */
+  /** Every image URL from an `<img src=…>` in the description, in order: http(s) or relative only. */
   imageUrls: string[];
   /**
    * The same images, each with its own credit: the "Bildquelle" caption that follows
@@ -444,6 +444,19 @@ function resolveUrl(url: string, base: string | undefined): string {
     return new URL(url, base).href;
   } catch {
     return url;
+  }
+}
+
+/**
+ * True for an image URL a page can show: http(s), or relative (resolved against the page). A
+ * `javascript:`, `data:`, `file:` or other scheme is no product photo of the portal, and a client
+ * that renders the answer's images or links would run or open it.
+ */
+function isWebUrl(url: string): boolean {
+  try {
+    return ["http:", "https:"].includes(new URL(url, "https://relative.invalid/").protocol);
+  } catch {
+    return false;
   }
 }
 
@@ -547,7 +560,8 @@ function attribute(raw: string, wanted: string, tally: ReplacementTally): string
  * The description is a flat run of `<img …/>` tags and `<b>Label:</b> value`
  * pairs joined by `<br/>`. We:
  *   - collect every `<img src="…">` URL, resolved against `baseUrl` when given (a
- *     relative `src` is otherwise useless outside the portal's page);
+ *     relative `src` is otherwise useless outside the portal's page); one of another scheme
+ *     than http(s) (`javascript:`, `data:`) is dropped, and so is the credit that follows it;
  *   - let each bold label (`<b>` or `<strong>`, with or without attributes) own the
  *     text up to the next bold label, dropping the residual tags from that value. The
  *     value keeps its line breaks (the notice's own newlines, and a `<br>` or block tag
@@ -583,6 +597,7 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
   // `image`: for a credit caption, the index of the image it follows (the value is
   // only complete at the next label, after the next <img> may have been seen).
   let value: { label: string; parts: TextBuilder; image: number } | undefined;
+  let lastImage = -1; // the index of the last image seen, -1 when it was dropped (or none yet)
 
   const finishValue = (): void => {
     if (value === undefined) return;
@@ -618,9 +633,12 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
     if (token.name === "img" && !token.close) {
       const raw = attribute(token.attrs, "src", tally);
       const src = raw ? resolveUrl(raw, baseUrl) : raw;
-      if (src) {
+      if (src && isWebUrl(src)) {
         imageUrls.push(src);
         images.push({ url: src });
+        lastImage = images.length - 1;
+      } else if (src) {
+        lastImage = -1; // a dropped image's credit belongs to no image kept
       }
     }
     if (token.name === "b" || token.name === "strong") {
@@ -639,7 +657,7 @@ export function parseDescription(html: string, baseUrl?: string, tally: Replacem
         const name = label.toString().trim().replace(/:\s*$/, "");
         label = undefined;
         lineStart = false;
-        if (name !== "") value = { label: name, parts: new TextBuilder(), image: images.length - 1 };
+        if (name !== "") value = { label: name, parts: new TextBuilder(), image: lastImage };
         continue;
       }
       if (token.close && token.name === emphasis) {
