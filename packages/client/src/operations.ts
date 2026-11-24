@@ -613,6 +613,8 @@ export interface SearchRecallsInput extends RecallFilter {
   product: string;
   /** More words to search at once: a synonym in German and English, the brand (at most 8). */
   alsoSearch?: string[] | undefined;
+  /** Where the page starts (0-10000, default 0): the nextOffset of the page before. */
+  offset?: number | undefined;
   /** 1-100, default 10. */
   limit?: number | undefined;
 }
@@ -700,9 +702,10 @@ export async function searchRecalls(client: LebensmittelwarnungClient, input: Se
     return { status: "empty", searched, total: 0, recalls: [], reason, notes, citationNote: CITATION_NOTE };
   }
   const recalls = matches.map((w) => recallOf(w, day));
-  const { page, nextOffset } = pageOf(recalls, undefined, input.limit, 10);
+  const { page, nextOffset } = pageOf(recalls, input.offset, input.limit, 10);
+  const reason = page.length === 0 ? pastEndReason(input.offset ?? 0, recalls.length, input.limit ?? 10) : undefined;
   if (byName.length === 0) notes.unshift("No product name contains the terms: these matched another field (manufacturer, the notice's text or URL); check each before calling it a recall of the product.");
-  return { status: "ok", searched, matchedIn: byName.length > 0 ? "name" : "text", total: recalls.length, recalls: page, ...(nextOffset === undefined ? {} : { nextOffset }), notes, citationNote: CITATION_NOTE };
+  return { status: "ok", searched, matchedIn: byName.length > 0 ? "name" : "text", total: recalls.length, recalls: page, ...(nextOffset === undefined ? {} : { nextOffset }), ...(reason === undefined ? {} : { reason }), notes, citationNote: CITATION_NOTE };
 }
 
 /** What {@link countRecalls} groups by. */

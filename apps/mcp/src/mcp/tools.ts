@@ -109,7 +109,7 @@ export const TOOLS: readonly ToolDefinition[] = [
     title: "Is there a recall for this product?",
     description: [
       'Searches the recalls the portal lists for a product: the product names first, then every other field and the notice URL. Use it for "gibt es einen Rückruf für Erdnüsse?", "wird vor Käse gewarnt?", "Rückruf Leberwurst", "hat Marke X etwas zurückgerufen?", "is there a recall for peanuts?", "has this brand recalled anything?".',
-      "Give the German word stem (Erdnuss, not Erdnüsse; Käse for cheese): it is a substring match of one word form, though case and umlaut spelling don't matter, and a single word's stem is added. alsoSearch: synonyms in German and English and the brand, searched at once. matchedIn text: no product name matched, the terms are in another field; check each hit. Empty names every term searched: widen (stem, plural, synonym, brand) before answering that no listed recall matched. A recall is batch-specific: give lotNumbers, bestBefore and packaging; bestBeforePassed marks a product past its best-before. Without days or since it searches every notice still listed, back to 2018. " + CITE,
+      "Give the German word stem (Erdnuss, not Erdnüsse; Käse for cheese): it is a substring match of one word form, though case and umlaut spelling don't matter, and a single word's stem is added. alsoSearch: synonyms in German and English and the brand, searched at once. matchedIn text: no product name matched, the terms are in another field; check each hit. Empty names every term searched: widen (stem, plural, synonym, brand) before answering that no listed recall matched. Paged: offset from nextOffset. A recall is batch-specific: give lotNumbers, bestBefore and packaging; bestBeforePassed marks a product past its best-before. Without days or since it searches every notice still listed, back to 2018. " + CITE,
       RULES,
     ].join("\n\n"),
     inputSchema: input(
@@ -117,15 +117,17 @@ export const TOOLS: readonly ToolDefinition[] = [
         product: text(100, 'The product or a word of its name, best its German stem: "Erdnuss", "Käse", "Tahin".'),
         alsoSearch: { type: "array", maxItems: 8, items: text(60, "A synonym (German or English) or the brand."), description: 'More words searched at once: "peanut", "Erdnüsse", the brand.' },
         ...FILTERS,
+        offset: { type: "integer", minimum: 0, maximum: 10_000, description: "Where the page starts (default 0); nextOffset says where the next one does." },
         limit: { type: "integer", minimum: 1, maximum: 50, description: "How many recalls to list (1-50, default 10); total counts every match." },
       },
       ["product"],
     ),
     outputSchema: output({ matchedIn: { type: "string", enum: ["name", "text"] }, total: int, recalls: arr, nextOffset: int }),
     source: (args) => feedOf(args),
+    paged: (args) => ({ list: "recalls", offset: num(args, "offset") ?? 0 }),
     async run(args, context) {
       const alsoSearch = Array.isArray(args["alsoSearch"]) ? (args["alsoSearch"] as string[]) : undefined;
-      return { ...(await searchRecalls(context.client, { ...filterOf(args), product: str(args, "product") ?? "", alsoSearch, limit: num(args, "limit") })) };
+      return { ...(await searchRecalls(context.client, { ...filterOf(args), product: str(args, "product") ?? "", alsoSearch, offset: num(args, "offset"), limit: num(args, "limit") })) };
     },
   },
   {

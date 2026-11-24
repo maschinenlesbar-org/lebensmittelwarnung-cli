@@ -47,6 +47,23 @@ test("searchRecalls: nothing found is empty with every term searched and how to 
   await connection.close();
 });
 
+test("searchRecalls pages: offset takes the next page from nextOffset; after the size cap nextOffset is the first recall not shown", async () => {
+  const connection = await connect({ transport: portal() });
+  const first = (await connection.call("searchRecalls", { product: "Gramm", limit: 2 })).structuredContent ?? {};
+  assert.deepEqual([first["total"], (first["recalls"] as unknown[]).length, first["nextOffset"]], [4, 2, 2]);
+  const next = (await connection.call("searchRecalls", { product: "Gramm", limit: 2, offset: 2 })).structuredContent ?? {};
+  assert.deepEqual([(next["recalls"] as unknown[]).length, next["nextOffset"]], [2, undefined]);
+  assert.notDeepEqual(next["recalls"], first["recalls"]);
+  await connection.close();
+  const small = await connect({ transport: portal(), config: { maxResultChars: 4500 } });
+  const cut = (await small.call("searchRecalls", { product: "Gramm", limit: 4 })).structuredContent ?? {};
+  const shown = (cut["recalls"] as unknown[]).length;
+  assert.equal(cut["truncated"], true);
+  assert.ok(shown >= 1 && shown < 4, String(shown));
+  assert.equal(cut["nextOffset"], shown);
+  await small.close();
+});
+
 test("listRecalls: Salmonellen is filed under Krankheitserreger (said); a state is the distribution list; an unknown Land is a tool error", async () => {
   const connection = await connect({ transport: portal() });
   const content = (await connection.call("listRecalls", { reason: "Salmonellen", state: "Sachsen" })).structuredContent ?? {};
