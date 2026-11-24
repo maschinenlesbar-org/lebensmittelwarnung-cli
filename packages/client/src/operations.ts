@@ -537,7 +537,13 @@ export async function listRecalls(client: LebensmittelwarnungClient, input: List
     notes.push(`The portal still lists recalls back to ${recalls.at(-1)?.date ?? "years ago"}: these are not all current. For "aktuell" use days or since; bestBeforePassed marks products past their best-before.`);
   }
   if (recalls.length === 0) return { status: "empty", searched: resolved.searched, total: 0, recalls: [], reason: emptyReason(resolved), notes, citationNote: CITATION_NOTE };
-  return { status: "ok", searched: resolved.searched, total: recalls.length, recalls: page, ...(nextOffset === undefined ? {} : { nextOffset }), notes, citationNote: CITATION_NOTE };
+  const reason = page.length === 0 ? pastEndReason(input.offset ?? 0, recalls.length, input.limit ?? 20) : undefined;
+  return { status: "ok", searched: resolved.searched, total: recalls.length, recalls: page, ...(nextOffset === undefined ? {} : { nextOffset }), ...(reason === undefined ? {} : { reason }), notes, citationNote: CITATION_NOTE };
+}
+
+/** What a page at or past the end of a list of `total` says: there is nothing more, and where the last page starts. */
+function pastEndReason(offset: number, total: number, limit: number): string {
+  return `offset ${offset} is past the end: ${total} recalls match (offsets 0 to ${total - 1}). This page is empty because nothing comes after them, not because nothing matched; ask for offset ${Math.max(0, total - limit)} for the last ${Math.min(limit, total)}.`;
 }
 
 /** The input of {@link searchRecalls}. */

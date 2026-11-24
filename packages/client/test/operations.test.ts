@@ -167,6 +167,16 @@ test("listRecalls pages: limit and nextOffset over the total", async () => {
   assert.deepEqual([last.recalls.length, last.nextOffset], [1, undefined]);
 });
 
+test("listRecalls: a page at or past the end says so, with where the last page starts", async () => {
+  const { client } = setup();
+  for (const offset of [LIVE_NOTICES.length, 10_000]) {
+    const past = await listRecalls(client, { offset, limit: 4 }, NOW);
+    assert.deepEqual([past.status, past.total, past.recalls.length, past.nextOffset], ["ok", LIVE_NOTICES.length, 0, undefined]);
+    assert.match(past.reason ?? "", new RegExp(`offset ${offset} is past the end: ${LIVE_NOTICES.length} recalls match.*offset 5 for the last 4`));
+  }
+  assert.equal((await listRecalls(client, { offset: 8, limit: 4 }, NOW)).reason, undefined);
+});
+
 test("a bad filter is refused before any request", async () => {
   const { mock, client } = setup();
   await assert.rejects(listRecalls(client, { state: "Atlantis" }), LebensmittelwarnungValidationError);
