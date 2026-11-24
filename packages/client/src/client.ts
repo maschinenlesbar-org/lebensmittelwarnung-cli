@@ -136,9 +136,11 @@ export interface SearchForms {
  * too) collapsed to one space and trimmed, then folded twice — once with the German
  * umlauts transliterated (`ä` → `ae`, `ö` → `oe`, `ü` → `ue`) and once with every
  * diacritic dropped (`ä` → `a`, `é` → `e`); `ß` and `ẞ` become `ss` in both. A needle
- * matches when one of its forms is a substring of the same form of the product name,
- * so `kaese`, `KÄSE` and `käse` all find "Käse", `weisse` finds "weiße", `Erdnuss` finds
- * "Erdnüsse" and `muesli` "Müsli". The portal spells product names as their makers do,
+ * matches when its transliterated form is a substring of the product name's, or, for a
+ * needle without an umlaut, its plain form of the name's plain form: so `kaese`, `kase`,
+ * `KÄSE` and `käse` all find "Käse", `weisse` finds "weiße", `Erdnuss` finds "Erdnüsse"
+ * and `muesli` "Müsli". A needle's own umlaut is never dropped: `Öl` would be `ol` and
+ * find "Schokolade" and "Alkohol". The portal spells product names as their makers do,
  * and the CLI's own slugs teach the `ae`/`oe`/`ue` spelling (`thueringen`), so a literal
  * match answered "no recall" for five listed Käse recalls.
  */
@@ -154,7 +156,7 @@ export function searchForms(text: string): SearchForms {
 /** True when `text` contains the needle in one of its folded forms (see {@link searchForms}). */
 function matchesSearch(text: string, needles: SearchForms): boolean {
   const forms = searchForms(text);
-  return forms.transliterated.includes(needles.transliterated) || forms.plain.includes(needles.plain);
+  return forms.transliterated.includes(needles.transliterated) || (needles.plain === needles.transliterated && forms.plain.includes(needles.plain));
 }
 
 /**

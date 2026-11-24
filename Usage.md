@@ -136,7 +136,8 @@ lebensmittel warnings --type lebensmittel --since 2026-07-01 --search bio --limi
 `--search` compares the product name (`title` and `product`) with case, umlaut spelling
 (`ä`/`ae`/`a`), `ß`/`ss`, accents, Unicode normalisation (a decomposed `ä` pasted on
 macOS) and runs of whitespace folded away, so `kaese`, `weisse` and `Erdnuss` find
-"Käse", "weiße" and "Erdnüsse". It is still a substring match: another word form needs
+"Käse", "weiße" and "Erdnüsse". An umlaut you type is kept: `Öl` finds "Rapsöl" and
+"Ölsardinen", not the "ol" of "Schokolade". It is still a substring match: another word form needs
 a stem (`Tahin` finds "Tahina" and "Tahin", `Tahini` finds neither), and a term that is
 only in the reason, the manufacturer or another field is not searched (filter the JSON
 for those, see the recipes below). A term that is blank, or only invisible characters or

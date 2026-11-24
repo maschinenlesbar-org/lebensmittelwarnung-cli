@@ -267,6 +267,13 @@ test("search folds case, umlaut spelling, ß, accents and Unicode normalisation 
   assert.deepEqual(titles("Tahin"), ["Sesampaste (Tahina), 12x800 Gramm"]);
 });
 
+test("search keeps a needle's umlaut: Öl is not the ol of Schokolade or Alkohol", () => {
+  const list: Warning[] = [{ fields: {}, title: "Vollmilch-Schokolade" }, { fields: {}, title: "Rapsöl" }, { fields: {}, title: "Alkoholfreies Bier" }, { fields: {}, title: "Ölsardinen" }];
+  const titles = (q: string) => filterWarnings(list, { search: q }).map((w) => w.title);
+  assert.deepEqual(titles("Öl"), ["Rapsöl", "Ölsardinen"]);
+  assert.deepEqual(titles("oel"), ["Rapsöl", "Ölsardinen"]);
+});
+
 test("searchForms gives the transliterated and the plain form", async () => {
   const { searchForms } = await import("../src/client.js");
   assert.deepEqual(searchForms("  Weiße  KÄSE Ö "), { transliterated: "weisse kaese oe", plain: "weisse kase o" });
