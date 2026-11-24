@@ -70,6 +70,7 @@ test("resolveReason takes the most specific word, not the first category with a 
 test("resolveType takes the most specific word: food-contact material is a consumer good; a mapped word is said", async () => {
   assert.equal(resolveType("Lebensmittelkontaktmaterial"), "bedarfsgegenstaende");
   assert.equal(resolveType("Lebensmittel"), "lebensmittel");
+  for (const word of ["Textilien", "Schuhe", "Spielzeug", "Bekleidung", "Verpackung", "Geschirr"]) assert.equal(resolveType(word), "bedarfsgegenstaende", word);
   const { client } = setup();
   const answer = await listRecalls(client, { type: "Kinderschokolade" }, NOW);
   assert.equal(answer.searched.type, "Baby- und Kinderprodukte");

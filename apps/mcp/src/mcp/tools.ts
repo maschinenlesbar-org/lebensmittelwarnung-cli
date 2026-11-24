@@ -78,7 +78,7 @@ const text = (max: number, description: string): JsonSchema => ({ type: "string"
 /** The filters every list takes, ANDed. */
 const FILTERS: Record<string, JsonSchema> = {
   state: text(40, 'A Land where the product was sold: a name, code or English name ("Bayern", "NRW", "Bavaria"). Not who issued it (issuer).'),
-  type: text(40, "Product type: Lebensmittel (food), Kosmetische Mittel (Kosmetik), Bedarfsgegenstände (consumer goods: packaging, kitchenware, textiles, shoes), Mittel zum Tätowieren (tattoo inks), Baby- und Kinderprodukte."),
+  type: text(40, "Product type: Lebensmittel (food), Kosmetische Mittel (Kosmetik), Bedarfsgegenstände (consumer goods: packaging, kitchenware, textiles, shoes, toys), Mittel zum Tätowieren (tattoo inks), Baby- und Kinderprodukte."),
   reason: text(60, 'A reason category or a word filed under one: "Krankheitserreger" (or "Salmonellen", "Listerien"), "Allergene" (or "Erdnuss", "Milch"), "Fremdkörper" (or "Glas"), "Gesundheitsschädliche Substanz", "Rückstände und Kontaminanten", "Irreführung und Täuschung", "Sonstige Gründe".'),
   issuer: text(40, 'The Land that issued the notice (a code or name: "TH", "Thüringen"), or "BVL"; read from the notice\'s URL.'),
   since: { type: "string", pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", description: "Published or updated on this day (YYYY-MM-DD, German time) or later." },

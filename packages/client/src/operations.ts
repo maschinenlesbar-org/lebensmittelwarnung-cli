@@ -124,7 +124,12 @@ const TYPE_WORDS: [TypeSlug, string[]][] = [
   ["mittelzumtaetowieren", ["taetowier", "tatowier", "tattoo"]],
   ["babyundkinderprodukte", ["baby", "kinder", "kind", "child", "infant"]],
   ["kosmetischemittel", ["kosmet", "cosmetic"]],
-  ["bedarfsgegenstaende", ["bedarf", "consumergood", "foodcontact", "lebensmittelkontakt", "kontaktmaterial", "kitchen", "kueche"]],
+  // Bedarfsgegenstände in the sense of the LFGB (§ 2 (6)): food-contact material, packaging,
+  // kitchenware, textiles and shoes (Bekleidungsgegenstände), toys (Spielwaren).
+  [
+    "bedarfsgegenstaende",
+    ["bedarf", "consumergood", "foodcontact", "lebensmittelkontakt", "kontaktmaterial", "verpackung", "packaging", "kitchen", "kueche", "geschirr", "besteck", "textil", "kleidung", "clothing", "schuh", "shoe", "spielzeug", "spielware", "toy"],
+  ],
   ["lebensmittel", ["lebensmittel", "food", "nahrung", "getraenk", "drink"]],
 ];
 
