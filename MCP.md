@@ -68,7 +68,7 @@ For scripts and shared configs, pin a release and its digest from the
 | `searchRecalls` | Is there a recall for a product? The product names first, then every other field and the notice's URL; names the terms searched (a single word's stem added) when nothing matches. |
 | `listRecalls` | The listed recalls, newest first, by Land (where sold), issuing Land, product type, reason category (a pathogen or allergen word mapped to its category) and date, a page at a time. |
 | `countRecalls` | Counts per reason, product type, Land, issuer or year, with why the groups add up to more than the total. |
-| `getRecall` | One notice in full by its id: every field and the product images with their credits. |
+| `getRecall` | One notice in full by its id (compared without case, percent-encoding and slashes) or its URL: every field and the product images with their credits. An id no notice has is answered as such, not as withdrawn. |
 
 Each recall has its batch (`lotNumbers`), best-before (`bestBefore`, and whether its latest date
 has passed), the German day of its last update and the day the notice was issued (`updated`

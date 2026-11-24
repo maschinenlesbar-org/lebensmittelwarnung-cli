@@ -705,23 +705,40 @@ export type RecallLookup =
   | { status: "ok"; searched: { id: string }; recall: RecallDetail; citationNote: string }
   | { status: "empty"; searched: { id: string }; reason: string };
 
+/** An id as it is compared: percent-escapes decoded, slashes and spaces around dropped, folded to lower case. */
+function idKey(id: string): string {
+  let decoded = id;
+  try {
+    decoded = decodeURIComponent(id);
+  } catch {
+    // a malformed escape: compared as given
+  }
+  return decoded.replace(/^[\s/]+|[\s/]+$/g, "").normalize("NFC").toLowerCase();
+}
+
 /**
  * One notice in full, by its id (from the other answers) or its URL: every field (Kontakt …), the
- * images with their credits. A notice that is gone from the feed was withdrawn: whoever reused it
- * must delete it too (the portal's terms).
+ * images with their credits. The id is compared without case, percent-encoding and slashes around
+ * it. An id no notice in the feed has is answered as such: only a notice that was in the feed
+ * before and is gone was withdrawn, and whoever reused it must delete it too (the portal's terms).
  */
 export async function getRecall(client: LebensmittelwarnungClient, input: { id: string }, options?: OperationOptions): Promise<RecallLookup> {
   const given = normalizeText(assertValid("id", input.id, textProblem));
-  const id = /^https?:\/\//i.test(given) ? (noticeInfo(given).id ?? given) : given;
+  const asked = /^https?:\/\//i.test(given) ? (noticeInfo(given).id ?? given) : given;
+  const key = idKey(asked);
   const day = today(options);
-  const warning = (await client.warnings()).find((w) => noticeInfo(w.link).id === id);
+  const warning = (await client.warnings()).find((w) => {
+    const id = noticeInfo(w.link).id;
+    return id !== undefined && idKey(id) === key;
+  });
   if (warning === undefined) {
     return {
       status: "empty",
-      searched: { id },
-      reason: "No notice with this id is in the feed. Ids come from searchRecalls and listRecalls; a notice withdrawn by the portal is removed from the feed, and whoever reused it must delete it too.",
+      searched: { id: asked },
+      reason: "No notice in the feed has this id: check it against an id from searchRecalls or listRecalls (compared without case, percent-encoding and slashes). Only a notice that was in the feed before and is gone now was withdrawn by the portal; whoever reused that one must delete it too.",
     };
   }
+  const id = noticeInfo(warning.link).id ?? asked;
   const recall: RecallDetail = {
     ...recallOf(warning, day),
     fields: warning.fields,

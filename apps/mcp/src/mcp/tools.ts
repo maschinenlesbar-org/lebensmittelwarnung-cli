@@ -168,7 +168,7 @@ export const TOOLS: readonly ToolDefinition[] = [
     title: "One recall notice in full",
     description: [
       'One notice by its id (from searchRecalls or listRecalls) or its URL, with every field the notice has (Kontakt, Verpackungseinheit …) and the product images with their credits. Use it for "Details zu diesem Rückruf", "wen kann ich zu dem Rückruf kontaktieren?", "show me the full recall notice".',
-      "The images are copyright-protected (each credit names the holder): link them, don't republish them. Empty means the notice is no longer in the feed: a withdrawn notice is removed, and whoever reused it must delete it too. " + CITE,
+      "The images are copyright-protected (each credit names the holder): link them, don't republish them. Empty means no notice in the feed has this id (compared without case, percent-encoding and slashes): check the id. Only a notice that was in the feed before and is gone was withdrawn; whoever reused it must delete it too. " + CITE,
       RULES,
     ].join("\n\n"),
     inputSchema: input({ id: text(400, 'The id from another tool\'s answer ("261113_16_NI_Leberwurst_fein,_100_Gramm") or the notice\'s URL.') }, ["id"]),

@@ -246,6 +246,22 @@ test("countRecalls by issuer and by state: the URL's code, and every Land a noti
   assert.deepEqual(states.groups.find((g) => g.key === "Sachsen"), { key: "Sachsen", count: 9 });
 });
 
+test("getRecall finds an id in another spelling: percent-encoded, other case, with slashes or spaces around; an unknown id isn't called withdrawn", async () => {
+  const { client } = setup();
+  for (const id of ["261113_16_NI_Leberwurst_fein%2C_100_Gramm", "261113_16_ni_leberwurst_fein,_100_gramm", "/261113_16_NI_Leberwurst_fein,_100_Gramm/", " 261113_16_NI_Leberwurst_fein,_100_Gramm "]) {
+    const found = await getRecall(client, { id }, NOW);
+    assert.equal(found.status, "ok", id);
+    assert.equal(found.searched.id, "261113_16_NI_Leberwurst_fein,_100_Gramm", id);
+  }
+  const unknown = await getRecall(client, { id: "Leberwurst fein 100 Gramm" }, NOW);
+  assert.equal(unknown.status, "empty");
+  const reason = unknown.status === "empty" ? unknown.reason : "";
+  assert.match(reason, /No notice in the feed has this id.*check it/i);
+  assert.doesNotMatch(reason, /^[^.]*withdrawn/, "the first sentence doesn't call the id withdrawn");
+  assert.match(reason, /Only a notice .* before/);
+  assert.equal((await getRecall(client, { id: "%E0%A4%A" }, NOW)).status, "empty", "a malformed escape is just an unknown id");
+});
+
 test("getRecall by id or URL: every field and the images with their credits; a notice gone from the feed was withdrawn", async () => {
   const { client } = setup();
   const byId = await getRecall(client, { id: "261113_16_NI_Leberwurst_fein,_100_Gramm" }, NOW);
@@ -257,5 +273,5 @@ test("getRecall by id or URL: every field and the images with their credits; a n
   assert.equal(byUrl.status, "ok");
   const gone = await getRecall(client, { id: "250101_01_BY_Zurueckgezogen" }, NOW);
   assert.equal(gone.status, "empty");
-  assert.match(gone.status === "empty" ? gone.reason : "", /withdrawn.*delete it too/);
+  assert.match(gone.status === "empty" ? gone.reason : "", /withdrawn.*must delete it/);
 });
