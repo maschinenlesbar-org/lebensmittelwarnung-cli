@@ -181,14 +181,26 @@ export function resolveReason(text: string): ReasonMatch {
   throw new LebensmittelwarnungValidationError(`Invalid reason: ${quoteValue(value)} is no reason category. The feed files every notice under one of: ${REASON_CATEGORIES.join(", ")} (a pathogen such as Salmonellen is a Krankheitserreger, an undeclared allergen Allergene).`);
 }
 
-/** The issuer's code for a Land (as {@link resolveState} reads it), its code, or the BVL ("BVL", "Bund"). */
+/**
+ * The issuer's code for a Land (as {@link resolveState} reads it, also after "Bundesland" or
+ * "Freistaat"), its code, or the BVL ("BVL", "Bund", "Bundesamt …"). Anything else is a validation
+ * error that lists the issuers: a word that only starts with "Bund" ("Bundesländer") is no BVL.
+ */
 export function resolveIssuer(text: string): IssuerCode {
   const value = normalizeText(assertValid("issuer", text, textProblem));
   const upper = value.toUpperCase();
   if (upper in ISSUERS) return upper as IssuerCode;
-  if (keysOf(value).some((key) => ["bvl", "bund", "deutschland", "germany", "bundesamt"].some((word) => key.startsWith(word)))) return "BVL";
-  const name = STATE_NAMES[resolveState(value)];
-  return (Object.keys(ISSUERS) as IssuerCode[]).find((code) => ISSUERS[code] === name) ?? "BVL";
+  if (keysOf(value).some((key) => key === "bund" || key.startsWith("bundesamt"))) return "BVL";
+  const land = value.replace(/^(?:bundesland|land|freistaat)\s+/i, "");
+  try {
+    const name = STATE_NAMES[resolveState(land)];
+    const code = (Object.keys(ISSUERS) as IssuerCode[]).find((c) => ISSUERS[c] === name);
+    if (code !== undefined) return code;
+  } catch (err) {
+    if (!(err instanceof LebensmittelwarnungValidationError)) throw err;
+  }
+  const issuers = (Object.keys(ISSUERS) as IssuerCode[]).map((c) => `${c} ${ISSUERS[c]}`).join(", ");
+  throw new LebensmittelwarnungValidationError(`Invalid issuer: ${quoteValue(value)} is not a Land or the BVL. Give one of ${issuers} (a code or a name).`);
 }
 
 // ---- one recall ---------------------------------------------------------------------------

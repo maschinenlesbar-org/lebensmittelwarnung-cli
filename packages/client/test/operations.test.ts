@@ -63,6 +63,20 @@ test("resolveIssuer: a code, a Land or the BVL", () => {
   assert.equal(resolveIssuer("Bund"), "BVL");
 });
 
+test("resolveIssuer: a word that starts with Bund is no BVL, a Land after Bundesland or Freistaat is that Land, anything else names the issuers", () => {
+  assert.equal(resolveIssuer("Bundesland Bayern"), "BY");
+  assert.equal(resolveIssuer("Freistaat Sachsen"), "SN");
+  assert.equal(resolveIssuer("bvl"), "BVL");
+  assert.equal(resolveIssuer("Bundesamt für Verbraucherschutz und Lebensmittelsicherheit"), "BVL");
+  for (const word of ["Bundesländer", "Deutschland", "Bremerhaven"]) {
+    assert.throws(
+      () => resolveIssuer(word),
+      (err: Error) => err instanceof LebensmittelwarnungValidationError && /^Invalid issuer: .* is not a Land or the BVL\..*Thüringen.*BVL/.test(err.message) && !/state/.test(err.message),
+      word,
+    );
+  }
+});
+
 test("noticeInfo reads the id, the day issued and the issuer from the URL; the code may be only in the file name", () => {
   assert.deepEqual(noticeInfo("https://www.lebensmittelwarnung.de/___lebensmittelwarnung.de/Meldungen/2026/11_November/261113_16_NI_Leberwurst_fein,_100_Gramm/261113_16_NI_Leberwurst_fein,_100_Gramm.html"), {
     id: "261113_16_NI_Leberwurst_fein,_100_Gramm",
