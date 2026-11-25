@@ -165,8 +165,11 @@ so a consumer compiled with `exactOptionalPropertyTypes` can pass
 
 **Custom transports.** `timeoutMs` and `maxResponseBytes` hold for every transport, not
 only the built-in one: the engine races the call against its own deadline and passes an
-`AbortSignal` in `HttpRequest.signal` (hand it to `fetch(url, { signal })`), and it checks
-the size of the body it gets back. The default transport joins small chunks of a body as they
+`AbortSignal` in `HttpRequest.signal` (hand it to `fetch(url, { signal })`), aborted with
+its timeout error as the reason, and it checks the size of the body it gets back. The default
+transport stops with the signal's reason; for a signal some other caller aborted (the MCP
+server's tool call: its deadline, a cancellation) it says "Request aborted by its caller before
+it finished", never a deadline it didn't have. The default transport joins small chunks of a body as they
 arrive (at most 1024 of them or 64 KiB), so its memory follows the bytes, not the number of
 chunks a server sends. A transport may return its headers as a fetch `Headers`
 object, a `Map` or a record with names in any case (`Retry-After` is read from all of
